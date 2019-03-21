@@ -27,8 +27,8 @@ hash -r
 
 2. Go to the local repository on your computer (cd `.../replay_trajectory_classification`) and install the anaconda environment for the repository. Type into bash:
 ```bash
-conda update -n base conda
-conda env create -f environment.yml
-conda activate replay_trajectory_classification
+conda update -n base conda # make sure conda is up to date
+conda env create -f environment.yml # create a conda environment
+conda activate replay_trajectory_classification # activate conda environment
 python setup.py develop
 ```
