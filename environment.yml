@@ -1,0 +1,24 @@
+name: replay_trajectory_classification
+channels:
+- defaults
+- conda-forge
+- edeno
+dependencies:
+- "python>=3.6"
+- numpy
+- numba
+- scipy
+- statsmodels
+- scikit-learn
+- matplotlib
+- xarray
+- dask
+- regularized_glm
+- loren_frank_data_processing
+- patsy
+- jupyter
+- nb_conda
+- setuptools
+- pytest
+- pytest-cov
+- coveralls
