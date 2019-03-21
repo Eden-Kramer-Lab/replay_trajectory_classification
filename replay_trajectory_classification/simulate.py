@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import multivariate_normal
 
-from src.core import atleast_2d
+from .core import atleast_2d
 
 
 def simulate_poisson_spikes(rate, sampling_frequency):
