@@ -1,4 +1,5 @@
 # replay_trajectory_classification
+[![DOI](https://zenodo.org/badge/177004334.svg)](https://zenodo.org/badge/latestdoi/177004334)
 
 
 ### Installation
