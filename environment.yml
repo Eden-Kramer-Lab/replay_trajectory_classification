@@ -11,6 +11,8 @@ dependencies:
 - statsmodels
 - scikit-learn
 - matplotlib
+- seaborn
+- tqdm
 - xarray
 - dask
 - regularized_glm
@@ -23,3 +25,5 @@ dependencies:
 - pytest
 - pytest-cov
 - coveralls
+- pip:
+    - upsetplot
