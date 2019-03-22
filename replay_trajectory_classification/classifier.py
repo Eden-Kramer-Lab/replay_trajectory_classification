@@ -104,8 +104,8 @@ class _ClassifierBase(BaseEstimator):
              for transition_type in self.continuous_transition_types], axis=0)
 
     def fit_discrete_state_transition(self, discrete_transition_diag=None):
-        if discrete_transition_diag is None:
-            discrete_transition_diag = self.discrete_transition_diag
+        if discrete_transition_diag is not None:
+            self.discrete_transition_diag = discrete_transition_diag
 
         n_states = len(self.continuous_transition_types)
         transitions = {
