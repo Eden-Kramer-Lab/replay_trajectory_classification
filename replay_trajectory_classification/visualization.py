@@ -1,3 +1,4 @@
+import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -118,3 +119,69 @@ def maximum_a_posteriori_estimate(posterior_density):
         z=['x_position', 'y_position']))
     map_estimate = stacked_posterior.z[stacked_posterior.argmax('z')]
     return np.asarray(map_estimate.values.tolist())
+
+
+def plot_all_positions(position_info, ax=None):
+    if ax is None:
+        ax = plt.gca()
+    ax.plot(position_info.x_position.values, position_info.y_position.values,
+            color='lightgrey', alpha=0.5, label='all positions')
+
+
+def make_movie(position, posterior_density, position_info, map_position,
+               spikes, place_field_max, movie_name='video_name.mp4'):
+    # Set up formatting for the movie files
+    Writer = animation.writers['ffmpeg']
+    writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+
+    fig, ax = plt.subplots(1, 1, figsize=(7, 7))
+    plot_all_positions(position_info, ax=ax)
+
+    ax.set_xlim(position_info.x_position.min() - 1,
+                position_info.x_position.max() + 1)
+    ax.set_ylim(position_info.y_position.min() + 1,
+                position_info.y_position.max() + 1)
+    ax.set_xlabel('x-position')
+    ax.set_ylabel('y-position')
+
+    position_dot = plt.scatter([], [], s=80, zorder=102, color='b',
+                               label='actual position')
+    position_line, = plt.plot([], [], 'b-', linewidth=3)
+    map_dot = plt.scatter([], [], s=80, zorder=102, color='r',
+                          label='replay position')
+    map_line, = plt.plot([], [], 'r-', linewidth=3)
+    spikes_dot = plt.scatter([], [], s=40, zorder=104, color='k',
+                             label='spikes')
+    vmax = np.percentile(posterior_density.values, 99)
+    ax.legend()
+    posterior_density.isel(time=0).plot(
+        x='x_position', y='y_position', vmin=0.0, vmax=vmax,
+        ax=ax)
+    n_frames = posterior_density.shape[0]
+
+    def _update_plot(time_ind):
+        start_ind = max(0, time_ind - 5)
+        time_slice = slice(start_ind, time_ind)
+
+        position_dot.set_offsets(position[time_ind])
+        position_line.set_data(position[time_slice, 0],
+                               position[time_slice, 1])
+
+        map_dot.set_offsets(map_position[time_ind])
+        map_line.set_data(map_position[time_slice, 0],
+                          map_position[time_slice, 1])
+
+        spikes_dot.set_offsets(place_field_max[spikes[time_ind] > 0])
+
+        im = posterior_density.isel(time=time_ind).plot(
+            x='x_position', y='y_position', vmin=0.0, vmax=vmax,
+            ax=ax, add_colorbar=False)
+
+        return position_dot, im
+
+    movie = animation.FuncAnimation(fig, _update_plot, frames=n_frames,
+                                    interval=50, blit=True)
+    if movie_name is not None:
+        movie.save(movie_name, writer=writer)
+
+    return fig, movie
