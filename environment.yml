@@ -15,6 +15,7 @@ dependencies:
 - dask
 - regularized_glm
 - loren_frank_data_processing
+- ripple_detection
 - patsy
 - jupyter
 - nb_conda
