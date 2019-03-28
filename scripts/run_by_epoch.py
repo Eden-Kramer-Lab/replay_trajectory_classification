@@ -10,10 +10,11 @@ import xarray as xr
 from loren_frank_data_processing import reshape_to_segments, save_xarray
 from replay_trajectory_classification import SortedSpikesClassifier
 from replay_trajectory_classification.analysis import (
-    get_linear_position_order, get_replay_info)
+    get_linear_position_order, get_place_field_max, get_replay_info)
 from replay_trajectory_classification.load_example_data import (
     FIGURE_DIR, PROCESSED_DATA_DIR, SAMPLING_FREQUENCY, load_data)
-from replay_trajectory_classification.visualization import plot_ripple_decode
+from replay_trajectory_classification.visualization import (
+    plot_neuron_place_field_2D_1D_position, plot_ripple_decode)
 
 FORMAT = '%(asctime)s %(message)s'
 
@@ -91,8 +92,17 @@ def run_analysis(epoch_key, make_movies=False):
     replay_info.to_csv(replay_info_filename)
 
     logging.info('Plotting ripple figures...')
-    linear_position_order, _ = get_linear_position_order(
-        data['position_info'], classifier)
+    place_field_max = get_place_field_max(classifier)
+    linear_position_order, linear_place_field_max = get_linear_position_order(
+        data['position_info'], place_field_max)
+    plot_neuron_place_field_2D_1D_position(
+            data['position_info'], place_field_max, linear_place_field_max,
+            linear_position_order)
+    fig_name = (f'{animal}_{day:02d}_{epoch:02d}_place_field_max.png')
+    fig_name = os.path.join(FIGURE_DIR, 'neuron_place_fields', fig_name)
+    plt.savefig(fig_name, bbox_inches='tight')
+    plt.close(plt.gcf())
+
     for ripple_number in ripple_times.index:
         plot_ripple_decode(ripple_number, results, ripple_position,
                            ripple_spikes, position, linear_position_order)

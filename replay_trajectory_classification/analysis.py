@@ -55,11 +55,11 @@ def get_place_field_max(classifier):
         classifier.place_fields_.position[max_ind].values.tolist())
 
 
-def get_linear_position_order(position_info, classifier):
+def get_linear_position_order(position_info, place_field_max):
     position = position_info.loc[:, ['x_position', 'y_position']]
     linear_place_field_max = []
 
-    for place_max in get_place_field_max(classifier):
+    for place_max in place_field_max:
         min_ind = np.sqrt(
             np.sum(np.abs(place_max - position) ** 2, axis=1)).argmin()
         linear_place_field_max.append(

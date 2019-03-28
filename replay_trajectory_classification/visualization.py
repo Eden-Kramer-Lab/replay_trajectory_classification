@@ -152,3 +152,34 @@ def plot_ripple_decode(ripple_number, results, ripple_position,
         ax=axes[1], add_colorbar=False, zorder=0)
 
     axes[1].legend()
+
+
+def plot_neuron_place_field_2D_1D_position(
+        position_info, place_field_max, linear_place_field_max,
+        linear_position_order):
+    position = np.asarray(position_info.loc[:, ['x_position', 'y_position']])
+    fig, axes = plt.subplots(1, 2, figsize=(16, 8), constrained_layout=True)
+    axes[0].plot(position[:, 0], position[:, 1], color='lightgrey', alpha=0.4)
+    axes[0].set_ylabel('y-position')
+    axes[0].set_xlabel('x-position')
+    zipped = zip(linear_place_field_max[linear_position_order],
+                 place_field_max[linear_position_order])
+    for ind, (linear, place_max) in enumerate(zipped):
+        axes[0].scatter(place_max[0], place_max[1], s=300, alpha=0.3)
+        axes[0].text(place_max[0], place_max[1], linear_position_order[ind],
+                     fontsize=15, horizontalalignment='center',
+                     verticalalignment='center')
+        axes[1].scatter(ind, linear, s=200, alpha=0.3)
+        axes[1].text(ind, linear, linear_position_order[ind], fontsize=15,
+                     horizontalalignment='center', verticalalignment='center')
+    max_df = (position_info.groupby('arm_name').linear_position2.max()
+              .iteritems())
+    for arm_name, max_position in max_df:
+        axes[1].axhline(max_position, color='lightgrey', zorder=0,
+                        linestyle='--')
+        axes[1].text(0, max_position - 0.2, arm_name, color='lightgrey',
+                     horizontalalignment='left', verticalalignment='top',
+                     fontsize=12)
+    axes[1].set_ylim((-3.0, position_info.linear_position2.max() + 3.0))
+    axes[1].set_ylabel('linear position')
+    axes[1].set_xlabel('Neuron ID')
