@@ -90,7 +90,7 @@ def plot_2D_position_with_color_time(time, position, ax=None, cmap='plasma',
     if alpha is not None:
         colors[:, -1] = alpha
     lc = LineCollection(segments, colors=colors, zorder=100)
-    lc.set_linewidth(3)
+    lc.set_linewidth(4)
     line = ax.add_collection(lc)
 
     # Set the values used for colormapping
