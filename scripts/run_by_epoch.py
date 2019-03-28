@@ -106,8 +106,11 @@ def run_analysis(epoch_key, make_movies=False):
     for ripple_number in ripple_times.index:
         plot_ripple_decode(ripple_number, results, ripple_position,
                            ripple_spikes, position, linear_position_order)
+        plt.suptitle(
+            f'ripple number = {animal}_{day:02d}_{epoch:02d}_'
+            f'{ripple_number:04d}')
         fig_name = (f'{animal}_{day:02d}_{epoch:02d}_{ripple_number:04d}_'
-                    'sorted_spikes_acasual_decode.png')
+                    'sorted_spikes_acasual_classification.png')
         fig_name = os.path.join(FIGURE_DIR, 'sorted_spikes_ripples', fig_name)
         plt.savefig(fig_name, bbox_inches='tight')
         plt.close(plt.gcf())
