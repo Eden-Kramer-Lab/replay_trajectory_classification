@@ -51,24 +51,6 @@ def plot_2D_position_with_color_time(time, position, ax=None, cmap='plasma',
     return line, ax
 
 
-def maximum_a_posteriori_estimate(posterior_density):
-    '''
-
-    Parameters
-    ----------
-    posterior_density : xarray.DataArray, shape (n_time, n_x_bins, n_y_bins)
-
-    Returns
-    -------
-    map_estimate : ndarray, shape (n_time,)
-
-    '''
-    stacked_posterior = np.log(posterior_density.stack(
-        z=['x_position', 'y_position']))
-    map_estimate = stacked_posterior.z[stacked_posterior.argmax('z')]
-    return np.asarray(map_estimate.values.tolist())
-
-
 def plot_all_positions(position_info, ax=None):
     if ax is None:
         ax = plt.gca()
