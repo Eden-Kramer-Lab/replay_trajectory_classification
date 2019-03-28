@@ -27,13 +27,13 @@ _DEFAULT_TRANSITIONS = ['random_walk_with_absorbing_boundaries', 'uniform',
 
 
 class _DecoderBase(BaseEstimator):
-    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_std=0.05,
+    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
                  position_range=None,
                  transition_type='random_walk_with_absorbing_boundaries',
                  initial_conditions_type='uniform_on_track'):
         self.place_bin_size = place_bin_size
         self.replay_speed = replay_speed
-        self.movement_std = movement_std
+        self.movement_var = movement_var
         self.position_range = position_range
         self.transition_type = transition_type
         self.initial_conditions_type = initial_conditions_type
@@ -76,11 +76,11 @@ class _DecoderBase(BaseEstimator):
                 empirical_movement, position, self.edges_, is_training,
                 self.replay_speed),
             'random_walk': partial(
-                random_walk, self.place_bin_centers_, self.movement_std,
+                random_walk, self.place_bin_centers_, self.movement_var,
                 self.replay_speed),
             'random_walk_with_absorbing_boundaries': partial(
                 random_walk_with_absorbing_boundaries,
-                self.place_bin_centers_, self.movement_std,
+                self.place_bin_centers_, self.movement_var,
                 self.is_track_interior_, self.replay_speed),
             'uniform': partial(
                 uniform_state_transition, self.place_bin_centers_,
@@ -106,7 +106,7 @@ class _DecoderBase(BaseEstimator):
 
 
 class SortedSpikesDecoder(_DecoderBase):
-    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_std=0.05,
+    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
                  position_range=None, knot_spacing=10,
                  spike_model_penalty=1E1,
                  transition_type='random_walk_with_absorbing_boundaries',
@@ -118,9 +118,10 @@ class SortedSpikesDecoder(_DecoderBase):
         place_bin_size : float, optional
             Approximate size of the position bins.
         replay_speed : int, optional
-            How much faster than normal movement is the state transition.
-        movement_std : float, optional
-            Standard deviation of the random walk state transition.
+            How many times faster the replay movement is than normal movement.
+        movement_var : float, optional
+            How far the animal is can move in one time bin during normal
+            movement.
         position_range : sequence, optional
             A sequence of `n_position_dims`, each an optional (lower, upper)
             tuple giving the outer bin edges for position.
@@ -136,7 +137,7 @@ class SortedSpikesDecoder(_DecoderBase):
         initial_conditions_type : ('uniform' | 'uniform_on_track')
 
         '''
-        super().__init__(place_bin_size, replay_speed, movement_std,
+        super().__init__(place_bin_size, replay_speed, movement_var,
                          position_range, transition_type,
                          initial_conditions_type)
         self.knot_spacing = knot_spacing
@@ -238,9 +239,10 @@ class ClusterlessDecoder(_DecoderBase):
     place_bin_size : float, optional
         Approximate size of the position bins.
     replay_speed : int, optional
-        How much faster than normal movement is the state transition.
-    movement_std : float, optional
-        Standard deviation of the random walk state transition.
+        How many times faster the replay movement is than normal movement.
+    movement_var : float, optional
+        How far the animal is can move in one time bin during normal
+        movement.
     position_range : sequence, optional
         A sequence of `n_position_dims`, each an optional (lower, upper)
         tuple giving the outer bin edges for position.
@@ -259,13 +261,13 @@ class ClusterlessDecoder(_DecoderBase):
 
     '''
 
-    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_std=0.05,
+    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
                  position_range=None, model=WhitenedKDE,
                  model_kwargs=_DEFAULT_MULTIUNIT_MODEL_KWARGS,
                  occupancy_model=None, occupancy_kwargs=None,
                  transition_type='random_walk_with_absorbing_boundaries',
                  initial_conditions_type='uniform_on_track'):
-        super().__init__(place_bin_size, replay_speed, movement_std,
+        super().__init__(place_bin_size, replay_speed, movement_var,
                          position_range, transition_type,
                          initial_conditions_type)
         self.model = model
