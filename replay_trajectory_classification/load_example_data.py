@@ -7,7 +7,8 @@ from loren_frank_data_processing import (Animal, get_all_multiunit_indicators,
                                          get_all_spike_indicators,
                                          get_interpolated_position_dataframe,
                                          get_LFPs, make_neuron_dataframe,
-                                         make_tetrode_dataframe)
+                                         make_tetrode_dataframe,
+                                         get_trial_time)
 
 from ripple_detection import (Kay_ripple_detector, filter_ripple_band,
                               get_multiunit_population_firing_rate)
@@ -15,7 +16,7 @@ from ripple_detection import (Kay_ripple_detector, filter_ripple_band,
 logger = getLogger(__name__)
 
 # LFP sampling frequency
-SAMPLING_FREQUENCY = 1500
+SAMPLING_FREQUENCY = 1000
 
 # Data directories and definitions
 ROOT_DIR = join(abspath(dirname(__file__)), pardir)
@@ -37,8 +38,16 @@ def load_data(epoch_key, brain_areas=None, speed_metric='linear_speed'):
         brain_areas = _BRAIN_AREAS
 
     logger.info('Loading Data...')
+    time = get_trial_time(epoch_key, ANIMALS)
+    time = (pd.Series(np.ones_like(time, dtype=np.float), index=time)
+            .resample('1ms').mean()
+            .index)
+
+    def _time_function(*args, **kwargs):
+        return time
+
     position_info = (
-        get_interpolated_position_dataframe(epoch_key, ANIMALS)
+        get_interpolated_position_dataframe(epoch_key, ANIMALS, _time_function)
         .dropna(subset=['linear_distance', 'linear_speed']))
 
     speed = position_info[speed_metric]
@@ -50,19 +59,20 @@ def load_data(epoch_key, brain_areas=None, speed_metric='linear_speed'):
     tetrode_keys = tetrode_info.loc[
         (tetrode_info.validripple == 1) & is_brain_areas].index
     lfps = get_LFPs(tetrode_keys, ANIMALS)
-    lfps = lfps.reindex(time)
+    lfps = lfps.resample('1ms').mean().fillna(method='pad').reindex(time)
 
     neuron_info = make_neuron_dataframe(ANIMALS).xs(
         epoch_key, drop_level=False)
     neuron_info = neuron_info.loc[
         (neuron_info.numspikes > 0) &
         neuron_info.area.isin(brain_areas)]
-    spikes = (get_all_spike_indicators(neuron_info.index, ANIMALS)
-              .reindex(time))
+    spikes = get_all_spike_indicators(
+        neuron_info.index, ANIMALS, _time_function).reindex(time)
 
     tetrode_info = tetrode_info.loc[
         (tetrode_info.numcells > 0) & is_brain_areas]
-    multiunit = (get_all_multiunit_indicators(tetrode_info.index, ANIMALS)
+    multiunit = (get_all_multiunit_indicators(
+        tetrode_info.index, ANIMALS, _time_function)
                  .sel(features=_MARKS)
                  .reindex({'time': time}))
     multiunit_spikes = (np.any(~np.isnan(multiunit), axis=1)
@@ -95,4 +105,5 @@ def load_data(epoch_key, brain_areas=None, speed_metric='linear_speed'):
         'tetrode_info': tetrode_info,
         'ripple_band_lfps': ripple_band_lfps,
         'multiunit_firing_rate': multiunit_firing_rate,
+        'sampling_frequency': SAMPLING_FREQUENCY,
     }
