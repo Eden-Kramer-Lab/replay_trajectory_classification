@@ -30,7 +30,7 @@ _DISCRETE_DIAG = 1 - 1E-3
 
 
 class _ClassifierBase(BaseEstimator):
-    def __init__(self, place_bin_size=2.5, replay_speed=20, movement_std=1.0,
+    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_std=0.05,
                  position_range=None,
                  continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
                  discrete_transition_type='strong_diagonal',
@@ -170,7 +170,7 @@ class SortedSpikesClassifier(_ClassifierBase):
 
     '''
 
-    def __init__(self, place_bin_size=2.5, replay_speed=20, movement_std=1.0,
+    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_std=0.05,
                  position_range=None,
                  continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
                  discrete_transition_type='strong_diagonal',
@@ -312,7 +312,7 @@ class ClusterlessClassifier(_ClassifierBase):
 
     '''
 
-    def __init__(self, place_bin_size=2.5, replay_speed=20, movement_std=1.0,
+    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_std=0.05,
                  position_range=None,
                  continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
                  discrete_transition_type='strong_diagonal',

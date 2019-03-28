@@ -27,7 +27,7 @@ _DEFAULT_TRANSITIONS = ['random_walk_with_absorbing_boundaries', 'uniform',
 
 
 class _DecoderBase(BaseEstimator):
-    def __init__(self, place_bin_size=2.5, replay_speed=20, movement_std=1.0,
+    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_std=0.05,
                  position_range=None,
                  transition_type='random_walk_with_absorbing_boundaries',
                  initial_conditions_type='uniform_on_track'):
@@ -106,7 +106,7 @@ class _DecoderBase(BaseEstimator):
 
 
 class SortedSpikesDecoder(_DecoderBase):
-    def __init__(self, place_bin_size=2.5, replay_speed=20, movement_std=1.0,
+    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_std=0.05,
                  position_range=None, knot_spacing=10,
                  spike_model_penalty=1E1,
                  transition_type='random_walk_with_absorbing_boundaries',
@@ -259,7 +259,7 @@ class ClusterlessDecoder(_DecoderBase):
 
     '''
 
-    def __init__(self, place_bin_size=2.5, replay_speed=20, movement_std=1.0,
+    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_std=0.05,
                  position_range=None, model=WhitenedKDE,
                  model_kwargs=_DEFAULT_MULTIUNIT_MODEL_KWARGS,
                  occupancy_model=None, occupancy_kwargs=None,
