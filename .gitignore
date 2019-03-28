@@ -52,3 +52,6 @@ coverage.xml
 *.cover
 .hypothesis/
 .DS_Store
+*.mp4
+*.gif
+*.csv
