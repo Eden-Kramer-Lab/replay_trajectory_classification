@@ -1,3 +1,4 @@
+from copy import deepcopy
 from functools import partial
 from logging import getLogger
 
@@ -138,6 +139,9 @@ class _ClassifierBase(BaseEstimator):
     def predict_proba(results):
         return (results[['causal_posterior', 'acausal_posterior']]
                 .sum(['x_position', 'y_position']))
+
+    def copy(self):
+        return deepcopy(self)
 
 
 class SortedSpikesClassifier(_ClassifierBase):

@@ -1,3 +1,4 @@
+from copy import deepcopy
 from functools import partial
 from logging import getLogger
 
@@ -103,6 +104,9 @@ class _DecoderBase(BaseEstimator):
     @staticmethod
     def load_model(filename='model.pkl'):
         return joblib.load(filename)
+
+    def copy(self):
+        return deepcopy(self)
 
 
 class SortedSpikesDecoder(_DecoderBase):
