@@ -115,3 +115,40 @@ def make_movie(position, posterior_density, position_info, map_position,
         movie.save(movie_name, writer=writer)
 
     return fig, movie
+
+
+def plot_ripple_decode(ripple_number, results, ripple_position,
+                       ripple_spikes, position, linear_position_order):
+    result = results.sel(ripple_number=ripple_number).assign_coords(
+        time=lambda ds: ds.time / np.timedelta64(1, 's'),
+    )
+    time = result.time.values
+    map_estimate = maximum_a_posteriori_estimate(
+        result.acausal_posterior.sum('state'))
+    spike_time_ind, neuron_ind = np.nonzero(
+        ripple_spikes.loc[ripple_number].values[:, linear_position_order])
+    n_neurons = ripple_spikes.shape[1]
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6), constrained_layout=True)
+
+    SortedSpikesClassifier.predict_proba(result).acausal_posterior.plot(
+        hue='state', ax=axes[0], linewidth=3)
+    axes[0].set_ylim((0, 1))
+
+    twin_ax = axes[0].twinx()
+    twin_ax.scatter(time[spike_time_ind], neuron_ind, color='black', zorder=1)
+    twin_ax.set_ylim((-0.5, n_neurons - 0.5))
+    twin_ax.set_ylabel('Neuron ID')
+
+    axes[1].plot(position.values[:, 0], position.values[:, 1],
+                 color='lightgrey', alpha=0.4, zorder=0)
+    plot_2D_position_with_color_time(
+        time, map_estimate, ax=axes[1])
+    axes[1].scatter(ripple_position.loc[ripple_number].values[:, 0],
+                    ripple_position.loc[ripple_number].values[:, 1],
+                    color='black', s=100, label='actual position')
+    result.sum(['state', 'time']).acausal_posterior.plot(
+        x='x_position', y='y_position', robust=True, cmap='Purples', alpha=0.3,
+        ax=axes[1], add_colorbar=False, zorder=0)
+
+    axes[1].legend()
