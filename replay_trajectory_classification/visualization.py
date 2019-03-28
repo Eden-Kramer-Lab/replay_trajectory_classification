@@ -131,14 +131,23 @@ def plot_ripple_decode(ripple_number, results, ripple_position,
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 6), constrained_layout=True)
 
-    SortedSpikesClassifier.predict_proba(result).acausal_posterior.plot(
-        hue='state', ax=axes[0], linewidth=3)
+    g = SortedSpikesClassifier.predict_proba(result).acausal_posterior.plot(
+        hue='state', ax=axes[0], linewidth=2)
     axes[0].set_ylim((0, 1))
 
     twin_ax = axes[0].twinx()
-    twin_ax.scatter(time[spike_time_ind], neuron_ind, color='black', zorder=1)
+    twin_ax.scatter(time[spike_time_ind], neuron_ind, color='black', zorder=1,
+                    marker='|', s=80, linewidth=3)
     twin_ax.set_ylim((-0.5, n_neurons - 0.5))
     twin_ax.set_ylabel('Neuron ID')
+
+    box = axes[0].get_position()
+    axes[0].set_position([box.x0, box.y0 + box.height * 0.1,
+                          box.width, box.height * 0.9])
+
+    axes[0].legend(g, result.state.values, loc='upper right',
+                   bbox_to_anchor=(1.0, -0.05), fancybox=False, shadow=False,
+                   ncol=1, frameon=False)
 
     axes[1].plot(position.values[:, 0], position.values[:, 1],
                  color='lightgrey', alpha=0.4, zorder=0)
