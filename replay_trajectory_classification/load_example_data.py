@@ -68,8 +68,7 @@ def load_data(epoch_key, brain_areas=None, speed_metric='linear_speed'):
     spikes = get_all_spike_indicators(
         neuron_info.index, ANIMALS, _time_function).reindex(time)
 
-    tetrode_info = tetrode_info.loc[
-        (tetrode_info.numcells > 0) & is_brain_areas]
+    tetrode_info = tetrode_info.loc[is_brain_areas]
     multiunit = (get_all_multiunit_indicators(
         tetrode_info.index, ANIMALS, _time_function)
                  .sel(features=_MARKS)
