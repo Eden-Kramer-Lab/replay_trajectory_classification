@@ -7,19 +7,14 @@ channels:
 dependencies:
 - "python >= 3.6"
 - numpy
-- "pandas >= 0.21.0"
-- numba
 - scipy
+- pandas
+- numba
 - statsmodels
 - scikit-learn
-- matplotlib
-- seaborn
-- tqdm
 - xarray
 - dask
 - regularized_glm
-- loren_frank_data_processing
-- ripple_detection
 - patsy
 - jupyter
 - nb_conda
