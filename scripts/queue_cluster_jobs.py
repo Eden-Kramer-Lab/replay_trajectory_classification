@@ -8,7 +8,7 @@ from sys import exit
 
 from loren_frank_data_processing import (make_epochs_dataframe,
                                          make_neuron_dataframe)
-from replay_trajectory_classification.load_data import ANIMALS
+from replay_trajectory_classification.load_example_data import ANIMALS
 
 
 def get_command_line_arguments():
