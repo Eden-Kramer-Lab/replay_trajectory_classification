@@ -6,8 +6,8 @@ channels:
 - anaconda
 dependencies:
 - "python >= 3.6"
-- "numpy >= 1.15"
-- "pandas >= 0.22.0"
+- numpy
+- "pandas >= 0.21.0"
 - numba
 - scipy
 - statsmodels
@@ -27,5 +27,3 @@ dependencies:
 - pytest
 - pytest-cov
 - coveralls
-- pip:
-    - upsetplot
