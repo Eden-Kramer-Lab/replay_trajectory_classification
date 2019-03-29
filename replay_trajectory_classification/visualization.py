@@ -1,8 +1,11 @@
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 from matplotlib.collections import LineCollection
 from matplotlib.colorbar import ColorbarBase, make_axes
+
+from upsetplot import UpSet
 
 from .analysis import maximum_a_posteriori_estimate
 from .classifier import SortedSpikesClassifier
@@ -192,3 +195,19 @@ def plot_neuron_place_field_2D_1D_position(
     axes[1].set_ylim((-3.0, position_info.linear_position2.max() + 3.0))
     axes[1].set_ylabel('linear position')
     axes[1].set_xlabel('Neuron ID')
+
+
+def plot_category_counts(replay_info):
+    upset = UpSet(replay_info.set_index(['hover', 'continuous', 'fragmented']),
+                  sum_over=False, intersection_plot_elements=3)
+    return upset.plot()
+
+
+def plot_category_duration(replay_info):
+    is_duration_col = replay_info.columns.str.endswith('_duration')
+    sns.stripplot(data=(replay_info.loc[:, is_duration_col]
+                        .rename(columns=lambda c: c.split('_')[0])),
+                  order=['continuous', 'fragmented', 'hover'],
+                  orient='horizontal')
+    plt.xlabel('Duration (s)')
+    sns.despine(left=True)

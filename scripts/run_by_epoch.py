@@ -14,6 +14,7 @@ from replay_trajectory_classification.analysis import (
 from replay_trajectory_classification.load_example_data import (
     FIGURE_DIR, PROCESSED_DATA_DIR, SAMPLING_FREQUENCY, load_data)
 from replay_trajectory_classification.visualization import (
+    plot_category_counts, plot_category_duration,
     plot_neuron_place_field_2D_1D_position, plot_ripple_decode)
 
 FORMAT = '%(asctime)s %(message)s'
@@ -100,6 +101,20 @@ def run_analysis(epoch_key, make_movies=False):
             linear_position_order)
     fig_name = (f'{animal}_{day:02d}_{epoch:02d}_place_field_max.png')
     fig_name = os.path.join(FIGURE_DIR, 'neuron_place_fields', fig_name)
+    plt.savefig(fig_name, bbox_inches='tight')
+    plt.close(plt.gcf())
+
+    plot_category_counts(replay_info)
+    plt.suptitle(f'Category counts - {animal}_{day:02d}_{epoch:02d}')
+    fig_name = (f'{animal}_{day:02d}_{epoch:02d}_category_counts.png')
+    fig_name = os.path.join(FIGURE_DIR, fig_name)
+    plt.savefig(fig_name, bbox_inches='tight')
+    plt.close(plt.gcf())
+
+    plot_category_duration(replay_info)
+    plt.suptitle(f'Category duration - {animal}_{day:02d}_{epoch:02d}')
+    fig_name = (f'{animal}_{day:02d}_{epoch:02d}_category_duration.png')
+    fig_name = os.path.join(FIGURE_DIR, fig_name)
     plt.savefig(fig_name, bbox_inches='tight')
     plt.close(plt.gcf())
 
