@@ -5,7 +5,11 @@ import seaborn as sns
 from matplotlib.collections import LineCollection
 from matplotlib.colorbar import ColorbarBase, make_axes
 
-from upsetplot import UpSet
+try:
+    from upsetplot import UpSet
+except ImportError:
+    class Upset:
+        pass
 
 from .analysis import maximum_a_posteriori_estimate
 from .classifier import SortedSpikesClassifier
