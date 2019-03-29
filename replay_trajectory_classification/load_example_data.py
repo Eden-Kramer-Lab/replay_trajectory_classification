@@ -37,7 +37,6 @@ def load_data(epoch_key, brain_areas=None, speed_metric='linear_speed'):
     if brain_areas is None:
         brain_areas = _BRAIN_AREAS
 
-    logger.info('Loading Data...')
     time = get_trial_time(epoch_key, ANIMALS)
     time = (pd.Series(np.ones_like(time, dtype=np.float), index=time)
             .resample('1ms').mean()
