@@ -137,8 +137,7 @@ class _ClassifierBase(BaseEstimator):
 
     @staticmethod
     def predict_proba(results):
-        return (results[['causal_posterior', 'acausal_posterior']]
-                .sum(['x_position', 'y_position']))
+        return results.sum(['x_position', 'y_position'])
 
     def copy(self):
         return deepcopy(self)
