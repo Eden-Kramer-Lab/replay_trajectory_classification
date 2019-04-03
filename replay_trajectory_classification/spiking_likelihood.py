@@ -3,13 +3,11 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from patsy import build_design_matrices, dmatrix
-from sklearn.gaussian_process.kernels import RBF
-from sklearn.mixture import GaussianMixture
 from statsmodels.api import families
 
 from regularized_glm import penalized_IRLS
 
-from .core import atleast_2d, get_n_bins
+from .core import get_n_bins
 
 
 def make_spline_design_matrix(position, bin_size=10):
@@ -33,35 +31,6 @@ def make_spline_predict_matrix(design_info, place_bin_centers):
                     'y_position': place_bin_centers[:, 1]}
     return build_design_matrices(
         [design_info], predict_data)[0]
-
-
-def get_rbf_parameters(position_info, n_components=120):
-    position = position_info.loc[:, ['x_position', 'y_position']].values
-    model_kwargs = dict(n_components=n_components, tol=1E-6, max_iter=200)
-    occupancy_model = GaussianMixture(**model_kwargs).fit(atleast_2d(position))
-    return occupancy_model.means_, occupancy_model.covariances_
-
-
-def make_rbf_design_matrix(position_info, means, covariances):
-    position = position_info.loc[:, ['x_position', 'y_position']].values
-
-    radial_basis = [RBF(length_scale=np.diag(cov))
-                    for cov in covariances]
-    design_matrix = [rbf(mean, position).T
-                     for rbf, mean in zip(radial_basis, means)]
-    design_matrix.insert(0, np.ones((position.shape[0], 1)))
-    design_matrix = np.concatenate(design_matrix, axis=1)
-
-    return design_matrix, radial_basis
-
-
-def make_rbf_predict_matrix(place_bin_centers, radial_basis, mixture_means):
-    predict_design_matrix = [rbf(mean, place_bin_centers).T
-                             for rbf, mean in zip(radial_basis, mixture_means)]
-    predict_design_matrix.insert(0, np.ones((place_bin_centers.shape[0], 1)))
-    predict_design_matrix = np.concatenate(predict_design_matrix, axis=1)
-
-    return predict_design_matrix
 
 
 def get_firing_rate(design_matrix, results, sampling_frequency=1):
