@@ -15,9 +15,12 @@ from .multiunit_likelihood import (estimate_multiunit_likelihood,
                                    fit_multiunit_likelihood)
 from .spiking_likelihood import (estimate_place_fields,
                                  estimate_spiking_likelihood)
-from .state_transition import (empirical_movement, identity, identity_discrete,
-                               random_walk,
+from .state_transition import (empirical_minus_identity, empirical_movement,
+                               identity, identity_discrete, random_walk,
+                               random_walk_minus_identity,
                                strong_diagonal_discrete, uniform_discrete,
+                               uniform_minus_empirical,
+                               uniform_minus_random_walk,
                                uniform_state_transition)
 
 logger = getLogger(__name__)
@@ -94,6 +97,24 @@ class _ClassifierBase(BaseEstimator):
                 self.is_track_interior_),
             'identity': partial(
                 identity, self.place_bin_centers_, self.is_track_interior_),
+            'uniform_minus_empirical': partial(
+                uniform_minus_empirical, self.place_bin_centers_,
+                self.is_track_interior_, position, self.edges_, is_training,
+                self.replay_speed, self.position_range
+            ),
+            'uniform_minus_random_walk': partial(
+                uniform_minus_random_walk, self.place_bin_centers_,
+                self.movement_var, self.is_track_interior_, self.replay_speed
+            ),
+            'empirical_minus_identity': partial(
+                empirical_minus_identity, self.place_bin_centers_,
+                self.is_track_interior_, position, self.edges_, is_training,
+                self.replay_speed, self.position_range
+            ),
+            'random_walk_minus_identity': partial(
+                random_walk_minus_identity, self.place_bin_centers_,
+                self.movement_var, self.is_track_interior_, self.replay_speed
+            ),
         }
 
         self.continuous_state_transition_ = np.stack(
@@ -159,9 +180,12 @@ class SortedSpikesClassifier(_ClassifierBase):
         The default, None, is equivalent to passing a tuple of
         `n_position_dims` None values.
     continuous_transition_types : list of ('empirical_movement',
-                                           'random_walk',
-                                           'random_walk_with_absorbing_boundaries',
-                                           'uniform', 'identity')
+                                           'random_walk', 'uniform',
+                                           'identity',
+                                           'uniform_minus_empirical',
+                                           'uniform_minus_random_walk',
+                                           'empirical_minus_identity'
+                                           'random_walk_minus_identity')
     discrete_transition_type : 'strong_diagonal' | 'identity' | 'uniform'
     initial_conditions_type : ('uniform' | 'uniform_on_track')
     discrete_transition_diag : float, optional
@@ -334,9 +358,13 @@ class ClusterlessClassifier(_ClassifierBase):
         values being used for the corresponding dimension.
         The default, None, is equivalent to passing a tuple of
         `n_position_dims` None values.
-    continuous_transition_types : list of ('empirical_movement', 'random_walk',
-                                'random_walk_with_absorbing_boundaries',
-                                'uniform', 'identity')
+    continuous_transition_types : list of ('empirical_movement',
+                                           'random_walk', 'uniform',
+                                           'identity',
+                                           'uniform_minus_empirical',
+                                           'uniform_minus_random_walk',
+                                           'empirical_minus_identity'
+                                           'random_walk_minus_identity')
     discrete_transition_type : 'strong_diagonal' | 'identity' | 'uniform'
     initial_conditions_type : ('uniform' | 'uniform_on_track')
     discrete_transition_diag : float, optional
