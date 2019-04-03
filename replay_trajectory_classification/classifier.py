@@ -37,7 +37,8 @@ class _ClassifierBase(BaseEstimator):
                  continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
                  discrete_transition_type='strong_diagonal',
                  initial_conditions_type='uniform_on_track',
-                 discrete_transition_diag=_DISCRETE_DIAG):
+                 discrete_transition_diag=_DISCRETE_DIAG,
+                 infer_track_interior=True):
         self.place_bin_size = place_bin_size
         self.replay_speed = replay_speed
         self.movement_var = movement_var
@@ -46,6 +47,7 @@ class _ClassifierBase(BaseEstimator):
         self.discrete_transition_type = discrete_transition_type
         self.initial_conditions_type = initial_conditions_type
         self.discrete_transition_diag = discrete_transition_diag
+        self.infer_track_interior = infer_track_interior
 
     def fit_place_grid(self, position):
         (self.edges_, self.place_bin_edges_, self.place_bin_centers_,
@@ -72,7 +74,8 @@ class _ClassifierBase(BaseEstimator):
     def fit_continuous_state_transition(
             self, position, is_training=None, replay_speed=None,
             is_track_interior=None,
-            continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS):
+            continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
+            infer_track_interior=True):
         logger.info('Fitting state transition...')
         if is_training is None:
             is_training = np.ones((position.shape[0],), dtype=np.bool)
@@ -80,8 +83,12 @@ class _ClassifierBase(BaseEstimator):
         if replay_speed is not None:
             self.replay_speed = replay_speed
         self.continuous_transition_types = continuous_transition_types
-        if is_track_interior is None:
+        self.infer_track_interior = infer_track_interior
+        if is_track_interior is None and self.infer_track_interior:
             self.is_track_interior_ = get_track_interior(position, self.edges_)
+        else:
+            shape = tuple(np.asarray(self.centers_shape_) + 1)
+            self.is_track_interior_ = np.ones(shape, dtype=np.bool)
 
         transitions = {
             'empirical_movement': partial(
@@ -188,6 +195,7 @@ class SortedSpikesClassifier(_ClassifierBase):
     discrete_transition_type : 'strong_diagonal' | 'identity' | 'uniform'
     initial_conditions_type : ('uniform' | 'uniform_on_track')
     discrete_transition_diag : float, optional
+    infer_track_interior : bool, optional
     knot_spacing : float, optional
     spike_model_penalty : float, optional
 
@@ -199,11 +207,12 @@ class SortedSpikesClassifier(_ClassifierBase):
                  discrete_transition_type='strong_diagonal',
                  initial_conditions_type='uniform_on_track', knot_spacing=10,
                  spike_model_penalty=1E1,
-                 discrete_transition_diag=_DISCRETE_DIAG):
+                 discrete_transition_diag=_DISCRETE_DIAG,
+                 infer_track_interior=True):
         super().__init__(place_bin_size, replay_speed, movement_var,
                          position_range, continuous_transition_types,
                          discrete_transition_type, initial_conditions_type,
-                         discrete_transition_diag)
+                         discrete_transition_diag, infer_track_interior)
         self.knot_spacing = knot_spacing
         self.spike_model_penalty = spike_model_penalty
 
@@ -261,7 +270,6 @@ class SortedSpikesClassifier(_ClassifierBase):
         is_training : None or bool ndarray, shape (n_time), optional
             Time bins to be used for encoding.
         is_track_interior : None or bool ndaarray, shape (n_x_bins, n_y_bins)
-
         '''
         position = np.asarray(position)
         spikes = np.asarray(spikes)
@@ -269,7 +277,8 @@ class SortedSpikesClassifier(_ClassifierBase):
         self.fit_initial_conditions(position, is_track_interior)
         self.fit_continuous_state_transition(
             position, is_training, is_track_interior=is_track_interior,
-            continuous_transition_types=self.continuous_transition_types)
+            continuous_transition_types=self.continuous_transition_types,
+            infer_track_interior=self.infer_track_interior)
         self.fit_discrete_state_transition()
         self.fit_place_fields(position, spikes, is_training)
 
@@ -367,6 +376,7 @@ class ClusterlessClassifier(_ClassifierBase):
     discrete_transition_type : 'strong_diagonal' | 'identity' | 'uniform'
     initial_conditions_type : ('uniform' | 'uniform_on_track')
     discrete_transition_diag : float, optional
+    infer_track_interior : bool, optional
     model : scikit-learn density estimator, optional
     model_kwargs : dict, optional
     occupancy_model : scikit-learn density estimator, optional
@@ -380,13 +390,14 @@ class ClusterlessClassifier(_ClassifierBase):
                  discrete_transition_type='strong_diagonal',
                  initial_conditions_type='uniform_on_track',
                  discrete_transition_diag=_DISCRETE_DIAG,
+                 infer_track_interior=True,
                  model=WhitenedKDE,
                  model_kwargs=_DEFAULT_MULTIUNIT_MODEL_KWARGS,
                  occupancy_model=None, occupancy_kwargs=None):
         super().__init__(place_bin_size, replay_speed, movement_var,
                          position_range, continuous_transition_types,
                          discrete_transition_type, initial_conditions_type,
-                         discrete_transition_diag)
+                         discrete_transition_diag, infer_track_interior)
 
         self.model = model
         self.model_kwargs = model_kwargs
@@ -447,7 +458,8 @@ class ClusterlessClassifier(_ClassifierBase):
         self.fit_initial_conditions(position, is_track_interior)
         self.fit_continuous_state_transition(
             position, is_training, is_track_interior=is_track_interior,
-            continuous_transition_types=self.continuous_transition_types)
+            continuous_transition_types=self.continuous_transition_types,
+            infer_track_interior=self.infer_track_interior)
         self.fit_discrete_state_transition()
         self.fit_multiunits(position, multiunits, is_training,
                             is_track_interior)
