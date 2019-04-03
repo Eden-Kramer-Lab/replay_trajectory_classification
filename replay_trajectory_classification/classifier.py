@@ -27,8 +27,7 @@ logger = getLogger(__name__)
 
 _DEFAULT_MULTIUNIT_MODEL_KWARGS = dict(bandwidth=0.75, kernel='epanechnikov',
                                        rtol=1E-4)
-_DEFAULT_CONTINUOUS_TRANSITIONS = ['random_walk_with_absorbing_boundaries',
-                                   'uniform', 'identity']
+_DEFAULT_CONTINUOUS_TRANSITIONS = ['random_walk', 'uniform', 'identity']
 _DISCRETE_DIAG = 1 - 1E-3
 
 
