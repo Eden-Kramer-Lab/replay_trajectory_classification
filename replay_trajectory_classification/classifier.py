@@ -17,7 +17,6 @@ from .spiking_likelihood import (estimate_place_fields,
                                  estimate_spiking_likelihood)
 from .state_transition import (empirical_movement, identity, identity_discrete,
                                random_walk,
-                               random_walk_with_absorbing_boundaries,
                                strong_diagonal_discrete, uniform_discrete,
                                uniform_state_transition)
 
@@ -87,10 +86,7 @@ class _ClassifierBase(BaseEstimator):
                 empirical_movement, position, self.edges_, is_training,
                 self.replay_speed),
             'random_walk': partial(
-                random_walk, self.place_bin_centers_, self.movement_var,
-                self.replay_speed),
-            'random_walk_with_absorbing_boundaries': partial(
-                random_walk_with_absorbing_boundaries,
+                random_walk,
                 self.place_bin_centers_, self.movement_var,
                 self.is_track_interior_, self.replay_speed),
             'uniform': partial(
@@ -215,7 +211,7 @@ class SortedSpikesClassifier(_ClassifierBase):
         '''
         g = (self.place_fields_.unstack() * sampling_frequency).plot(
             x='x_position', y='y_position', col='neuron', col_wrap=5, vmin=0.0,
-            robust=True)
+            vmax=10.0)
         if spikes is not None and position is not None:
             spikes, position = np.asarray(spikes), np.asarray(position)
             for ax, is_spike in zip(g.axes.flat, spikes.T):

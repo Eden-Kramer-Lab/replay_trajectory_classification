@@ -69,29 +69,8 @@ def empirical_movement(position, edges, is_training=None, replay_speed=20,
     return movement_bins
 
 
-def random_walk(place_bin_centers, movement_var, replay_speed=20):
-    '''Zero mean random walk with movement_var.
-
-    Parameters
-    ----------
-    place_bin_centers : ndarray, shape (n_bins, n_position_dims)
-    movement_var : float
-    replay_speed : int
-
-    Returns
-    -------
-    transition_matrix : ndarray, shape (n_bins, n_bins)
-
-    '''
-    transition_matrix = np.stack(
-        [multivariate_normal(mean=bin, cov=movement_var * replay_speed).pdf(
-            place_bin_centers)
-         for bin in place_bin_centers], axis=1)
-    return _normalize_row_probability(transition_matrix)
-
-
-def random_walk_with_absorbing_boundaries(place_bin_centers, movement_var,
-                                          is_track_interior, replay_speed=20):
+def random_walk(place_bin_centers, movement_var,
+                is_track_interior, replay_speed=20):
     '''Zero mean random walk with movement_var.
 
     Transitions starting from outside the maze or transitions from the inside
