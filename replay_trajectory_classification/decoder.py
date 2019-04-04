@@ -16,21 +16,19 @@ from .multiunit_likelihood import (estimate_multiunit_likelihood,
 from .spiking_likelihood import (estimate_place_fields,
                                  estimate_spiking_likelihood)
 from .state_transition import (empirical_movement, identity, random_walk,
-                               random_walk_with_absorbing_boundaries,
                                uniform_state_transition)
 
 logger = getLogger(__name__)
 
 _DEFAULT_MULTIUNIT_MODEL_KWARGS = dict(bandwidth=0.75, kernel='epanechnikov',
                                        rtol=1E-4)
-_DEFAULT_TRANSITIONS = ['random_walk_with_absorbing_boundaries', 'uniform',
-                        'identity']
+_DEFAULT_TRANSITIONS = ['random_walk', 'uniform', 'identity']
 
 
 class _DecoderBase(BaseEstimator):
     def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
                  position_range=None,
-                 transition_type='random_walk_with_absorbing_boundaries',
+                 transition_type='random_walk',
                  initial_conditions_type='uniform_on_track'):
         self.place_bin_size = place_bin_size
         self.replay_speed = replay_speed
@@ -61,7 +59,7 @@ class _DecoderBase(BaseEstimator):
     def fit_state_transition(
             self, position, is_training=None, replay_speed=None,
             is_track_interior=None,
-            transition_type='random_walk_with_absorbing_boundaries'):
+            transition_type='random_walk'):
         logger.info('Fitting state transition...')
         if is_training is None:
             is_training = np.ones((position.shape[0],), dtype=np.bool)
@@ -77,10 +75,7 @@ class _DecoderBase(BaseEstimator):
                 empirical_movement, position, self.edges_, is_training,
                 self.replay_speed),
             'random_walk': partial(
-                random_walk, self.place_bin_centers_, self.movement_var,
-                self.replay_speed),
-            'random_walk_with_absorbing_boundaries': partial(
-                random_walk_with_absorbing_boundaries,
+                random_walk,
                 self.place_bin_centers_, self.movement_var,
                 self.is_track_interior_, self.replay_speed),
             'uniform': partial(
@@ -113,7 +108,7 @@ class SortedSpikesDecoder(_DecoderBase):
     def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
                  position_range=None, knot_spacing=10,
                  spike_model_penalty=1E1,
-                 transition_type='random_walk_with_absorbing_boundaries',
+                 transition_type='random_walk',
                  initial_conditions_type='uniform_on_track'):
         '''
 
@@ -136,7 +131,6 @@ class SortedSpikesDecoder(_DecoderBase):
         knot_spacing : float, optional
         spike_model_penalty : float, optional
         transition_type : ('empirical_movement' | 'random_walk' |
-                           'random_walk_with_absorbing_boundaries',
                            'uniform', 'identity')
         initial_conditions_type : ('uniform' | 'uniform_on_track')
 
@@ -293,7 +287,6 @@ class ClusterlessDecoder(_DecoderBase):
     occupancy_model : scikit-learn density estimator, optional
     occupancy_kwargs : dict, optional
     transition_type : ('empirical_movement' | 'random_walk' |
-                       'random_walk_with_absorbing_boundaries',
                        'uniform', 'identity')
     initial_conditions_type : ('uniform' | 'uniform_on_track')
 
@@ -303,7 +296,7 @@ class ClusterlessDecoder(_DecoderBase):
                  position_range=None, model=WhitenedKDE,
                  model_kwargs=_DEFAULT_MULTIUNIT_MODEL_KWARGS,
                  occupancy_model=None, occupancy_kwargs=None,
-                 transition_type='random_walk_with_absorbing_boundaries',
+                 transition_type='random_walk',
                  initial_conditions_type='uniform_on_track'):
         super().__init__(place_bin_size, replay_speed, movement_var,
                          position_range, transition_type,
