@@ -189,6 +189,18 @@ def random_walk_minus_identity(place_bin_centers, movement_var,
     return _normalize_row_probability(difference)
 
 
+def inverse_random_walk(place_bin_centers, movement_var,
+                        is_track_interior, replay_speed=20):
+    random = random_walk(
+        place_bin_centers, movement_var, is_track_interior, replay_speed)
+    transition_matrix = random.max(axis=1) - random
+
+    is_track_interior = is_track_interior.ravel(order='F')
+    transition_matrix[~is_track_interior] = 0.0
+    transition_matrix[:, ~is_track_interior] = 0.0
+    return _normalize_row_probability(transition_matrix)
+
+
 def identity_discrete(n_states):
     '''
 

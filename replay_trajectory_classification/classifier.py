@@ -16,7 +16,8 @@ from .multiunit_likelihood import (estimate_multiunit_likelihood,
 from .spiking_likelihood import (estimate_place_fields,
                                  estimate_spiking_likelihood)
 from .state_transition import (empirical_minus_identity, empirical_movement,
-                               identity, identity_discrete, random_walk,
+                               identity, identity_discrete,
+                               inverse_random_walk, random_walk,
                                random_walk_minus_identity,
                                strong_diagonal_discrete, uniform_discrete,
                                uniform_minus_empirical,
@@ -121,6 +122,10 @@ class _ClassifierBase(BaseEstimator):
                 random_walk_minus_identity, self.place_bin_centers_,
                 self.movement_var, self.is_track_interior_, self.replay_speed
             ),
+            'inverse_random_walk': partial(
+                inverse_random_walk, self.place_bin_centers_,
+                self.movement_var, self.is_track_interior_, self.replay_speed
+            )
         }
 
         self.continuous_state_transition_ = np.stack(
