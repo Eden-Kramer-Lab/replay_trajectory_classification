@@ -71,10 +71,40 @@ def empirical_movement(position, edges, is_training=None, replay_speed=20,
 
 def random_walk(place_bin_centers, movement_var,
                 is_track_interior, replay_speed=20):
-    '''Zero mean random walk with movement_var.
+    '''Zero mean random walk.
 
     Transitions starting from outside the maze or transitions from the inside
     to the outside of the maze are not allowed.
+
+    Parameters
+    ----------
+    place_bin_centers : ndarray, shape (n_bins, n_position_dims)
+    movement_var : float
+    is_track_interior : bool ndarray, shape (n_x_bins, n_y_bins)
+    replay_speed : int
+
+    Returns
+    -------
+    transition_matrix : ndarray, shape (n_bins, n_bins)
+
+    '''
+    transition_matrix = np.stack(
+        [multivariate_normal(mean=bin, cov=movement_var).pdf(place_bin_centers)
+         for bin in place_bin_centers], axis=1)
+    is_track_interior = is_track_interior.ravel(order='F')
+    transition_matrix[~is_track_interior] = 0.0
+    transition_matrix[:, ~is_track_interior] = 0.0
+    transition_matrix = _normalize_row_probability(transition_matrix)
+
+    return np.linalg.matrix_power(transition_matrix, replay_speed)
+
+
+def random_walk2(place_bin_centers, movement_var,
+                 is_track_interior, replay_speed=20):
+    '''Zero mean random walk.
+
+    This version makes the sped up gaussian without constraints and then
+    imposes the constraints.
 
     Parameters
     ----------
