@@ -308,7 +308,7 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         results = {}
         results['likelihood'] = estimate_spiking_likelihood(
-            spikes, np.asarray(self.place_fields_))
+            spikes, np.asarray(self.place_fields_), self.is_track_interior_)
         results['likelihood'] = np.stack([results['likelihood']] *
                                          n_states, axis=1)[..., np.newaxis]
 

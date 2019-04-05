@@ -108,20 +108,30 @@ def scaled_likelihood(log_likelihood):
                   np.max(log_likelihood, axis=1, keepdims=True))
 
 
-def estimate_spiking_likelihood(spikes, conditional_intensity):
+def estimate_spiking_likelihood(spikes, conditional_intensity,
+                                is_track_interior=None):
     '''
 
     Parameters
     ----------
     spikes : ndarray, shape (n_time, n_neurons)
     conditional_intensity : ndarray, shape (n_bins, n_neurons)
-
+    is_track_interior : None or ndarray, optional, shape (n_x_position_bins,
+                                                          n_y_position_bins)
     Returns
     -------
     likelihood : ndarray, shape (n_time, n_bins)
     '''
-    return scaled_likelihood(
+    if is_track_interior is not None:
+        is_track_interior = is_track_interior.ravel(order='F')
+    else:
+        n_bins = conditional_intensity.shape[0]
+        is_track_interior = np.ones((n_bins,), dtype=np.bool)
+
+    likelihood = scaled_likelihood(
         combined_likelihood(spikes, conditional_intensity))
+    likelihood[:, ~is_track_interior] = 0.0
+    return likelihood
 
 
 def estimate_place_fields(position, spikes, place_bin_centers, penalty=1E-1,
