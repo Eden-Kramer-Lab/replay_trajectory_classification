@@ -69,8 +69,8 @@ def empirical_movement(position, edges, is_training=None, replay_speed=20,
     return movement_bins
 
 
-def random_walk(place_bin_centers, movement_var,
-                is_track_interior, replay_speed=20):
+def random_walk2(place_bin_centers, movement_var,
+                 is_track_interior, replay_speed=20):
     '''Zero mean random walk.
 
     Transitions starting from outside the maze or transitions from the inside
@@ -99,8 +99,8 @@ def random_walk(place_bin_centers, movement_var,
     return np.linalg.matrix_power(transition_matrix, replay_speed)
 
 
-def random_walk2(place_bin_centers, movement_var,
-                 is_track_interior, replay_speed=20):
+def random_walk(place_bin_centers, movement_var,
+                is_track_interior, replay_speed=20):
     '''Zero mean random walk.
 
     This version makes the sped up gaussian without constraints and then
