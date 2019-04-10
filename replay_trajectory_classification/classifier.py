@@ -100,7 +100,7 @@ class _ClassifierBase(BaseEstimator):
                 self.place_bin_centers_, self.movement_var,
                 self.is_track_interior_, self.replay_speed),
             'random_walk2': partial(
-                random_walk,
+                random_walk2,
                 self.place_bin_centers_, self.movement_var,
                 self.is_track_interior_, self.replay_speed),
             'uniform': partial(
