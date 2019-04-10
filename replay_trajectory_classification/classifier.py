@@ -88,8 +88,8 @@ class _ClassifierBase(BaseEstimator):
         if is_track_interior is None and self.infer_track_interior:
             self.is_track_interior_ = get_track_interior(position, self.edges_)
         else:
-            shape = tuple(np.asarray(self.centers_shape_) + 1)
-            self.is_track_interior_ = np.ones(shape, dtype=np.bool)
+            self.is_track_interior_ = np.ones(
+                self.centers_shape_, dtype=np.bool)
 
         transitions = {
             'empirical_movement': partial(
