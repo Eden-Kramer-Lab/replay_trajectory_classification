@@ -28,7 +28,10 @@ logger = getLogger(__name__)
 
 _DEFAULT_MULTIUNIT_MODEL_KWARGS = dict(bandwidth=0.75, kernel='epanechnikov',
                                        rtol=1E-4)
-_DEFAULT_CONTINUOUS_TRANSITIONS = ['random_walk', 'uniform', 'identity']
+_DEFAULT_CONTINUOUS_TRANSITIONS = (
+    [['random_walk_minus_identity', 'uniform',             'uniform'],
+     ['uniform',                    'inverse_random_walk', 'uniform'],
+     ['uniform',                    'uniform',             'identity']])
 _DISCRETE_DIAG = 1 - 1E-3
 
 
@@ -131,10 +134,15 @@ class _ClassifierBase(BaseEstimator):
                 self.movement_var, self.is_track_interior_, self.replay_speed
             )
         }
-
-        self.continuous_state_transition_ = np.stack(
-            [transitions[transition_type]()
-             for transition_type in self.continuous_transition_types], axis=0)
+        n_bins = self.place_bin_centers_.shape[0]
+        n_states = len(self.continuous_transition_types)
+        self.continuous_state_transition_ = np.zeros(
+            (n_states, n_states, n_bins, n_bins))
+        for row_ind, row in enumerate(self.continuous_transition_types):
+            for column_ind, transition_type in enumerate(row):
+                self.continuous_state_transition_[row_ind, column_ind] = (
+                    transitions[transition_type]()
+                )
 
     def fit_discrete_state_transition(self, discrete_transition_diag=None):
         if discrete_transition_diag is not None:

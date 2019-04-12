@@ -172,7 +172,8 @@ def _causal_classify(initial_conditions, continuous_state_transition,
     Parameters
     ----------
     initial_conditions : ndarray, shape (n_states, n_bins, 1)
-    continuous_state_transition : ndarray, shape (n_states, n_bins, n_bins)
+    continuous_state_transition : ndarray, shape (n_states, n_states,
+                                                  n_bins, n_bins)
     discrete_state_transition : ndarray, shape (n_states, n_states)
     likelihood : ndarray, shape (n_time, n_states, n_bins, 1)
 
@@ -192,7 +193,7 @@ def _causal_classify(initial_conditions, continuous_state_transition,
             for state_k_1 in np.arange(n_states):
                 prior[state_k, :] += (
                     discrete_state_transition[state_k_1, state_k] *
-                    continuous_state_transition[state_k] @
+                    continuous_state_transition[state_k_1, state_k] @
                     posterior[k - 1, state_k_1])
         posterior[k] = normalize_to_probability(prior * likelihood[k])
 
@@ -207,7 +208,8 @@ def _acausal_classify(causal_posterior, continuous_state_transition,
     Parameters
     ----------
     causal_posterior : ndarray, shape (n_time, n_states, n_bins, 1)
-    continuous_state_transition : ndarray, shape (n_states, n_bins, n_bins)
+    continuous_state_transition : ndarray, shape (n_states, n_states,
+                                                  n_bins, n_bins)
     discrete_state_transition : ndarray, shape (n_states, n_states)
 
     Return
@@ -226,7 +228,7 @@ def _acausal_classify(causal_posterior, continuous_state_transition,
             for state_k in np.arange(n_states):
                 prior[state_k_1, :] += (
                     discrete_state_transition[state_k, state_k_1] *
-                    continuous_state_transition[state_k_1] @
+                    continuous_state_transition[state_k, state_k_1] @
                     causal_posterior[k, state_k])
 
         # Backwards Update
@@ -238,7 +240,8 @@ def _acausal_classify(causal_posterior, continuous_state_transition,
             for state_k_1 in np.arange(n_states):
                 weights[state_k] += (
                     discrete_state_transition[state_k, state_k_1] *
-                    continuous_state_transition[state_k_1] @ ratio[state_k_1])
+                    continuous_state_transition[state_k, state_k_1] @
+                    ratio[state_k_1])
 
         acausal_posterior[k] = normalize_to_probability(
             weights * causal_posterior[k])
