@@ -87,7 +87,7 @@ class _ClassifierBase(BaseEstimator):
         self.infer_track_interior = infer_track_interior
         if is_track_interior is None and self.infer_track_interior:
             self.is_track_interior_ = get_track_interior(position, self.edges_)
-        else:
+        elif is_track_interior is None and not self.infer_track_interior:
             self.is_track_interior_ = np.ones(
                 self.centers_shape_, dtype=np.bool)
 
