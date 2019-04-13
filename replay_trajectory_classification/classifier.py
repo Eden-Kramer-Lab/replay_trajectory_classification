@@ -345,7 +345,7 @@ class SortedSpikesClassifier(_ClassifierBase):
                 time=time,
                 x_position=get_centers(self.edges_[0]),
                 y_position=get_centers(self.edges_[1]),
-                state=self.continuous_transition_types,
+                state=np.diag(np.asarray(self.continuous_transition_types)),
             )
         else:
             dims = ['time', 'state', 'position']
@@ -532,14 +532,14 @@ class ClusterlessClassifier(_ClassifierBase):
                 time=time,
                 x_position=get_centers(self.edges_[0]),
                 y_position=get_centers(self.edges_[1]),
-                state=self.continuous_transition_types,
+                state=np.diag(np.asarray(self.continuous_transition_types)),
             )
         else:
             dims = ['time', 'state', 'position']
             coords = dict(
                 time=time,
                 position=get_centers(self.edges_[0]),
-                state=self.continuous_transition_types,
+                state=np.diag(np.asarray(self.continuous_transition_types)),
             )
         new_shape = (n_time, n_states, *self.centers_shape_)
         results = xr.Dataset(
