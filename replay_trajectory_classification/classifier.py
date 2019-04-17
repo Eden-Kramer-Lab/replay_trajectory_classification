@@ -29,9 +29,9 @@ logger = getLogger(__name__)
 _DEFAULT_MULTIUNIT_MODEL_KWARGS = dict(bandwidth=0.75, kernel='epanechnikov',
                                        rtol=1E-4)
 _DEFAULT_CONTINUOUS_TRANSITIONS = (
-    [['random_walk_minus_identity', 'uniform',             'uniform'],
+    [['random_walk_minus_identity', 'uniform',             'identity'],
      ['uniform',                    'inverse_random_walk', 'uniform'],
-     ['uniform',                    'uniform',             'identity']])
+     ['random_walk_minus_identity', 'uniform',             'identity']])
 _DISCRETE_DIAG = 1 - 1E-3
 
 
