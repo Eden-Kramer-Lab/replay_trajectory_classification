@@ -178,7 +178,7 @@ def _causal_classify(initial_conditions, continuous_state_transition,
 
     Returns
     -------
-    causal_posterior : ndarray, shape (n_time, n_bins)
+    causal_posterior : ndarray, shape (n_time, n_states, n_bins, 1)
 
     '''
     n_time, n_states, n_bins, _ = likelihood.shape
