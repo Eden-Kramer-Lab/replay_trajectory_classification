@@ -38,10 +38,16 @@ def add_zero_end_bins(hist, edges):
 
     for edge_ind, edge in enumerate(edges):
         bin_size = np.diff(edge)[0]
-        if hist.sum(axis=edge_ind)[0] != 0:
-            edge = np.insert(edge, 0, edge[0] - bin_size)
-        if hist.sum(axis=edge_ind)[-1] != 0:
-            edge = np.append(edge, edge[-1] + bin_size)
+        try:
+            if hist.sum(axis=edge_ind)[0] != 0:
+                edge = np.insert(edge, 0, edge[0] - bin_size)
+            if hist.sum(axis=edge_ind)[-1] != 0:
+                edge = np.append(edge, edge[-1] + bin_size)
+        except IndexError:
+            if hist[0] != 0:
+                edge = np.insert(edge, 0, edge[0] - bin_size)
+            if hist[-1] != 0:
+                edge = np.append(edge, edge[-1] + bin_size)
         new_edges.append(edge)
 
     return new_edges
@@ -262,7 +268,8 @@ def get_track_interior(position, bins):
     '''
     bin_counts, edges = np.histogramdd(position, bins=bins)
     is_maze = (bin_counts > 0).astype(int)
-    structure = np.ones((1, 1))
+    n_position_dims = position.shape[1]
+    structure = np.ones([1] * n_position_dims)
     is_maze = ndimage.binary_closing(is_maze, structure=structure)
     is_maze = ndimage.binary_fill_holes(is_maze)
     return ndimage.binary_dilation(is_maze, structure=structure)
