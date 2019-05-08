@@ -344,6 +344,7 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         n_position_dims = self.place_bin_centers_.shape[1]
         if n_position_dims > 1:
+            new_shape = (n_time, n_states, *self.centers_shape_)
             dims = ['time', 'state', 'x_position', 'y_position']
             coords = dict(
                 time=time,
@@ -351,6 +352,11 @@ class SortedSpikesClassifier(_ClassifierBase):
                 y_position=get_centers(self.edges_[1]),
                 state=np.diag(np.asarray(self.continuous_transition_types)),
             )
+            results = xr.Dataset(
+                {key: (dims, (value.squeeze(axis=-1)
+                              .reshape(new_shape).swapaxes(-1, -2)))
+                 for key, value in results.items()},
+                coords=coords)
         else:
             dims = ['time', 'state', 'position']
             coords = dict(
@@ -358,12 +364,10 @@ class SortedSpikesClassifier(_ClassifierBase):
                 position=get_centers(self.edges_[0]),
                 state=np.diag(np.asarray(self.continuous_transition_types)),
             )
-        new_shape = (n_time, n_states, *self.centers_shape_)
-        results = xr.Dataset(
-            {key: (dims, (value.squeeze(axis=-1)
-                          .reshape(new_shape).swapaxes(-1, -2)))
-             for key, value in results.items()},
-            coords=coords)
+            results = xr.Dataset(
+                {key: (dims, (value.squeeze(axis=-1)))
+                 for key, value in results.items()},
+                coords=coords)
 
         return results
 
@@ -531,6 +535,7 @@ class ClusterlessClassifier(_ClassifierBase):
 
         n_position_dims = self.place_bin_centers_.shape[1]
         if n_position_dims > 1:
+            new_shape = (n_time, n_states, *self.centers_shape_)
             dims = ['time', 'state', 'x_position', 'y_position']
             coords = dict(
                 time=time,
@@ -538,6 +543,11 @@ class ClusterlessClassifier(_ClassifierBase):
                 y_position=get_centers(self.edges_[1]),
                 state=np.diag(np.asarray(self.continuous_transition_types)),
             )
+            results = xr.Dataset(
+                {key: (dims, (value.squeeze(axis=-1)
+                              .reshape(new_shape).swapaxes(-1, -2)))
+                 for key, value in results.items()},
+                coords=coords)
         else:
             dims = ['time', 'state', 'position']
             coords = dict(
@@ -545,11 +555,9 @@ class ClusterlessClassifier(_ClassifierBase):
                 position=get_centers(self.edges_[0]),
                 state=np.diag(np.asarray(self.continuous_transition_types)),
             )
-        new_shape = (n_time, n_states, *self.centers_shape_)
-        results = xr.Dataset(
-            {key: (dims, (value.squeeze(axis=-1)
-                          .reshape(new_shape).swapaxes(-1, -2)))
-             for key, value in results.items()},
-            coords=coords)
+            results = xr.Dataset(
+                {key: (dims, (value.squeeze(axis=-1)))
+                 for key, value in results.items()},
+                coords=coords)
 
         return results

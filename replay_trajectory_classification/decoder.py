@@ -270,7 +270,7 @@ class SortedSpikesDecoder(_DecoderBase):
             )
         new_shape = (n_time, *self.centers_shape_)
         results = xr.Dataset(
-            {key: (dims, value.reshape(new_shape).swapaxes(-1, -2))
+            {key: (dims, value.reshape(new_shape, order='F'))
              for key, value in results.items()},
             coords=coords)
 
@@ -419,22 +419,26 @@ class ClusterlessDecoder(_DecoderBase):
 
         n_position_dims = self.place_bin_centers_.shape[1]
         if n_position_dims > 1:
+            new_shape = (n_time, *self.centers_shape_)
             dims = ['time', 'x_position', 'y_position']
             coords = dict(
                 time=time,
                 x_position=get_centers(self.edges_[0]),
                 y_position=get_centers(self.edges_[1]),
             )
+            results = xr.Dataset(
+                {key: (dims, value.reshape(new_shape).swapaxes(-1, -2))
+                 for key, value in results.items()},
+                coords=coords)
         else:
             dims = ['time', 'position']
             coords = dict(
                 time=time,
                 position=get_centers(self.edges_[0]),
             )
-        new_shape = (n_time, *self.centers_shape_)
-        results = xr.Dataset(
-            {key: (dims, value.reshape(new_shape).swapaxes(-1, -2))
-             for key, value in results.items()},
-            coords=coords)
+            results = xr.Dataset(
+                {key: (dims, value)
+                 for key, value in results.items()},
+                coords=coords)
 
         return results
