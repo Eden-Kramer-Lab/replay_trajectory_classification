@@ -270,3 +270,22 @@ def uniform_discrete(n_states):
 
     '''
     return np.ones((n_states, n_states)) / n_states
+
+
+def estimate_movement_var(position, sampling_frequency):
+    '''Estimates the movement variance based on position.
+
+    Parameters
+    ----------
+    position : ndarray, shape (n_time, n_position_dim)
+
+    Returns
+    -------
+    movement_std : ndarray, shape (n_position_dim,)
+
+    '''
+    position = atleast_2d(position)
+    is_nan = np.any(np.isnan(position), axis=1)
+    position = position[~is_nan]
+    movement_var = np.cov(np.diff(position, axis=0), rowvar=False)
+    return movement_var * sampling_frequency
