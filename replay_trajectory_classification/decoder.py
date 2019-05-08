@@ -29,23 +29,29 @@ class _DecoderBase(BaseEstimator):
     def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
                  position_range=None,
                  transition_type='random_walk',
-                 initial_conditions_type='uniform_on_track'):
+                 initial_conditions_type='uniform_on_track',
+                 infer_track_interior=True):
         self.place_bin_size = place_bin_size
         self.replay_speed = replay_speed
         self.movement_var = movement_var
         self.position_range = position_range
         self.transition_type = transition_type
         self.initial_conditions_type = initial_conditions_type
+        self.infer_track_interior = infer_track_interior
 
     def fit_place_grid(self, position):
         (self.edges_, self.place_bin_edges_, self.place_bin_centers_,
          self.centers_shape_) = get_grid(
-            position, self.place_bin_size, self.position_range)
+            position, self.place_bin_size, self.position_range,
+            self.infer_track_interior)
 
     def fit_initial_conditions(self, position=None, is_track_interior=None):
         logger.info('Fitting initial conditions...')
-        if is_track_interior is None:
+        if is_track_interior is None and self.infer_track_interior:
             self.is_track_interior_ = get_track_interior(position, self.edges_)
+        elif is_track_interior is None and not self.infer_track_interior:
+            self.is_track_interior_ = np.ones(
+                self.centers_shape_, dtype=np.bool)
         initial_conditions = {
             'uniform':  partial(
                 uniform, self.place_bin_centers_),
@@ -59,7 +65,8 @@ class _DecoderBase(BaseEstimator):
     def fit_state_transition(
             self, position, is_training=None, replay_speed=None,
             is_track_interior=None,
-            transition_type='random_walk'):
+            transition_type='random_walk',
+            infer_track_interior=True):
         logger.info('Fitting state transition...')
         if is_training is None:
             is_training = np.ones((position.shape[0],), dtype=np.bool)
@@ -67,8 +74,12 @@ class _DecoderBase(BaseEstimator):
         if replay_speed is not None:
             self.replay_speed = replay_speed
         self.transition_type = transition_type
-        if is_track_interior is None:
+        self.infer_track_interior = infer_track_interior
+        if is_track_interior is None and self.infer_track_interior:
             self.is_track_interior_ = get_track_interior(position, self.edges_)
+        elif is_track_interior is None and not self.infer_track_interior:
+            self.is_track_interior_ = np.ones(
+                self.centers_shape_, dtype=np.bool)
 
         transitions = {
             'empirical_movement': partial(
@@ -109,7 +120,8 @@ class SortedSpikesDecoder(_DecoderBase):
                  position_range=None, knot_spacing=10,
                  spike_model_penalty=1E1,
                  transition_type='random_walk',
-                 initial_conditions_type='uniform_on_track'):
+                 initial_conditions_type='uniform_on_track',
+                 infer_track_interior=True):
         '''
 
         Attributes
@@ -133,11 +145,12 @@ class SortedSpikesDecoder(_DecoderBase):
         transition_type : ('empirical_movement' | 'random_walk' |
                            'uniform', 'identity')
         initial_conditions_type : ('uniform' | 'uniform_on_track')
+        infer_track_interior : bool, optional
 
         '''
         super().__init__(place_bin_size, replay_speed, movement_var,
                          position_range, transition_type,
-                         initial_conditions_type)
+                         initial_conditions_type, infer_track_interior)
         self.knot_spacing = knot_spacing
         self.spike_model_penalty = spike_model_penalty
 
@@ -203,7 +216,8 @@ class SortedSpikesDecoder(_DecoderBase):
         self.fit_initial_conditions(position, is_track_interior)
         self.fit_state_transition(
             position, is_training, is_track_interior=is_track_interior,
-            transition_type=self.transition_type)
+            transition_type=self.transition_type,
+            infer_track_interior=self.infer_track_interior)
         self.fit_place_fields(position, spikes, is_training)
 
         return self
@@ -297,10 +311,11 @@ class ClusterlessDecoder(_DecoderBase):
                  model_kwargs=_DEFAULT_MULTIUNIT_MODEL_KWARGS,
                  occupancy_model=None, occupancy_kwargs=None,
                  transition_type='random_walk',
-                 initial_conditions_type='uniform_on_track'):
+                 initial_conditions_type='uniform_on_track',
+                 infer_track_interior=True):
         super().__init__(place_bin_size, replay_speed, movement_var,
                          position_range, transition_type,
-                         initial_conditions_type)
+                         initial_conditions_type, infer_track_interior)
         self.model = model
         self.model_kwargs = model_kwargs
         if occupancy_model is None:
@@ -359,7 +374,8 @@ class ClusterlessDecoder(_DecoderBase):
         self.fit_initial_conditions(position, is_track_interior)
         self.fit_state_transition(
             position, is_training, is_track_interior=is_track_interior,
-            transition_type=self.transition_type)
+            transition_type=self.transition_type,
+            infer_track_interior=self.infer_track_interior)
         self.fit_multiunits(position, multiunits, is_training,
                             is_track_interior)
 

@@ -56,12 +56,16 @@ class _ClassifierBase(BaseEstimator):
     def fit_place_grid(self, position):
         (self.edges_, self.place_bin_edges_, self.place_bin_centers_,
          self.centers_shape_) = get_grid(
-            position, self.place_bin_size, self.position_range)
+            position, self.place_bin_size, self.position_range,
+            self.infer_track_interior)
 
     def fit_initial_conditions(self, position=None, is_track_interior=None):
         logger.info('Fitting initial conditions...')
-        if is_track_interior is None:
+        if is_track_interior is None and self.infer_track_interior:
             self.is_track_interior_ = get_track_interior(position, self.edges_)
+        elif is_track_interior is None and not self.infer_track_interior:
+            self.is_track_interior_ = np.ones(
+                self.centers_shape_, dtype=np.bool)
         initial_conditions = {
             'uniform':  partial(
                 uniform, self.place_bin_centers_),

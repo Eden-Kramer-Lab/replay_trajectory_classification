@@ -53,13 +53,15 @@ def add_zero_end_bins(hist, edges):
     return new_edges
 
 
-def get_grid(position, bin_size=2.5, position_range=None):
+def get_grid(position, bin_size=2.5, position_range=None,
+             infer_track_interior=True):
     position = atleast_2d(position)
     is_nan = np.any(np.isnan(position), axis=1)
     position = position[~is_nan]
     n_bins = get_n_bins(position, bin_size, position_range)
     hist, edges = np.histogramdd(position, bins=n_bins, range=position_range)
-    edges = add_zero_end_bins(hist, edges)
+    if infer_track_interior:
+        edges = add_zero_end_bins(hist, edges)
     mesh_edges = np.meshgrid(*edges)
     place_bin_edges = np.stack([edge.ravel() for edge in mesh_edges], axis=1)
 
