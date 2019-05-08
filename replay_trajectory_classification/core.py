@@ -125,7 +125,7 @@ def _causal_decode(initial_conditions, state_transition, likelihood):
     n_time = likelihood.shape[0]
     posterior = np.zeros_like(likelihood)
 
-    posterior[0] = initial_conditions.copy()
+    posterior[0] = initial_conditions.copy() * likelihood[0]
 
     for time_ind in np.arange(1, n_time):
         prior = state_transition @ posterior[time_ind - 1]
@@ -192,7 +192,7 @@ def _causal_classify(initial_conditions, continuous_state_transition,
     n_time, n_states, n_bins, _ = likelihood.shape
     posterior = np.zeros_like(likelihood)
 
-    posterior[0] = initial_conditions.copy()
+    posterior[0] = initial_conditions.copy() * likelihood[0]
 
     for k in np.arange(1, n_time):
         prior = np.zeros((n_states, n_bins, 1))
