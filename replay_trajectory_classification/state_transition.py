@@ -12,15 +12,6 @@ def _normalize_row_probability(x):
     return x
 
 
-def _fix_zero_bins(movement_bins):
-    '''If there is no data observed for a column, set everything to 1 so
-    that it will have equal probability
-    '''
-    n_bins = movement_bins.shape[0]
-    movement_bins[movement_bins.sum(axis=1) == 0] = 1 / n_bins
-    return movement_bins
-
-
 def empirical_movement(position, edges, is_training=None, replay_speed=20,
                        position_extent=None):
     '''Estimate the probablity of the next position based on the movement
