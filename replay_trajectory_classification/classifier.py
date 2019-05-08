@@ -8,7 +8,7 @@ from sklearn.base import BaseEstimator
 from sklearn.externals import joblib
 
 from .core import (_acausal_classify, _causal_classify, get_centers, get_grid,
-                   get_track_interior)
+                   get_track_interior, atleast_2d)
 from .initial_conditions import uniform, uniform_on_track
 from .misc import WhitenedKDE
 from .multiunit_likelihood import (estimate_multiunit_likelihood,
@@ -288,7 +288,7 @@ class SortedSpikesClassifier(_ClassifierBase):
             Time bins to be used for encoding.
         is_track_interior : None or bool ndaarray, shape (n_x_bins, n_y_bins)
         '''
-        position = np.asarray(position)
+        position = atleast_2d(np.asarray(position))
         spikes = np.asarray(spikes)
         self.fit_place_grid(position)
         self.fit_initial_conditions(position, is_track_interior)
@@ -468,7 +468,7 @@ class ClusterlessClassifier(_ClassifierBase):
         self
 
         '''
-        position = np.asarray(position)
+        position = atleast_2d(np.asarray(position))
         multiunits = np.asarray(multiunits)
 
         self.fit_place_grid(position)
