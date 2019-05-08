@@ -7,8 +7,8 @@ import xarray as xr
 from sklearn.base import BaseEstimator
 from sklearn.externals import joblib
 
-from .core import (_acausal_classify, _causal_classify, get_centers, get_grid,
-                   get_track_interior, atleast_2d)
+from .core import (_acausal_classify, _causal_classify, atleast_2d,
+                   get_centers, get_grid, get_track_interior)
 from .initial_conditions import uniform, uniform_on_track
 from .misc import WhitenedKDE
 from .multiunit_likelihood import (estimate_multiunit_likelihood,
