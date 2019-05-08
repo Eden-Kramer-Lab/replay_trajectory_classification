@@ -11,24 +11,31 @@ from .core import get_n_bins
 
 
 def make_spline_design_matrix(position, bin_size=10):
-    n_x_points = get_n_bins(position[:, 0], bin_size=bin_size)
-    x_inner_knots = np.linspace(
-        position[:, 0].min(), position[:, 0].max(), n_x_points)[1:-1]
-    n_y_points = get_n_bins(position[:, 1], bin_size=bin_size)
-    y_inner_knots = np.linspace(
-        position[:, 1].min(), position[:, 1].max(), n_y_points)[1:-1]
-    x_inner_knots, y_inner_knots = np.meshgrid(x_inner_knots, y_inner_knots)
+    inner_knots = []
+    for pos in position.T:
+        n_points = get_n_bins(pos, bin_size=bin_size)
+        inner_knots.append(np.linspace(
+            pos.min(), pos.max(), n_points)[1:-1])
 
-    formula = ('1 + te(cr(x_position, knots=x_inner_knots), '
-               'cr(y_position, knots=y_inner_knots), constraints="center")')
+    inner_knots = np.meshgrid(*inner_knots)
 
-    return dmatrix(
-        formula, dict(x_position=position[:, 0], y_position=position[:, 1]))
+    n_position_dims = position.shape[1]
+    data = {}
+    formula = '1 + te('
+    for ind in range(n_position_dims):
+        formula += f'cr(x{ind}, knots=inner_knots[{ind}])'
+        formula += ', '
+        data[f'x{ind}'] = position[:, ind]
+
+    formula += 'constraints="center")'
+
+    return dmatrix(formula, data)
 
 
 def make_spline_predict_matrix(design_info, place_bin_centers):
-    predict_data = {'x_position': place_bin_centers[:, 0],
-                    'y_position': place_bin_centers[:, 1]}
+    predict_data = {}
+    for ind in range(place_bin_centers.shape[1]):
+        predict_data[f'x{ind}'] = place_bin_centers[:, ind]
     return build_design_matrices(
         [design_info], predict_data)[0]
 
@@ -164,10 +171,16 @@ def estimate_place_fields(position, spikes, place_bin_centers, penalty=1E-1,
                              for result in results], axis=1)
 
     DIMS = ['position', 'neuron']
-    NAMES = ['x_position', 'y_position']
-    coords = {
-        'position': pd.MultiIndex.from_arrays(
-            place_bin_centers.T.tolist(), names=NAMES)
-    }
+    if position.shape[1] == 1:
+        names = ['position']
+        coords = {
+            'position': place_bin_centers.squeeze()
+        }
+    elif position.shape[1] == 2:
+        names = ['x_position', 'y_position']
+        coords = {
+            'position': pd.MultiIndex.from_arrays(
+                place_bin_centers.T.tolist(), names=names)
+        }
 
     return xr.DataArray(data=place_fields, coords=coords, dims=DIMS)
