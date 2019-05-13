@@ -1,6 +1,6 @@
 import networkx as nx
 import numpy as np
-from numba import njit
+from numba import njit, prange
 from scipy import ndimage
 from sklearn.neighbors import NearestNeighbors
 
@@ -97,7 +97,7 @@ def order_border(border):
     return border[opt_order][:-1]
 
 
-@njit(cache=True, nogil=True)
+@njit(parallel=True)
 def normalize_to_probability(distribution):
     '''Ensure the distribution integrates to 1 so that it is a probability
     distribution
@@ -105,7 +105,7 @@ def normalize_to_probability(distribution):
     return distribution / np.sum(distribution)
 
 
-@njit(cache=True, nogil=True)
+@njit(nogil=True)
 def _causal_decode(initial_conditions, state_transition, likelihood):
     '''Adaptive filter to iteratively calculate the posterior probability
     of a state variable using past information.
@@ -135,7 +135,7 @@ def _causal_decode(initial_conditions, state_transition, likelihood):
     return posterior
 
 
-@njit(cache=True, nogil=True)
+@njit(nogil=True)
 def _acausal_decode(causal_posterior, state_transition):
     '''Uses past and future information to estimate the state.
 
@@ -170,7 +170,7 @@ def _acausal_decode(causal_posterior, state_transition):
     return acausal_posterior, acausal_prior
 
 
-@njit(cache=True, nogil=True)
+@njit(parallel=True, fastmath=True)
 def _causal_classify(initial_conditions, continuous_state_transition,
                      discrete_state_transition, likelihood):
     '''Adaptive filter to iteratively calculate the posterior probability
@@ -195,19 +195,25 @@ def _causal_classify(initial_conditions, continuous_state_transition,
     posterior[0] = initial_conditions.copy() * likelihood[0]
 
     for k in np.arange(1, n_time):
+
         prior = np.zeros((n_states, n_bins, 1))
-        for state_k in np.arange(n_states):
-            for state_k_1 in np.arange(n_states):
-                prior[state_k, :] += (
-                    discrete_state_transition[state_k_1, state_k] *
-                    continuous_state_transition[state_k_1, state_k] @
-                    posterior[k - 1, state_k_1])
+
+        for state_k in prange(n_states):
+            for bin_k in prange(n_bins):
+                # accumalate over previous state and bins
+                for state_k_1 in range(n_states):
+                    for bin_k_1 in range(n_bins):
+                        prior[state_k, bin_k] += (
+                            discrete_state_transition[state_k_1, state_k] *
+                            continuous_state_transition[state_k_1, state_k,
+                                                        bin_k_1, bin_k] *
+                            posterior[k - 1, state_k_1, bin_k_1, 0])
         posterior[k] = normalize_to_probability(prior * likelihood[k])
 
     return posterior
 
 
-@njit(cache=True, nogil=True)
+@njit(parallel=True, fastmath=True)
 def _acausal_classify(causal_posterior, continuous_state_transition,
                       discrete_state_transition):
     '''Uses past and future information to estimate the state.
@@ -229,26 +235,36 @@ def _acausal_classify(causal_posterior, continuous_state_transition,
     n_time, n_states, n_bins, _ = causal_posterior.shape
 
     for k in np.arange(n_time - 2, -1, -1):
+
         # Prediction Step -- p(x_{k+1}, I_{k+1} | y_{1:k})
         prior = np.zeros((n_states, n_bins, 1))
-        for state_k_1 in np.arange(n_states):
-            for state_k in np.arange(n_states):
-                prior[state_k_1, :] += (
-                    discrete_state_transition[state_k, state_k_1] *
-                    continuous_state_transition[state_k, state_k_1] @
-                    causal_posterior[k, state_k])
+
+        for state_k_1 in prange(n_states):
+            for bin_k_1 in prange(n_states):
+                # accumalate over previous state and bins
+                for state_k in range(n_states):
+                    for bin_k in range(n_states):
+                        prior[state_k_1, bin_k_1] += (
+                            discrete_state_transition[state_k, state_k_1] *
+                            continuous_state_transition[state_k, state_k_1,
+                                                        bin_k, bin_k_1] *
+                            causal_posterior[k, state_k, bin_k, 0])
 
         # Backwards Update
         weights = np.zeros((n_states, n_bins, 1))
-        ratio = np.exp(
-            np.log(acausal_posterior[k + 1] + np.spacing(1)) -
-            np.log(prior + np.spacing(1)))
-        for state_k in np.arange(n_states):
-            for state_k_1 in np.arange(n_states):
-                weights[state_k] += (
-                    discrete_state_transition[state_k, state_k_1] *
-                    continuous_state_transition[state_k, state_k_1] @
-                    ratio[state_k_1])
+
+        for state_k in prange(n_states):
+            for bin_k in prange(n_bins):
+                # accumulate over future state and bins
+                for state_k_1 in range(n_states):
+                    for bin_k_1 in range(n_bins):
+                        weights[state_k, bin_k] += (
+                            discrete_state_transition[state_k, state_k_1] *
+                            continuous_state_transition[state_k, state_k_1,
+                                                        bin_k, bin_k_1] *
+                            acausal_posterior[k + 1, state_k_1, bin_k_1, 0] /
+                            (prior[state_k_1, bin_k_1, 0] + np.spacing(1))
+                        )
 
         acausal_posterior[k] = normalize_to_probability(
             weights * causal_posterior[k])
