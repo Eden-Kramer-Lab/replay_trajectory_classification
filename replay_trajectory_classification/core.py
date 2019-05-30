@@ -1,6 +1,6 @@
 import networkx as nx
 import numpy as np
-from numba import njit, prange
+from numba import njit
 from scipy import ndimage
 from sklearn.neighbors import NearestNeighbors
 
