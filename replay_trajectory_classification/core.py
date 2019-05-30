@@ -97,6 +97,14 @@ def order_border(border):
     return border[opt_order][:-1]
 
 
+@njit(nogil=True, fastmath=True)
+def logsumexp(a):
+    a_max = np.max(a)
+    out = np.log(np.sum(np.exp(a - a_max)))
+    out += a_max
+    return out
+
+
 @njit(parallel=True)
 def normalize_to_probability(distribution):
     '''Ensure the distribution integrates to 1 so that it is a probability
