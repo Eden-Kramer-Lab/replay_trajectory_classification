@@ -54,4 +54,5 @@ class NumbaKDE(BaseEstimator, DensityMixin):
         return self
 
     def score_samples(self, X):
-        return np.log(numba_kde(X, self.training_data, self.bandwidth))
+        return np.log(numba_kde(X, self.training_data,
+                                self.bandwidth[-X.shape[1]:]))
