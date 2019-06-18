@@ -29,12 +29,12 @@ def numba_kde(eval_points, samples, bandwidths):
     n_samples = len(samples)
 
     for i in range(n_eval_points):
-        eval_point = eval_points[i]
         for j in range(n_samples):
-            sample = samples[j]
             product_kernel = 1.0
             for k in range(n_bandwidths):
                 bandwidth = bandwidths[k]
+                eval_point = eval_points[i, k]
+                sample = samples[j, k]
                 product_kernel *= (np.exp(
                     -0.5 * ((eval_point - sample) / bandwidth)**2) /
                     (bandwidth * SQRT_2PI)) / bandwidth
