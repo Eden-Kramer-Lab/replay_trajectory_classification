@@ -56,3 +56,5 @@ coverage.xml
 *.gif
 *.csv
 *.png
+*.lock
+*.dirlock
