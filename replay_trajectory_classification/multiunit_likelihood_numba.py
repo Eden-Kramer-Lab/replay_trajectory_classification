@@ -13,11 +13,12 @@ def gaussian_pdf(x, mean, sigma):
     return math.exp(-0.5 * ((x - mean) / sigma)**2) / (sigma * SQRT_2PI)
 
 
+@numba.njit(parallel=True, fastmath=True)
 def product_kde(eval_points, samples, bandwidths):
     result = 0
     n_samples = len(samples)
 
-    for sample_ind in range(n_samples):
+    for sample_ind in numba.prange(n_samples):
         result += np.prod(
             gaussian_pdf(eval_points, samples[sample_ind], bandwidths)
         )
@@ -25,6 +26,7 @@ def product_kde(eval_points, samples, bandwidths):
     return result / (n_samples * np.prod(bandwidths))
 
 
+@numba.njit(parallel=True, fastmath=True)
 def get_likelihood(marks, place_bin_centers, bandwidths, occupancy,
                    ground_intensity, training_data, mean_rates):
     '''
@@ -47,23 +49,26 @@ def get_likelihood(marks, place_bin_centers, bandwidths, occupancy,
     '''
     n_time, n_tetrodes, _ = marks.shape
     n_bins = place_bin_centers.shape[0]
-    likelihood = np.zeros((n_time, n_bins))
+    likelihood = np.ones((n_time, n_bins))
 
     for time_ind in range(n_time):
-        for bin_ind in range(n_bins):
-            for tetrode_ind in range(n_tetrodes):
-                if ~np.all(np.isnan(marks[time_ind, tetrode_ind])):
+        for tetrode_ind in numba.prange(n_tetrodes):
+            if ~np.any(np.isnan(marks[time_ind, tetrode_ind])):
+                for bin_ind in numba.prange(n_bins):
                     eval_points = np.concatenate(
                         (marks[time_ind, tetrode_ind],
                          place_bin_centers[bin_ind]))
-                    joint_mark_pdf = product_kde(
-                        eval_points, training_data[tetrode_ind], bandwidths)
-                else:
-                    joint_mark_pdf = 1.0
-
-                likelihood[time_ind, bin_ind] *= (
-                    (mean_rates[tetrode_ind] * joint_mark_pdf /
+                    likelihood[time_ind, bin_ind] *= (
+                        (mean_rates[tetrode_ind] * product_kde(
+                            eval_points, training_data[tetrode_ind],
+                            bandwidths) / occupancy[bin_ind]) *
+                        math.exp(-ground_intensity[tetrode_ind, bin_ind])
+                    )
+            else:
+                likelihood[time_ind, :] *= (
+                    (mean_rates[tetrode_ind] /
                      occupancy[bin_ind]) *
                     math.exp(-ground_intensity[tetrode_ind, bin_ind])
                 )
+
     return likelihood
