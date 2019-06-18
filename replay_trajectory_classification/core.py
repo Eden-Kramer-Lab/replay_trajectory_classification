@@ -201,7 +201,8 @@ def _causal_classify(initial_conditions, continuous_state_transition,
     n_time, n_states, n_bins, _ = likelihood.shape
     posterior = np.zeros_like(likelihood)
 
-    posterior[0] = initial_conditions.copy() * likelihood[0]
+    posterior[0] = normalize_to_probability(
+        initial_conditions.copy() * likelihood[0])
 
     for k in np.arange(1, n_time):
         prior = np.zeros((n_states, n_bins, 1))
