@@ -22,25 +22,24 @@ class WhitenedKDE(BaseEstimator, DensityMixin):
         return self.kde.score_samples(self.pre_whiten.transform(X))
 
 
-@numba.vectorize(['float64(float64, float64, float64)'], nopython=True)
-def gaussian_pdf(x, mean, sigma):
-    '''Compute the value of a Gaussian probability density function at x
-    with given mean and sigma.'''
-    return math.exp(-0.5 * ((x - mean) / sigma)**2) / (sigma * SQRT_2PI)
-
-
-@numba.njit(parallel=True, fastmath=True)
+@numba.njit(nogil=True, cache=True)
 def numba_kde(eval_points, samples, bandwidths):
-    n_eval_points = len(eval_points)
+    n_eval_points, n_bandwidths = eval_points.shape
     result = np.zeros((n_eval_points,))
     n_samples = len(samples)
-    denom = n_samples * np.prod(bandwidths)
 
-    for i in numba.prange(n_eval_points):
+    for i in range(n_eval_points):
+        eval_point = eval_points[i]
         for j in range(n_samples):
-            result[i] += np.prod(
-                gaussian_pdf(eval_points[i], samples[j], bandwidths))
-        result[i] /= denom
+            sample = samples[j]
+            product_kernel = 1.0
+            for k in range(n_bandwidths):
+                bandwidth = bandwidths[k]
+                product_kernel *= (np.exp(
+                    -0.5 * ((eval_point - sample) / bandwidth)**2) /
+                    (bandwidth * SQRT_2PI)) / bandwidth
+            result[i] += product_kernel
+        result[i] /= n_samples
 
     return result
 
