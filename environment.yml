@@ -12,6 +12,7 @@ dependencies:
 - numba
 - statsmodels
 - scikit-learn
+- joblib
 - networkx
 - xarray
 - dask

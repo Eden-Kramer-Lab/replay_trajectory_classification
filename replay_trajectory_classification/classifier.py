@@ -5,7 +5,8 @@ from logging import getLogger
 import numpy as np
 import xarray as xr
 from sklearn.base import BaseEstimator
-from sklearn.externals import joblib
+
+import joblib
 
 from .core import (_acausal_classify, _causal_classify, atleast_2d,
                    get_centers, get_grid, get_track_interior)
