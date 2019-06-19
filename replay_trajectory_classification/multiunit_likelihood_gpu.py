@@ -6,7 +6,7 @@ from numba.types import float32
 
 SQRT_2PI = np.float32(math.sqrt(2.0 * math.pi))
 TILE_SIZE = 512
-N_BANDWIDTH = 6
+N_BANDWIDTHS = 6
 
 
 @cuda.jit(device=True)
@@ -163,33 +163,34 @@ def numba_kde_cuda2b(eval_points, samples, bandwidths, out):
     n_samples = samples.shape[0]
 
     thread_id = cuda.grid(1)
-    relative_thread_id = cuda.threadIdx.x
-
-    samples_tile = cuda.shared.array((TILE_SIZE, 6), float32)
-    sum_kernel = 0.0
-
-    for tile_ind in range(0, n_samples, TILE_SIZE):
-        tile_index = tile_ind * TILE_SIZE + relative_thread_id
-
-        if tile_index < n_samples:
-            for bandwidth_ind in range(n_bandwidths):
-                samples_tile[relative_thread_id, bandwidth_ind] = samples[
-                    tile_index, bandwidth_ind]
-
-            cuda.syncthreads()
-
-            for samples_tile_ind in range(0, TILE_SIZE):
-                product_kernel = 1.0
-                for bandwidth_ind in range(n_bandwidths):
-                    product_kernel *= (
-                        gaussian_pdf(eval_points[thread_id, bandwidth_ind],
-                                     samples_tile[samples_tile_ind,
-                                                  bandwidth_ind],
-                                     bandwidths[bandwidth_ind])
-                        / bandwidths[bandwidth_ind])
-                sum_kernel += product_kernel
-
-            cuda.syncthreads()
-
     if thread_id < n_eval:
+        relative_thread_id = cuda.threadIdx.x
+        n_threads = cuda.blockDim.x
+
+        samples_tile = cuda.shared.array((TILE_SIZE, N_BANDWIDTHS), float32)
+
+        sum_kernel = 0.0
+
+        for tile_ind in range(0, n_samples, TILE_SIZE):
+            tile_index = tile_ind + relative_thread_id
+            if tile_index < n_samples:
+                for bandwidth_ind in range(n_bandwidths):
+                    samples_tile[relative_thread_id, bandwidth_ind] = samples[
+                        tile_index, bandwidth_ind]
+
+            cuda.syncthreads()
+
+            for i in range(n_threads):
+                if tile_ind + i < n_samples:
+                    product_kernel = 1.0
+                    for bandwidth_ind in range(n_bandwidths):
+                        product_kernel *= (
+                            gaussian_pdf(eval_points[thread_id, bandwidth_ind],
+                                         samples_tile[i, bandwidth_ind],
+                                         bandwidths[bandwidth_ind])
+                            / bandwidths[bandwidth_ind])
+                    sum_kernel += product_kernel
+
+            cuda.syncthreads()
+
         out[thread_id] = sum_kernel / n_samples
