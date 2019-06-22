@@ -1,5 +1,6 @@
 import dask
 import dask.array as da
+from dask.distributed import get_client, Client
 import numpy as np
 
 from .core import atleast_2d
@@ -235,6 +236,11 @@ def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
     mean_rates : ndarray, (n_electrodes,)
 
     '''
+    try:
+        client = get_client()
+    except ValueError:
+        client = Client()
+
     if is_track_interior is None:
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
@@ -253,9 +259,13 @@ def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
         joint_pdf_models.append(
             train_joint_model(multiunit, position, model, model_kwargs))
 
-    mean_rates = np.asarray(mean_rates)
     ground_process_intensities = dask.compute(*ground_process_intensities)
     joint_pdf_models = dask.compute(*joint_pdf_models)
+
+    joint_pdf_models = client.scatter(joint_pdf_models)
+    ground_process_intensities = client.scatter(ground_process_intensities)
+    occupancy = client.scatter(occupancy, broadcast=True)
+    mean_rates = client.scatter(mean_rates)
 
     return joint_pdf_models, ground_process_intensities, occupancy, mean_rates
 
@@ -325,7 +335,7 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
     if is_track_interior is None:
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
-    shape = multiunits.shape[0], occupancy.shape[0]
+    shape = multiunits.shape[0], place_bin_centers.shape[0]
     zipped = zip(np.moveaxis(multiunits, -1, 0), joint_pdf_models,
                  mean_rates, ground_process_intensities)
     log_likelihood = [
