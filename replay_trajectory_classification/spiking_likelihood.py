@@ -2,10 +2,10 @@ import dask
 import numpy as np
 import pandas as pd
 import xarray as xr
+from dask.distributed import Client, get_client
 from patsy import build_design_matrices, dmatrix
-from statsmodels.api import families
-
 from regularized_glm import penalized_IRLS
+from statsmodels.api import families
 
 from .core import get_n_bins
 
@@ -161,7 +161,11 @@ def estimate_place_fields(position, spikes, place_bin_centers, penalty=1E-1,
     '''
     design_matrix = make_spline_design_matrix(position, knot_spacing)
     design_info = design_matrix.design_info
-    design_matrix = dask.delayed(np.array(design_matrix))
+    try:
+        client = get_client()
+    except ValueError:
+        client = Client()
+    design_matrix = client.scatter(design_matrix, broadcast=True)
     results = [fit_glm(is_spike, design_matrix, penalty)
                for is_spike in spikes.T]
     results = dask.compute(*results)
