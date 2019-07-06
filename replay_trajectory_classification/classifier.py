@@ -33,7 +33,7 @@ _DEFAULT_CONTINUOUS_TRANSITIONS = (
     [['random_walk', 'uniform', 'identity'],
      ['uniform',   'uniform', 'uniform'],
      ['random_walk', 'uniform', 'identity']])
-_DISCRETE_DIAG = 1 - 1E-2
+_DISCRETE_DIAG = 1 - 1E-3
 
 
 class _ClassifierBase(BaseEstimator):
