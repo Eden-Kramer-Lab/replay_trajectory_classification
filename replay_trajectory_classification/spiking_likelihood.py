@@ -165,7 +165,7 @@ def estimate_place_fields(position, spikes, place_bin_centers, penalty=1E-1,
         client = get_client()
     except ValueError:
         client = Client()
-    design_matrix = client.scatter(design_matrix, broadcast=True)
+    design_matrix = client.scatter(np.asarray(design_matrix), broadcast=True)
     results = [fit_glm(is_spike, design_matrix, penalty)
                for is_spike in spikes.T]
     results = dask.compute(*results)
