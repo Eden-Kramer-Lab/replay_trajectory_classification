@@ -16,14 +16,10 @@ from .multiunit_likelihood import (estimate_multiunit_likelihood,
                                    fit_multiunit_likelihood)
 from .spiking_likelihood import (estimate_place_fields,
                                  estimate_spiking_likelihood)
-from .state_transition import (empirical_minus_identity, empirical_movement,
-                               identity, identity_discrete,
-                               inverse_random_walk, random_walk, random_walk2,
-                               random_walk_minus_identity,
-                               strong_diagonal_discrete, uniform_discrete,
-                               uniform_minus_empirical,
-                               uniform_minus_random_walk,
-                               uniform_state_transition)
+from .state_transition import (empirical_movement, identity, identity_discrete,
+                               random_walk, strong_diagonal_discrete,
+                               uniform_discrete, uniform_state_transition,
+                               w_track_1D_random_walk)
 
 logger = getLogger(__name__)
 
@@ -84,7 +80,7 @@ class _ClassifierBase(BaseEstimator):
             self, position, is_training=None, replay_speed=None,
             is_track_interior=None,
             continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
-            infer_track_interior=True):
+            infer_track_interior=True, track_labels=None):
         logger.info('Fitting state transition...')
         if is_training is None:
             is_training = np.ones((position.shape[0],), dtype=np.bool)
@@ -107,37 +103,16 @@ class _ClassifierBase(BaseEstimator):
                 random_walk,
                 self.place_bin_centers_, self.movement_var,
                 self.is_track_interior_, self.replay_speed),
-            'random_walk2': partial(
-                random_walk2,
-                self.place_bin_centers_, self.movement_var,
-                self.is_track_interior_, self.replay_speed),
             'uniform': partial(
                 uniform_state_transition, self.place_bin_centers_,
                 self.is_track_interior_),
             'identity': partial(
                 identity, self.place_bin_centers_, self.is_track_interior_),
-            'uniform_minus_empirical': partial(
-                uniform_minus_empirical, self.place_bin_centers_,
-                self.is_track_interior_, position, self.edges_, is_training,
-                self.replay_speed, self.position_range
-            ),
-            'uniform_minus_random_walk': partial(
-                uniform_minus_random_walk, self.place_bin_centers_,
-                self.movement_var, self.is_track_interior_, self.replay_speed
-            ),
-            'empirical_minus_identity': partial(
-                empirical_minus_identity, self.place_bin_centers_,
-                self.is_track_interior_, position, self.edges_, is_training,
-                self.replay_speed, self.position_range
-            ),
-            'random_walk_minus_identity': partial(
-                random_walk_minus_identity, self.place_bin_centers_,
-                self.movement_var, self.is_track_interior_, self.replay_speed
-            ),
-            'inverse_random_walk': partial(
-                inverse_random_walk, self.place_bin_centers_,
-                self.movement_var, self.is_track_interior_, self.replay_speed
-            )
+            'w_track_1D_random_walk': partial(
+                w_track_1D_random_walk, position, self.place_bin_edges_,
+                self.place_bin_centers_, track_labels, self.movement_var,
+                self.replay_speed)
+
         }
         n_bins = self.place_bin_centers_.shape[0]
         n_states = len(self.continuous_transition_types)
@@ -282,7 +257,8 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         return g
 
-    def fit(self, position, spikes, is_training=None, is_track_interior=None):
+    def fit(self, position, spikes, is_training=None, is_track_interior=None,
+            track_labels=None):
         '''
 
         Parameters
@@ -292,6 +268,12 @@ class SortedSpikesClassifier(_ClassifierBase):
         is_training : None or bool ndarray, shape (n_time), optional
             Time bins to be used for encoding.
         is_track_interior : None or bool ndaarray, shape (n_x_bins, n_y_bins)
+        track_labels : None or ndarray, shape (n_time,)
+
+        Returns
+        -------
+        self
+
         '''
         position = atleast_2d(np.asarray(position))
         spikes = np.asarray(spikes)
@@ -300,7 +282,8 @@ class SortedSpikesClassifier(_ClassifierBase):
         self.fit_continuous_state_transition(
             position, is_training, is_track_interior=is_track_interior,
             continuous_transition_types=self.continuous_transition_types,
-            infer_track_interior=self.infer_track_interior)
+            infer_track_interior=self.infer_track_interior,
+            track_labels=track_labels)
         self.fit_discrete_state_transition()
         self.fit_place_fields(position, spikes, is_training)
 
@@ -462,7 +445,7 @@ class ClusterlessClassifier(_ClassifierBase):
             self.is_track_interior_.ravel(order='F'))
 
     def fit(self, position, multiunits, is_training=None,
-            is_track_interior=None):
+            is_track_interior=None, track_labels=None):
         '''
 
         Parameters
@@ -471,6 +454,7 @@ class ClusterlessClassifier(_ClassifierBase):
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
         is_training : None or array_like, shape (n_time,)
         is_track_interior : None or ndarray, shape (n_x_bins, n_y_bins)
+        track_labels : None or ndarray, shape (n_time,)
 
         Returns
         -------
@@ -485,7 +469,8 @@ class ClusterlessClassifier(_ClassifierBase):
         self.fit_continuous_state_transition(
             position, is_training, is_track_interior=is_track_interior,
             continuous_transition_types=self.continuous_transition_types,
-            infer_track_interior=self.infer_track_interior)
+            infer_track_interior=self.infer_track_interior,
+            track_labels=track_labels)
         self.fit_discrete_state_transition()
         self.fit_multiunits(position, multiunits, is_training,
                             is_track_interior)

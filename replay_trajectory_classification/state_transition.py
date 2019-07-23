@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from scipy.stats import multivariate_normal
 
 from .core import atleast_2d
@@ -219,6 +220,86 @@ def inverse_random_walk(place_bin_centers, movement_var,
     is_track_interior = is_track_interior.ravel(order='F')
     transition_matrix[~is_track_interior] = 0.0
     transition_matrix[:, ~is_track_interior] = 0.0
+    return _normalize_row_probability(transition_matrix)
+
+
+def _center_arm(row, bin_labels, before_gaussian, after_gaussian):
+    arm_ind = bin_labels.loc[(bin_labels == 'Right Arm')].index
+    n_samples = min(arm_ind.size, after_gaussian.size)
+    row[arm_ind[:n_samples]] = after_gaussian[:n_samples] / 2
+
+    arm_ind = bin_labels.loc[(bin_labels == 'Left Arm')].index
+    n_samples = min(arm_ind.size, after_gaussian.size)
+    row[arm_ind[:n_samples]] = after_gaussian[:n_samples] / 2
+    return row
+
+
+def _left_arm(row, bin_labels, before_gaussian, after_gaussian):
+    arm_ind = bin_labels.loc[(bin_labels == 'Center Arm')].index
+    n_samples = min(arm_ind.size, before_gaussian.size)
+    row[arm_ind[-n_samples:]] = before_gaussian[-n_samples:] / 2
+
+    arm_ind = bin_labels.loc[(bin_labels == 'Right Arm')].index
+    n_samples = min(arm_ind.size, before_gaussian.size)
+    row[arm_ind[:n_samples]] = before_gaussian[-n_samples:][::-1] / 2
+    return row
+
+
+def _right_arm(row, bin_labels, before_gaussian, after_gaussian):
+    arm_ind = bin_labels.loc[(bin_labels == 'Center Arm')].index
+    n_samples = min(arm_ind.size, before_gaussian.size)
+    row[arm_ind[-n_samples:]] = before_gaussian[-n_samples:] / 2
+
+    arm_ind = bin_labels.loc[(bin_labels == 'Left Arm')].index
+    n_samples = min(arm_ind.size, before_gaussian.size)
+    row[arm_ind[:n_samples]] = before_gaussian[-n_samples:][::-1] / 2
+    return row
+
+
+_ARM_FUNCS = {
+    'Left Arm': _left_arm,
+    'Right Arm': _right_arm,
+    'Center Arm': _center_arm,
+}
+
+
+def w_track_1D_random_walk(position, place_bin_edges, place_bin_centers,
+                           labels, movement_var, replay_speed=200):
+    position = position.squeeze()
+    place_bin_edges = place_bin_edges.squeeze()
+    place_bin_centers = place_bin_centers.squeeze()
+    bin_inds = np.digitize(position, bins=place_bin_edges) - 1
+    n_bins = place_bin_edges.size - 1
+    bin_inds[bin_inds >= n_bins] = n_bins - 1
+    bin_labels = pd.Series(labels).groupby(
+        bin_inds).unique().apply(lambda s: s[0])
+
+    transition_matrix = []
+
+    for bin_ind in np.arange(n_bins):
+        bin_center = place_bin_centers[bin_ind]
+        row = np.zeros((n_bins,))
+        try:
+            bin_label = bin_labels.loc[bin_ind]
+            is_same_bin = (bin_labels == bin_label)
+            is_same_bin_ind = is_same_bin[is_same_bin].index
+            is_same_bin = np.zeros_like(
+                place_bin_centers.squeeze(), dtype=np.bool)
+            is_same_bin[is_same_bin_ind] = True
+
+            gaussian = multivariate_normal(
+                mean=bin_center, cov=movement_var * replay_speed).pdf(
+                place_bin_centers)
+            row[is_same_bin] = gaussian[is_same_bin]
+            before_gaussian = gaussian[:np.nonzero(is_same_bin)[0][0]]
+            after_gaussian = gaussian[np.nonzero(is_same_bin)[0][-1]:]
+            row = _ARM_FUNCS[bin_label](row, bin_labels, before_gaussian,
+                                        after_gaussian)
+        except KeyError:
+            pass
+        transition_matrix.append(row)
+
+    transition_matrix = np.stack(transition_matrix, axis=1)
     return _normalize_row_probability(transition_matrix)
 
 
