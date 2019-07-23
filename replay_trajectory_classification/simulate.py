@@ -93,7 +93,8 @@ def simulate_neuron_with_place_field(means, position, max_rate=15, variance=10,
 
 
 def simulate_multiunit_with_place_fields(place_means, position, mark_spacing=5,
-                                         n_mark_dims=4,
+                                         n_mark_dims=4, place_variance=36.0,
+                                         mark_variance=1.0, max_rate=100,
                                          sampling_frequency=1000):
     '''Simulates a multiunit with neurons at `place_means`
 
@@ -115,9 +116,10 @@ def simulate_multiunit_with_place_fields(place_means, position, mark_spacing=5,
     marks = np.full((n_time, n_mark_dims), np.nan)
     for mean, mark_center in zip(place_means, mark_centers):
         is_spike = simulate_neuron_with_place_field(
-            mean, position, max_rate=100, variance=12.5**2,
+            mean, position, max_rate=max_rate, variance=place_variance,
             sampling_frequency=sampling_frequency) > 0
         n_spikes = int(is_spike.sum())
         marks[is_spike] = multivariate_normal(
-            mean=[mark_center] * n_mark_dims).rvs(size=n_spikes)
+            mean=[mark_center] * n_mark_dims, cov=mark_variance
+            ).rvs(size=n_spikes)
     return marks
