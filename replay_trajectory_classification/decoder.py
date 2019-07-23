@@ -17,7 +17,8 @@ from .multiunit_likelihood import (estimate_multiunit_likelihood,
 from .spiking_likelihood import (estimate_place_fields,
                                  estimate_spiking_likelihood)
 from .state_transition import (empirical_movement, identity, random_walk,
-                               uniform_state_transition)
+                               uniform_state_transition,
+                               w_track_1D_random_walk)
 
 logger = getLogger(__name__)
 
@@ -67,7 +68,7 @@ class _DecoderBase(BaseEstimator):
             self, position, is_training=None, replay_speed=None,
             is_track_interior=None,
             transition_type='random_walk',
-            infer_track_interior=True):
+            infer_track_interior=True, track_labels=None):
         logger.info('Fitting state transition...')
         if is_training is None:
             is_training = np.ones((position.shape[0],), dtype=np.bool)
@@ -95,6 +96,10 @@ class _DecoderBase(BaseEstimator):
                 self.is_track_interior_),
             'identity': partial(
                 identity, self.place_bin_centers_, self.is_track_interior_),
+            'w_track_1D_random_walk': partial(
+                w_track_1D_random_walk, position, self.place_bin_edges_,
+                self.place_bin_centers_, track_labels, self.movement_var,
+                self.replay_speed)
         }
 
         self.state_transition_ = transitions[transition_type]()
@@ -199,7 +204,8 @@ class SortedSpikesDecoder(_DecoderBase):
 
         return g
 
-    def fit(self, position, spikes, is_training=None, is_track_interior=None):
+    def fit(self, position, spikes, is_training=None, is_track_interior=None,
+            track_labels=None):
         '''
 
         Parameters
@@ -209,6 +215,13 @@ class SortedSpikesDecoder(_DecoderBase):
         is_training : None or bool ndarray, shape (n_time), optional
             Time bins to be used for encoding.
         is_track_interior : None or bool ndaarray, shape (n_x_bins, n_y_bins)
+        track_labels : None or ndarray, shape (n_time,)
+            Used for `w_track_1D_random_walk` transition matrix. Valid labels
+            are: 'Left Arm' | 'Right Arm' | 'Center Arm'
+
+        Returns
+        -------
+        self
 
         '''
         position = atleast_2d(np.asarray(position))
@@ -218,7 +231,8 @@ class SortedSpikesDecoder(_DecoderBase):
         self.fit_state_transition(
             position, is_training, is_track_interior=is_track_interior,
             transition_type=self.transition_type,
-            infer_track_interior=self.infer_track_interior)
+            infer_track_interior=self.infer_track_interior,
+            track_labels=track_labels)
         self.fit_place_fields(position, spikes, is_training)
 
         return self
@@ -353,7 +367,7 @@ class ClusterlessDecoder(_DecoderBase):
             self.is_track_interior_.ravel(order='F'))
 
     def fit(self, position, multiunits, is_training=None,
-            is_track_interior=None):
+            is_track_interior=None, track_labels=None):
         '''
 
         Parameters
@@ -362,6 +376,9 @@ class ClusterlessDecoder(_DecoderBase):
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
         is_training : None or array_like, shape (n_time,)
         is_track_interior : None or ndarray, shape (n_x_bins, n_y_bins)
+        track_labels : None or ndarray, shape (n_time,)
+            Used for `w_track_1D_random_walk` transition matrix. Valid labels
+            are: 'Left Arm' | 'Right Arm' | 'Center Arm'
 
         Returns
         -------
@@ -376,7 +393,8 @@ class ClusterlessDecoder(_DecoderBase):
         self.fit_state_transition(
             position, is_training, is_track_interior=is_track_interior,
             transition_type=self.transition_type,
-            infer_track_interior=self.infer_track_interior)
+            infer_track_interior=self.infer_track_interior,
+            track_labels=track_labels)
         self.fit_multiunits(position, multiunits, is_training,
                             is_track_interior)
 
