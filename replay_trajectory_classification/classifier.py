@@ -269,6 +269,8 @@ class SortedSpikesClassifier(_ClassifierBase):
             Time bins to be used for encoding.
         is_track_interior : None or bool ndaarray, shape (n_x_bins, n_y_bins)
         track_labels : None or ndarray, shape (n_time,)
+            Used for `w_track_1D_random_walk` transition matrix. Valid labels
+            are: 'Left Arm' | 'Right Arm' | 'Center Arm'
 
         Returns
         -------
@@ -455,6 +457,8 @@ class ClusterlessClassifier(_ClassifierBase):
         is_training : None or array_like, shape (n_time,)
         is_track_interior : None or ndarray, shape (n_x_bins, n_y_bins)
         track_labels : None or ndarray, shape (n_time,)
+            Used for `w_track_1D_random_walk` transition matrix. Valid labels
+            are: 'Left Arm' | 'Right Arm' | 'Center Arm'
 
         Returns
         -------
