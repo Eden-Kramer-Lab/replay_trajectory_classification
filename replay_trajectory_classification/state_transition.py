@@ -208,7 +208,8 @@ _ARM_FUNCS = {
 
 
 def w_track_1D_random_walk(position, place_bin_edges, place_bin_centers,
-                           labels, movement_var, replay_speed=200):
+                           labels, movement_var, is_track_interior,
+                           replay_speed=200):
     position = position.squeeze()
     place_bin_edges = place_bin_edges.squeeze()
     place_bin_centers = place_bin_centers.squeeze()
@@ -244,6 +245,9 @@ def w_track_1D_random_walk(position, place_bin_edges, place_bin_centers,
         transition_matrix.append(row)
 
     transition_matrix = np.stack(transition_matrix, axis=1)
+    is_track_interior = is_track_interior.ravel(order='F')
+    transition_matrix[~is_track_interior] = 0.0
+    transition_matrix[:, ~is_track_interior] = 0.0
     return _normalize_row_probability(transition_matrix)
 
 

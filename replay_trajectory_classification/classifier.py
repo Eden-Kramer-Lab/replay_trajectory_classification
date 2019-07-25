@@ -111,7 +111,7 @@ class _ClassifierBase(BaseEstimator):
             'w_track_1D_random_walk': partial(
                 w_track_1D_random_walk, position, self.place_bin_edges_,
                 self.place_bin_centers_, track_labels, self.movement_var,
-                self.replay_speed)
+                self.is_track_interior_, self.replay_speed)
 
         }
         n_bins = self.place_bin_centers_.shape[0]
