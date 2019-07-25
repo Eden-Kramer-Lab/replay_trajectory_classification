@@ -157,7 +157,10 @@ class _ClassifierBase(BaseEstimator):
 
     @staticmethod
     def predict_proba(results):
-        return results.sum(['x_position', 'y_position'])
+        try:
+            return results.sum(['x_position', 'y_position'])
+        except ValueError:
+            return results.sum(['position'])
 
     def copy(self):
         return deepcopy(self)
