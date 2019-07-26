@@ -9,7 +9,7 @@ TESTS_REQUIRE = ['pytest >= 2.7.1']
 
 setup(
     name='replay_trajectory_classification',
-    version='0.5.11.dev0',
+    version='0.5.12.dev0',
     license='MIT',
     description=('Classify replay trajectories.'),
     author='Eric Denovellis',
