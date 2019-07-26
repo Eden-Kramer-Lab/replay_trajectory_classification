@@ -286,7 +286,7 @@ def get_track_interior(position, bins):
         is_maze = ndimage.binary_closing(is_maze, structure=structure)
         is_maze = ndimage.binary_fill_holes(is_maze)
         is_maze = ndimage.binary_dilation(is_maze, structure=structure)
-    return is_maze
+    return is_maze.astype(np.bool)
 
 
 def get_track_border(is_maze, edges):
