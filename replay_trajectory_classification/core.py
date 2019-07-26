@@ -281,10 +281,12 @@ def get_track_interior(position, bins):
     bin_counts, edges = np.histogramdd(position, bins=bins)
     is_maze = (bin_counts > 0).astype(int)
     n_position_dims = position.shape[1]
-    structure = np.ones([1] * n_position_dims)
-    is_maze = ndimage.binary_closing(is_maze, structure=structure)
-    is_maze = ndimage.binary_fill_holes(is_maze)
-    return ndimage.binary_dilation(is_maze, structure=structure)
+    if n_position_dims > 1:
+        structure = np.ones([1] * n_position_dims)
+        is_maze = ndimage.binary_closing(is_maze, structure=structure)
+        is_maze = ndimage.binary_fill_holes(is_maze)
+        is_maze = ndimage.binary_dilation(is_maze, structure=structure)
+    return is_maze
 
 
 def get_track_border(is_maze, edges):
