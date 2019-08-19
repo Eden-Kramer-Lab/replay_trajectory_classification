@@ -277,6 +277,18 @@ def w_track_1D_random_walk(position, place_bin_edges, place_bin_centers,
     return _normalize_row_probability(transition_matrix)
 
 
+def w_track_1D_random_walk_minus_identity(
+        position, place_bin_edges, place_bin_centers,
+        labels, movement_var, is_track_interior, replay_speed):
+    rw = w_track_1D_random_walk(position, place_bin_edges, place_bin_centers,
+                                labels, movement_var, is_track_interior,
+                                replay_speed)
+    ident = identity(place_bin_centers, is_track_interior)
+    difference = rw - ident
+    difference[difference < 0] = 0.0
+    return _normalize_row_probability(difference)
+
+
 def identity_discrete(n_states):
     '''
 
