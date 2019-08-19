@@ -29,8 +29,7 @@ _DEFAULT_TRANSITIONS = ['random_walk', 'uniform', 'identity']
 
 class _DecoderBase(BaseEstimator):
     def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
-                 position_range=None,
-                 transition_type='random_walk',
+                 position_range=None, transition_type='random_walk',
                  initial_conditions_type='uniform_on_track',
                  infer_track_interior=True):
         self.place_bin_size = place_bin_size
