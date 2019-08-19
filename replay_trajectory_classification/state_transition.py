@@ -167,6 +167,62 @@ def identity(place_bin_centers, is_track_interior):
     return _normalize_row_probability(transition_matrix)
 
 
+def uniform_minus_empirical(place_bin_centers, is_track_interior, position,
+                            edges, is_training=None, replay_speed=20,
+                            position_extent=None):
+    uniform = uniform_state_transition(place_bin_centers, is_track_interior)
+    empirical = empirical_movement(
+        position, edges, is_training, replay_speed,
+        position_extent)
+    difference = uniform - empirical
+    difference[difference < 0] = 0.0
+    return _normalize_row_probability(difference)
+
+
+def uniform_minus_random_walk(place_bin_centers, movement_var,
+                              is_track_interior, replay_speed=20):
+    uniform = uniform_state_transition(place_bin_centers, is_track_interior)
+    random = random_walk(
+        place_bin_centers, movement_var, is_track_interior, replay_speed)
+    difference = uniform - random
+    difference[difference < 0] = 0.0
+    return _normalize_row_probability(difference)
+
+
+def empirical_minus_identity(place_bin_centers, is_track_interior,
+                             position, edges, is_training=None,
+                             replay_speed=20, position_extent=None):
+    empirical = empirical_movement(
+        position, edges, is_training, replay_speed,
+        position_extent)
+    ident = identity(place_bin_centers, is_track_interior)
+    difference = empirical - ident
+    difference[difference < 0] = 0.0
+    return _normalize_row_probability(difference)
+
+
+def random_walk_minus_identity(place_bin_centers, movement_var,
+                               is_track_interior, replay_speed=20):
+    random = random_walk(
+        place_bin_centers, movement_var, is_track_interior, replay_speed)
+    ident = identity(place_bin_centers, is_track_interior)
+    difference = random - ident
+    difference[difference < 0] = 0.0
+    return _normalize_row_probability(difference)
+
+
+def inverse_random_walk(place_bin_centers, movement_var,
+                        is_track_interior, replay_speed=20):
+    random = random_walk(
+        place_bin_centers, movement_var, is_track_interior, replay_speed)
+    transition_matrix = random.max(axis=1, keepdims=True) - random
+
+    is_track_interior = is_track_interior.ravel(order='F')
+    transition_matrix[~is_track_interior] = 0.0
+    transition_matrix[:, ~is_track_interior] = 0.0
+    return _normalize_row_probability(transition_matrix)
+
+
 def _center_arm(row, bin_labels, before_gaussian, after_gaussian):
     arm_ind = bin_labels.loc[(bin_labels == 'Right Arm')].index
     n_samples = min(arm_ind.size, after_gaussian.size)
