@@ -10,7 +10,7 @@ import joblib
 from .core import (_acausal_classify, _causal_classify, atleast_2d,
                    get_centers, get_grid, get_track_interior)
 from .initial_conditions import uniform_on_track
-from .misc import WhitenedKDE
+from .misc import NumbaKDE
 from .multiunit_likelihood import (estimate_multiunit_likelihood,
                                    fit_multiunit_likelihood)
 from .spiking_likelihood import (estimate_place_fields,
@@ -19,8 +19,8 @@ from .state_transition import CONTINUOUS_TRANSITIONS, DISCRETE_TRANSITIONS
 
 logger = getLogger(__name__)
 
-_DEFAULT_MULTIUNIT_MODEL_KWARGS = dict(bandwidth=0.75, kernel='epanechnikov',
-                                       rtol=1E-4)
+_DEFAULT_CLUSTERLESS_MODEL_KWARGS = dict(
+    bandwidth=np.array([24.0, 24.0, 24.0, 24.0, 6.0, 6.0]))
 _DEFAULT_CONTINUOUS_TRANSITIONS = (
     [['random_walk', 'uniform', 'identity'],
      ['uniform',   'uniform', 'uniform'],
@@ -371,8 +371,8 @@ class ClusterlessClassifier(_ClassifierBase):
                  initial_conditions_type='uniform_on_track',
                  discrete_transition_diag=_DISCRETE_DIAG,
                  infer_track_interior=True,
-                 model=WhitenedKDE,
-                 model_kwargs=_DEFAULT_MULTIUNIT_MODEL_KWARGS,
+                 model=NumbaKDE,
+                 model_kwargs=_DEFAULT_CLUSTERLESS_MODEL_KWARGS,
                  occupancy_model=None, occupancy_kwargs=None):
         super().__init__(place_bin_size, replay_speed, movement_var,
                          position_range, continuous_transition_types,

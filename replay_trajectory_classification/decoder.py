@@ -10,7 +10,7 @@ import joblib
 from .core import (_acausal_decode, _causal_decode, atleast_2d, get_centers,
                    get_grid, get_track_interior)
 from .initial_conditions import uniform_on_track
-from .misc import WhitenedKDE
+from .misc import NumbaKDE
 from .multiunit_likelihood import (estimate_multiunit_likelihood,
                                    fit_multiunit_likelihood)
 from .spiking_likelihood import (estimate_place_fields,
@@ -19,8 +19,8 @@ from .state_transition import CONTINUOUS_TRANSITIONS
 
 logger = getLogger(__name__)
 
-_DEFAULT_MULTIUNIT_MODEL_KWARGS = dict(bandwidth=0.75, kernel='epanechnikov',
-                                       rtol=1E-4)
+_DEFAULT_CLUSTERLESS_MODEL_KWARGS = dict(
+    bandwidth=np.array([24.0, 24.0, 24.0, 24.0, 6.0, 6.0]))
 _DEFAULT_TRANSITIONS = ['random_walk', 'uniform', 'identity']
 
 
@@ -296,8 +296,8 @@ class ClusterlessDecoder(_DecoderBase):
     '''
 
     def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
-                 position_range=None, model=WhitenedKDE,
-                 model_kwargs=_DEFAULT_MULTIUNIT_MODEL_KWARGS,
+                 position_range=None, model=NumbaKDE,
+                 model_kwargs=_DEFAULT_CLUSTERLESS_MODEL_KWARGS,
                  occupancy_model=None, occupancy_kwargs=None,
                  transition_type='random_walk',
                  initial_conditions_type='uniform_on_track',
