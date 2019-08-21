@@ -1,5 +1,4 @@
 from copy import deepcopy
-from functools import partial
 from logging import getLogger
 
 import numpy as np
@@ -10,15 +9,13 @@ import joblib
 
 from .core import (_acausal_decode, _causal_decode, atleast_2d, get_centers,
                    get_grid, get_track_interior)
-from .initial_conditions import uniform, uniform_on_track
+from .initial_conditions import uniform_on_track
 from .misc import WhitenedKDE
 from .multiunit_likelihood import (estimate_multiunit_likelihood,
                                    fit_multiunit_likelihood)
 from .spiking_likelihood import (estimate_place_fields,
                                  estimate_spiking_likelihood)
-from .state_transition import (empirical_movement, identity, random_walk,
-                               uniform_state_transition,
-                               w_track_1D_random_walk)
+from .state_transition import CONTINUOUS_TRANSITIONS
 
 logger = getLogger(__name__)
 
@@ -53,15 +50,8 @@ class _DecoderBase(BaseEstimator):
         elif is_track_interior is None and not self.infer_track_interior:
             self.is_track_interior_ = np.ones(
                 self.centers_shape_, dtype=np.bool)
-        initial_conditions = {
-            'uniform':  partial(
-                uniform, self.place_bin_centers_),
-            'uniform_on_track': partial(
-                uniform_on_track, self.place_bin_centers_,
-                self.is_track_interior_)
-        }
-        self.initial_conditions_ = (
-            initial_conditions[self.initial_conditions_type]())
+        self.initial_conditions_ = uniform_on_track(self.place_bin_centers_,
+                                                    self.is_track_interior_)
 
     def fit_state_transition(
             self, position, is_training=None, replay_speed=None,
@@ -82,26 +72,11 @@ class _DecoderBase(BaseEstimator):
             self.is_track_interior_ = np.ones(
                 self.centers_shape_, dtype=np.bool)
 
-        transitions = {
-            'empirical_movement': partial(
-                empirical_movement, position, self.edges_, is_training,
-                self.replay_speed),
-            'random_walk': partial(
-                random_walk,
-                self.place_bin_centers_, self.movement_var,
-                self.is_track_interior_, self.replay_speed),
-            'uniform': partial(
-                uniform_state_transition, self.place_bin_centers_,
-                self.is_track_interior_),
-            'identity': partial(
-                identity, self.place_bin_centers_, self.is_track_interior_),
-            'w_track_1D_random_walk': partial(
-                w_track_1D_random_walk, position, self.place_bin_edges_,
-                self.place_bin_centers_, track_labels, self.movement_var,
-                self.is_track_interior_, self.replay_speed)
-        }
-
-        self.state_transition_ = transitions[transition_type]()
+        self.state_transition_ = CONTINUOUS_TRANSITIONS[transition_type](
+            self.place_bin_centers_, self.is_track_interior_,
+            position, self.edges_, is_training, self.replay_speed,
+            self.position_range, self.movement_var, track_labels,
+            self.place_bin_edges_)
 
     def fit(self):
         raise NotImplementedError

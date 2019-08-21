@@ -1,5 +1,4 @@
 from copy import deepcopy
-from functools import partial
 from logging import getLogger
 
 import numpy as np
@@ -10,16 +9,13 @@ import joblib
 
 from .core import (_acausal_classify, _causal_classify, atleast_2d,
                    get_centers, get_grid, get_track_interior)
-from .initial_conditions import uniform, uniform_on_track
+from .initial_conditions import uniform_on_track
 from .misc import WhitenedKDE
 from .multiunit_likelihood import (estimate_multiunit_likelihood,
                                    fit_multiunit_likelihood)
 from .spiking_likelihood import (estimate_place_fields,
                                  estimate_spiking_likelihood)
-from .state_transition import (empirical_movement, identity, identity_discrete,
-                               random_walk, strong_diagonal_discrete,
-                               uniform_discrete, uniform_state_transition,
-                               w_track_1D_random_walk)
+from .state_transition import CONTINUOUS_TRANSITIONS, DISCRETE_TRANSITIONS
 
 logger = getLogger(__name__)
 
@@ -63,15 +59,9 @@ class _ClassifierBase(BaseEstimator):
         elif is_track_interior is None and not self.infer_track_interior:
             self.is_track_interior_ = np.ones(
                 self.centers_shape_, dtype=np.bool)
-        initial_conditions = {
-            'uniform':  partial(
-                uniform, self.place_bin_centers_),
-            'uniform_on_track': partial(
-                uniform_on_track, self.place_bin_centers_,
-                self.is_track_interior_)
-        }
         n_states = len(self.continuous_transition_types)
-        initial_conditions = initial_conditions[self.initial_conditions_type]()
+        initial_conditions = uniform_on_track(self.place_bin_centers_,
+                                              self.is_track_interior_)
         self.initial_conditions_ = (
             np.stack([initial_conditions] * n_states, axis=0)[..., np.newaxis]
             / n_states)
@@ -95,25 +85,6 @@ class _ClassifierBase(BaseEstimator):
             self.is_track_interior_ = np.ones(
                 self.centers_shape_, dtype=np.bool)
 
-        transitions = {
-            'empirical_movement': partial(
-                empirical_movement, position, self.edges_, is_training,
-                self.replay_speed),
-            'random_walk': partial(
-                random_walk,
-                self.place_bin_centers_, self.movement_var,
-                self.is_track_interior_, self.replay_speed),
-            'uniform': partial(
-                uniform_state_transition, self.place_bin_centers_,
-                self.is_track_interior_),
-            'identity': partial(
-                identity, self.place_bin_centers_, self.is_track_interior_),
-            'w_track_1D_random_walk': partial(
-                w_track_1D_random_walk, position, self.place_bin_edges_,
-                self.place_bin_centers_, track_labels, self.movement_var,
-                self.is_track_interior_, self.replay_speed)
-
-        }
         n_bins = self.place_bin_centers_.shape[0]
         n_states = len(self.continuous_transition_types)
         self.continuous_state_transition_ = np.zeros(
@@ -121,7 +92,11 @@ class _ClassifierBase(BaseEstimator):
         for row_ind, row in enumerate(self.continuous_transition_types):
             for column_ind, transition_type in enumerate(row):
                 self.continuous_state_transition_[row_ind, column_ind] = (
-                    transitions[transition_type]()
+                    CONTINUOUS_TRANSITIONS[transition_type](
+                        self.place_bin_centers_, self.is_track_interior_,
+                        position, self.edges_, is_training, self.replay_speed,
+                        self.position_range, self.movement_var, track_labels,
+                        self.place_bin_edges_)
                 )
 
     def fit_discrete_state_transition(self, discrete_transition_diag=None):
@@ -129,18 +104,9 @@ class _ClassifierBase(BaseEstimator):
             self.discrete_transition_diag = discrete_transition_diag
 
         n_states = len(self.continuous_transition_types)
-        transitions = {
-            'strong_diagonal': partial(
-                strong_diagonal_discrete, n_states,
-                self.discrete_transition_diag),
-            'identity': partial(
-                identity_discrete, n_states),
-            'uniform': partial(
-                uniform_discrete, n_states),
-        }
-
-        self.discrete_state_transition_ = transitions[
-            self.discrete_transition_type]()
+        self.discrete_state_transition_ = DISCRETE_TRANSITIONS[
+            self.discrete_transition_type](
+                n_states, self.discrete_transition_diag)
 
     def fit(self):
         raise NotImplementedError

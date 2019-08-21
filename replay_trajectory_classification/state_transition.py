@@ -13,8 +13,9 @@ def _normalize_row_probability(x):
     return x
 
 
-def empirical_movement(position, edges, is_training=None, replay_speed=20,
-                       position_extent=None):
+def empirical_movement(place_bin_centers, is_track_interior, position, edges,
+                       is_training, replay_speed, position_extent,
+                       movement_var, labels, place_bin_edges):
     '''Estimate the probablity of the next position based on the movement
      data, given the movment is sped up by the
      `replay_speed`
@@ -61,8 +62,9 @@ def empirical_movement(position, edges, is_training=None, replay_speed=20,
     return movement_bins
 
 
-def random_walk(place_bin_centers, movement_var, is_track_interior,
-                replay_speed=20):
+def random_walk(place_bin_centers, is_track_interior, position, edges,
+                is_training, replay_speed, position_extent, movement_var,
+                labels, place_bin_edges):
     '''Zero mean random walk.
 
     This version makes the sped up gaussian without constraints and then
@@ -91,7 +93,9 @@ def random_walk(place_bin_centers, movement_var, is_track_interior,
     return _normalize_row_probability(transition_matrix)
 
 
-def uniform_state_transition(place_bin_centers, is_track_interior):
+def uniform_state_transition(place_bin_centers, is_track_interior, position,
+                             edges, is_training, replay_speed, position_extent,
+                             movement_var, labels, place_bin_edges):
     '''Equally likely to go somewhere on the track.
 
     Parameters
@@ -114,7 +118,9 @@ def uniform_state_transition(place_bin_centers, is_track_interior):
     return _normalize_row_probability(transition_matrix)
 
 
-def identity(place_bin_centers, is_track_interior):
+def identity(place_bin_centers, is_track_interior, position, edges,
+             is_training, replay_speed, position_extent, movement_var,
+             labels, place_bin_edges):
     '''Stay in one place on the track.
 
     Parameters
@@ -138,8 +144,8 @@ def identity(place_bin_centers, is_track_interior):
 
 
 def uniform_minus_empirical(place_bin_centers, is_track_interior, position,
-                            edges, is_training=None, replay_speed=20,
-                            position_extent=None):
+                            edges, is_training, replay_speed, position_extent,
+                            movement_var, labels, place_bin_edges):
     uniform = uniform_state_transition(place_bin_centers, is_track_interior)
     empirical = empirical_movement(
         position, edges, is_training, replay_speed,
@@ -149,8 +155,10 @@ def uniform_minus_empirical(place_bin_centers, is_track_interior, position,
     return _normalize_row_probability(difference)
 
 
-def uniform_minus_random_walk(place_bin_centers, movement_var,
-                              is_track_interior, replay_speed=20):
+def uniform_minus_random_walk(place_bin_centers, is_track_interior, position,
+                              edges, is_training, replay_speed,
+                              position_extent, movement_var, labels,
+                              place_bin_edges):
     uniform = uniform_state_transition(place_bin_centers, is_track_interior)
     random = random_walk(
         place_bin_centers, movement_var, is_track_interior, replay_speed)
@@ -159,9 +167,9 @@ def uniform_minus_random_walk(place_bin_centers, movement_var,
     return _normalize_row_probability(difference)
 
 
-def empirical_minus_identity(place_bin_centers, is_track_interior,
-                             position, edges, is_training=None,
-                             replay_speed=20, position_extent=None):
+def empirical_minus_identity(place_bin_centers, is_track_interior, position,
+                             edges, is_training, replay_speed, position_extent,
+                             movement_var, labels, place_bin_edges):
     empirical = empirical_movement(
         position, edges, is_training, replay_speed,
         position_extent)
@@ -171,8 +179,10 @@ def empirical_minus_identity(place_bin_centers, is_track_interior,
     return _normalize_row_probability(difference)
 
 
-def random_walk_minus_identity(place_bin_centers, movement_var,
-                               is_track_interior, replay_speed=20):
+def random_walk_minus_identity(place_bin_centers, is_track_interior, position,
+                               edges, is_training, replay_speed,
+                               position_extent, movement_var, labels,
+                               place_bin_edges):
     random = random_walk(
         place_bin_centers, movement_var, is_track_interior, replay_speed)
     ident = identity(place_bin_centers, is_track_interior)
@@ -181,11 +191,12 @@ def random_walk_minus_identity(place_bin_centers, movement_var,
     return _normalize_row_probability(difference)
 
 
-def inverse_random_walk(place_bin_centers, movement_var,
-                        is_track_interior, replay_speed=20):
-    random = random_walk(
+def inverse_random_walk(place_bin_centers, is_track_interior, position, edges,
+                        is_training, replay_speed, position_extent,
+                        movement_var, labels, place_bin_edges):
+    rw = random_walk(
         place_bin_centers, movement_var, is_track_interior, replay_speed)
-    transition_matrix = random.max(axis=1, keepdims=True) - random
+    transition_matrix = rw.max(axis=1, keepdims=True) - rw
 
     is_track_interior = is_track_interior.ravel(order='F')
     transition_matrix[~is_track_interior] = 0.0
@@ -233,9 +244,9 @@ _ARM_FUNCS = {
 }
 
 
-def w_track_1D_random_walk(position, place_bin_edges, place_bin_centers,
-                           labels, movement_var, is_track_interior,
-                           replay_speed=200):
+def w_track_1D_random_walk(place_bin_centers, is_track_interior, position,
+                           edges, is_training, replay_speed, position_extent,
+                           movement_var, labels, place_bin_edges):
     position = position.squeeze()
     place_bin_edges = place_bin_edges.squeeze()
     place_bin_centers = place_bin_centers.squeeze()
@@ -278,8 +289,9 @@ def w_track_1D_random_walk(position, place_bin_edges, place_bin_centers,
 
 
 def w_track_1D_random_walk_minus_identity(
-        position, place_bin_edges, place_bin_centers,
-        labels, movement_var, is_track_interior, replay_speed):
+    place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges):
     rw = w_track_1D_random_walk(position, place_bin_edges, place_bin_centers,
                                 labels, movement_var, is_track_interior,
                                 replay_speed)
@@ -289,7 +301,22 @@ def w_track_1D_random_walk_minus_identity(
     return _normalize_row_probability(difference)
 
 
-def identity_discrete(n_states):
+def w_track_1D_inverse_random_walk(
+    place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges):
+    rw = w_track_1D_random_walk(position, place_bin_edges, place_bin_centers,
+                                labels, movement_var, is_track_interior,
+                                replay_speed)
+    transition_matrix = rw.max(axis=1, keepdims=True) - rw
+
+    is_track_interior = is_track_interior.ravel(order='F')
+    transition_matrix[~is_track_interior] = 0.0
+    transition_matrix[:, ~is_track_interior] = 0.0
+    return _normalize_row_probability(transition_matrix)
+
+
+def identity_discrete(n_states, diag):
     '''
 
     Parameters
@@ -324,7 +351,7 @@ def strong_diagonal_discrete(n_states, diag):
     return strong_diagonal
 
 
-def uniform_discrete(n_states):
+def uniform_discrete(n_states, diag):
     '''
 
     Parameters
@@ -356,3 +383,25 @@ def estimate_movement_var(position, sampling_frequency):
     position = position[~is_nan]
     movement_var = np.cov(np.diff(position, axis=0), rowvar=False)
     return movement_var * sampling_frequency
+
+
+CONTINUOUS_TRANSITIONS = {
+    'empirical_movement': empirical_movement,
+    'random_walk': random_walk,
+    'uniform': uniform_state_transition,
+    'identity': identity,
+    'w_track_1D_random_walk': w_track_1D_random_walk,
+    'uniform_minus_empirical': uniform_minus_empirical,
+    'uniform_minus_random_walk': uniform_minus_random_walk,
+    'empirical_minus_identity': empirical_minus_identity,
+    'random_walk_minus_identity': random_walk_minus_identity,
+    'inverse_random_walk': inverse_random_walk,
+    'w_track_1D_random_walk_minus_identity': w_track_1D_random_walk_minus_identity,
+    'w_track_1D_inverse_random_walk': w_track_1D_inverse_random_walk,
+}
+
+DISCRETE_TRANSITIONS = {
+    'strong_diagonal': strong_diagonal_discrete,
+    'identity': identity_discrete,
+    'uniform': uniform_discrete,
+}
