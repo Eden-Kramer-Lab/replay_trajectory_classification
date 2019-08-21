@@ -6,6 +6,32 @@ from sklearn.base import BaseEstimator, DensityMixin
 from sklearn.decomposition import PCA
 from sklearn.neighbors import KernelDensity
 
+# Figure Parameters
+MM_TO_INCHES = 1.0 / 25.4
+ONE_COLUMN = 89.0 * MM_TO_INCHES
+ONE_AND_HALF_COLUMN = 140.0 * MM_TO_INCHES
+TWO_COLUMN = 178.0 * MM_TO_INCHES
+PAGE_HEIGHT = 247.0 * MM_TO_INCHES
+GOLDEN_RATIO = (np.sqrt(5) - 1.0) / 2.0
+TRANSITION_TO_CATEGORY = {
+    'identity': 'hover',
+    'uniform': 'fragmented',
+    'random_walk': 'continuous',
+    'w_track_1D_random_walk': 'continuous',
+}
+
+PROBABILITY_THRESHOLD = 0.8
+
+# Plotting Colors
+STATE_COLORS = {
+    'hover': '#9f043a',
+    'fragmented': '#ff6944',
+    'continuous': '#521b65',
+    'hover-continuous-mix': '#61c5e6',
+    'fragmented-continuous-mix': '#2a586a',
+    '': '#c7c7c7',
+}
+
 SQRT_2PI = np.float64(math.sqrt(2.0 * math.pi))
 
 
