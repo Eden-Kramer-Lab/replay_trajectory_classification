@@ -146,10 +146,14 @@ def identity(place_bin_centers, is_track_interior, position, edges,
 def uniform_minus_empirical(place_bin_centers, is_track_interior, position,
                             edges, is_training, replay_speed, position_extent,
                             movement_var, labels, place_bin_edges):
-    uniform = uniform_state_transition(place_bin_centers, is_track_interior)
+    uniform = uniform_state_transition(
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges)
     empirical = empirical_movement(
-        position, edges, is_training, replay_speed,
-        position_extent)
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges)
     difference = uniform - empirical
     difference[difference < 0] = 0.0
     return _normalize_row_probability(difference)
@@ -159,9 +163,14 @@ def uniform_minus_random_walk(place_bin_centers, is_track_interior, position,
                               edges, is_training, replay_speed,
                               position_extent, movement_var, labels,
                               place_bin_edges):
-    uniform = uniform_state_transition(place_bin_centers, is_track_interior)
+    uniform = uniform_state_transition(
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges)
     random = random_walk(
-        place_bin_centers, movement_var, is_track_interior, replay_speed)
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges)
     difference = uniform - random
     difference[difference < 0] = 0.0
     return _normalize_row_probability(difference)
@@ -171,8 +180,9 @@ def empirical_minus_identity(place_bin_centers, is_track_interior, position,
                              edges, is_training, replay_speed, position_extent,
                              movement_var, labels, place_bin_edges):
     empirical = empirical_movement(
-        position, edges, is_training, replay_speed,
-        position_extent)
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges)
     ident = identity(place_bin_centers, is_track_interior)
     difference = empirical - ident
     difference[difference < 0] = 0.0
@@ -184,7 +194,9 @@ def random_walk_minus_identity(place_bin_centers, is_track_interior, position,
                                position_extent, movement_var, labels,
                                place_bin_edges):
     random = random_walk(
-        place_bin_centers, movement_var, is_track_interior, replay_speed)
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges)
     ident = identity(place_bin_centers, is_track_interior)
     difference = random - ident
     difference[difference < 0] = 0.0
@@ -195,7 +207,9 @@ def inverse_random_walk(place_bin_centers, is_track_interior, position, edges,
                         is_training, replay_speed, position_extent,
                         movement_var, labels, place_bin_edges):
     rw = random_walk(
-        place_bin_centers, movement_var, is_track_interior, replay_speed)
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges)
     transition_matrix = rw.max(axis=1, keepdims=True) - rw
 
     is_track_interior = is_track_interior.ravel(order='F')
@@ -292,10 +306,13 @@ def w_track_1D_random_walk_minus_identity(
     place_bin_centers, is_track_interior, position,
         edges, is_training, replay_speed, position_extent,
         movement_var, labels, place_bin_edges):
-    rw = w_track_1D_random_walk(position, place_bin_edges, place_bin_centers,
-                                labels, movement_var, is_track_interior,
-                                replay_speed)
-    ident = identity(place_bin_centers, is_track_interior)
+    rw = w_track_1D_random_walk(
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges)
+    ident = identity(place_bin_centers, is_track_interior, position,
+                     edges, is_training, replay_speed, position_extent,
+                     movement_var, labels, place_bin_edges)
     difference = rw - ident
     difference[difference < 0] = 0.0
     return _normalize_row_probability(difference)
@@ -305,9 +322,10 @@ def w_track_1D_inverse_random_walk(
     place_bin_centers, is_track_interior, position,
         edges, is_training, replay_speed, position_extent,
         movement_var, labels, place_bin_edges):
-    rw = w_track_1D_random_walk(position, place_bin_edges, place_bin_centers,
-                                labels, movement_var, is_track_interior,
-                                replay_speed)
+    rw = w_track_1D_random_walk(
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges)
     transition_matrix = rw.max(axis=1, keepdims=True) - rw
 
     is_track_interior = is_track_interior.ravel(order='F')
