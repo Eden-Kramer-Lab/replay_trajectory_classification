@@ -1,11 +1,10 @@
 from copy import deepcopy
 from logging import getLogger
 
+import joblib
 import numpy as np
 import xarray as xr
 from sklearn.base import BaseEstimator
-
-import joblib
 
 from .core import (_acausal_decode, _causal_decode, atleast_2d, get_centers,
                    get_grid, get_track_interior)
@@ -259,7 +258,7 @@ class SortedSpikesDecoder(_DecoderBase):
             )
         new_shape = (n_time, *self.centers_shape_)
         results = xr.Dataset(
-            {key: (dims, value.reshape(new_shape, order='F'))
+            {key: (dims, value.reshape(new_shape).swapaxes(-1, -2))
              for key, value in results.items()},
             coords=coords)
 
