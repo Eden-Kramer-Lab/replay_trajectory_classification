@@ -183,7 +183,10 @@ def empirical_minus_identity(place_bin_centers, is_track_interior, position,
         place_bin_centers, is_track_interior, position,
         edges, is_training, replay_speed, position_extent,
         movement_var, labels, place_bin_edges)
-    ident = identity(place_bin_centers, is_track_interior)
+    ident = identity(place_bin_centers, is_track_interior, position,
+                     edges, is_training, replay_speed,
+                     position_extent, movement_var, labels,
+                     place_bin_edges)
     difference = empirical - ident
     difference[difference < 0] = 0.0
     return _normalize_row_probability(difference)
@@ -197,7 +200,10 @@ def random_walk_minus_identity(place_bin_centers, is_track_interior, position,
         place_bin_centers, is_track_interior, position,
         edges, is_training, replay_speed, position_extent,
         movement_var, labels, place_bin_edges)
-    ident = identity(place_bin_centers, is_track_interior)
+    ident = identity(place_bin_centers, is_track_interior, position,
+                     edges, is_training, replay_speed,
+                     position_extent, movement_var, labels,
+                     place_bin_edges)
     difference = random - ident
     difference[difference < 0] = 0.0
     return _normalize_row_probability(difference)
@@ -414,7 +420,7 @@ CONTINUOUS_TRANSITIONS = {
     'empirical_minus_identity': empirical_minus_identity,
     'random_walk_minus_identity': random_walk_minus_identity,
     'inverse_random_walk': inverse_random_walk,
-    'w_track_1D_random_walk_minus_identity': w_track_1D_random_walk_minus_identity,
+    'w_track_1D_random_walk_minus_identity': w_track_1D_random_walk_minus_identity, # noqa
     'w_track_1D_inverse_random_walk': w_track_1D_inverse_random_walk,
 }
 
