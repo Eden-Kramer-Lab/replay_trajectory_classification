@@ -257,10 +257,16 @@ class SortedSpikesDecoder(_DecoderBase):
                 position=get_centers(self.edges_[0]),
             )
         new_shape = (n_time, *self.centers_shape_)
-        results = xr.Dataset(
-            {key: (dims, value.reshape(new_shape).swapaxes(-1, -2))
-             for key, value in results.items()},
-            coords=coords)
+        try:
+            results = xr.Dataset(
+                {key: (dims, value.reshape(new_shape).swapaxes(-1, -2))
+                 for key, value in results.items()},
+                coords=coords)
+        except ValueError:
+            results = xr.Dataset(
+                {key: (dims, value.reshape(new_shape))
+                 for key, value in results.items()},
+                coords=coords)
 
         return results
 
