@@ -417,25 +417,28 @@ class ClusterlessDecoder(_DecoderBase):
 
         n_position_dims = self.place_bin_centers_.shape[1]
         if n_position_dims > 1:
-            new_shape = (n_time, *self.centers_shape_)
             dims = ['time', 'x_position', 'y_position']
             coords = dict(
                 time=time,
                 x_position=get_centers(self.edges_[0]),
                 y_position=get_centers(self.edges_[1]),
             )
-            results = xr.Dataset(
-                {key: (dims, value.reshape(new_shape).swapaxes(-1, -2))
-                 for key, value in results.items()},
-                coords=coords)
         else:
             dims = ['time', 'position']
             coords = dict(
                 time=time,
                 position=get_centers(self.edges_[0]),
             )
+        new_shape = (n_time, *self.centers_shape_)
+        try:
             results = xr.Dataset(
-                {key: (dims, value)
+                {key: (dims, (value.squeeze(axis=-1)
+                              .reshape(new_shape).swapaxes(-1, -2)))
+                 for key, value in results.items()},
+                coords=coords)
+        except ValueError:
+            results = xr.Dataset(
+                {key: (dims, value.reshape(new_shape))
                  for key, value in results.items()},
                 coords=coords)
 
