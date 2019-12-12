@@ -160,16 +160,15 @@ def _acausal_decode(causal_posterior, state_transition):
     '''
     acausal_posterior = np.zeros_like(causal_posterior)
     acausal_posterior[-1] = causal_posterior[-1].copy()
-    acausal_prior = np.zeros_like(causal_posterior)
     n_time, n_bins = causal_posterior.shape[0], causal_posterior.shape[-2]
     weights = np.zeros((n_bins, 1))
 
     for time_ind in np.arange(n_time - 2, -1, -1):
-        acausal_prior[time_ind] = (
+        acausal_prior = (
             state_transition @ causal_posterior[time_ind])
         log_ratio = (
             np.log(acausal_posterior[time_ind + 1, ..., 0] + np.spacing(1)) -
-            np.log(acausal_prior[time_ind, ..., 0] + np.spacing(1)))
+            np.log(acausal_prior[..., 0] + np.spacing(1)))
         weights[..., 0] = np.exp(log_ratio) @ state_transition
 
         acausal_posterior[time_ind] = normalize_to_probability(
