@@ -282,7 +282,7 @@ def scaled_likelihood(log_likelihood):
 
     '''
     return np.exp(log_likelihood -
-                  np.max(log_likelihood, axis=1, keepdims=True))
+                  np.nanmax(log_likelihood, axis=1, keepdims=True))
 
 
 @dask.delayed
