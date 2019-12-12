@@ -156,7 +156,6 @@ def _acausal_decode(causal_posterior, state_transition):
     Return
     ------
     acausal_posterior : ndarray, shape (n_time, n_bins, 1)
-    acausal_prior : ndarray, shape (n_time, n_bins, 1)
 
     '''
     acausal_posterior = np.zeros_like(causal_posterior)
@@ -176,7 +175,7 @@ def _acausal_decode(causal_posterior, state_transition):
         acausal_posterior[time_ind] = normalize_to_probability(
             weights * causal_posterior[time_ind])
 
-    return acausal_posterior, acausal_prior
+    return acausal_posterior
 
 
 @njit(nogil=True)

@@ -234,7 +234,7 @@ class SortedSpikesDecoder(_DecoderBase):
             results['likelihood'])
 
         if is_compute_acausal:
-            results['acausal_posterior'], results['acausal_prior'] = (
+            results['acausal_posterior'] = (
                 _acausal_decode(results['causal_posterior'][..., np.newaxis],
                                 self.state_transition_))
 
@@ -407,7 +407,7 @@ class ClusterlessDecoder(_DecoderBase):
             results['likelihood'])
 
         if is_compute_acausal:
-            results['acausal_posterior'], results['acausal_prior'], = (
+            results['acausal_posterior'] = (
                 _acausal_decode(results['causal_posterior'][..., np.newaxis],
                                 self.state_transition_))
 
