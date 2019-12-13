@@ -13,6 +13,7 @@ dependencies:
 - statsmodels
 - scikit-learn
 - joblib
+- seaborn
 - networkx
 - xarray
 - dask
