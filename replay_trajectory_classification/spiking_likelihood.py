@@ -5,9 +5,8 @@ import xarray as xr
 from dask.distributed import Client, get_client
 from patsy import build_design_matrices, dmatrix
 from regularized_glm import penalized_IRLS
+from replay_trajectory_classification.core import get_n_bins, scaled_likelihood
 from statsmodels.api import families
-
-from .core import get_n_bins
 
 
 def make_spline_design_matrix(position, bin_size=10):
@@ -101,20 +100,6 @@ def combined_likelihood(spikes, conditional_intensity):
     return log_likelihood
 
 
-def scaled_likelihood(log_likelihood):
-    '''
-    Parameters
-    ----------
-    log_likelihood : ndarray, shape (n_time, n_bins)
-
-    Returns
-    -------
-    scaled_log_likelihood : ndarray, shape (n_time, n_bins)
-    '''
-    return np.exp(log_likelihood -
-                  np.max(log_likelihood, axis=1, keepdims=True))
-
-
 def estimate_spiking_likelihood(spikes, conditional_intensity,
                                 is_track_interior=None):
     '''
@@ -136,7 +121,7 @@ def estimate_spiking_likelihood(spikes, conditional_intensity,
         is_track_interior = np.ones((n_bins,), dtype=np.bool)
 
     likelihood = scaled_likelihood(
-        combined_likelihood(spikes, conditional_intensity))
+        combined_likelihood(spikes, conditional_intensity), is_track_interior)
     likelihood[:, ~is_track_interior] = 0.0
     return likelihood
 

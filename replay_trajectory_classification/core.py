@@ -304,3 +304,22 @@ def get_track_border(is_maze, edges):
     border = np.stack([center[ind] for center, ind in zip(centers, inds)],
                       axis=1)
     return order_border(border)
+
+
+def scaled_likelihood(log_likelihood, is_track_interior):
+    '''
+    Parameters
+    ----------
+    log_likelihood : ndarray, shape (n_time, n_bins)
+    is_track_interior : ndarray, shape (n_bins,)
+
+    Returns
+    -------
+    scaled_log_likelihood : ndarray, shape (n_time, n_bins)
+
+    '''
+    not_track = is_track_interior.copy().astype(np.float)
+    not_track[~is_track_interior] = np.nan
+    log_likelihood *= not_track[np.newaxis]
+    return np.exp(log_likelihood -
+                  np.nanmax(log_likelihood, axis=1, keepdims=True))

@@ -1,7 +1,8 @@
 import dask
 import dask.array as da
-from dask.distributed import get_client, Client
 import numpy as np
+from dask.distributed import Client, get_client
+from replay_trajectory_classification.core import scaled_likelihood
 
 from .core import atleast_2d
 
@@ -270,21 +271,6 @@ def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
     return joint_pdf_models, ground_process_intensities, occupancy, mean_rates
 
 
-def scaled_likelihood(log_likelihood):
-    '''
-    Parameters
-    ----------
-    log_likelihood : ndarray, shape (n_time, n_bins)
-
-    Returns
-    -------
-    scaled_log_likelihood : ndarray, shape (n_time, n_bins)
-
-    '''
-    return np.exp(log_likelihood -
-                  np.nanmax(log_likelihood, axis=1, keepdims=True))
-
-
 @dask.delayed
 def get_likelihood(multiunit, place_bin_centers, occupancy, joint_model,
                    mean_rate, ground_process_intensity, is_track_interior):
@@ -348,4 +334,4 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
         in zipped]
     log_likelihood = da.stack(log_likelihood, axis=0).sum(axis=0)
 
-    return scaled_likelihood(log_likelihood.compute())
+    return scaled_likelihood(log_likelihood.compute(), is_track_interior)
