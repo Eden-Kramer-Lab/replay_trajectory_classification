@@ -318,8 +318,6 @@ def scaled_likelihood(log_likelihood, is_track_interior):
     scaled_log_likelihood : ndarray, shape (n_time, n_bins)
 
     '''
-    not_track = is_track_interior.copy().astype(np.float)
-    not_track[~is_track_interior] = np.nan
-    log_likelihood *= not_track[np.newaxis]
-    return np.exp(log_likelihood -
-                  np.nanmax(log_likelihood, axis=1, keepdims=True))
+    max_log_likelihood = np.max(
+        log_likelihood[:, is_track_interior], axis=1, keepdims=True)
+    return np.exp(log_likelihood - max_log_likelihood)
