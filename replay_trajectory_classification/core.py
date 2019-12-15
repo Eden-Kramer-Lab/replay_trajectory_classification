@@ -88,7 +88,7 @@ def normalize_to_probability(distribution):
     '''Ensure the distribution integrates to 1 so that it is a probability
     distribution
     '''
-    return distribution / np.sum(distribution)
+    return distribution / np.nansum(distribution)
 
 
 @njit(nogil=True)
@@ -284,18 +284,16 @@ def get_track_border(is_maze, edges):
     return order_border(border)
 
 
-def scaled_likelihood(log_likelihood, is_track_interior):
+def scaled_likelihood(log_likelihood):
     '''
     Parameters
     ----------
     log_likelihood : ndarray, shape (n_time, n_bins)
-    is_track_interior : ndarray, shape (n_bins,)
 
     Returns
     -------
     scaled_log_likelihood : ndarray, shape (n_time, n_bins)
 
     '''
-    max_log_likelihood = np.max(
-        log_likelihood[:, is_track_interior], axis=1, keepdims=True)
+    max_log_likelihood = np.nanmax(log_likelihood, axis=1, keepdims=True)
     return np.exp(log_likelihood - max_log_likelihood)
