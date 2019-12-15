@@ -122,7 +122,7 @@ def estimate_spiking_likelihood(spikes, conditional_intensity,
 
     likelihood = scaled_likelihood(
         combined_likelihood(spikes, conditional_intensity), is_track_interior)
-    likelihood[:, ~is_track_interior] = 0.0
+    likelihood[:, ~is_track_interior] = np.nan
     return likelihood
 
 
