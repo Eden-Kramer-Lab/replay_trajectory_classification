@@ -296,4 +296,6 @@ def scaled_likelihood(log_likelihood):
 
     '''
     max_log_likelihood = np.nanmax(log_likelihood, axis=1, keepdims=True)
-    return np.exp(log_likelihood - max_log_likelihood)
+    likelihood = np.exp(log_likelihood - max_log_likelihood)
+    likelihood[np.isnan(likelihood)] = 0.0
+    return likelihood
