@@ -33,26 +33,6 @@ def get_centers(edge):
     return edge[:-1] + np.diff(edge) / 2
 
 
-def add_zero_end_bins(hist, edges):
-    new_edges = []
-
-    for edge_ind, edge in enumerate(edges):
-        bin_size = np.diff(edge)[0]
-        try:
-            if hist.sum(axis=edge_ind)[0] != 0:
-                edge = np.insert(edge, 0, edge[0] - bin_size)
-            if hist.sum(axis=edge_ind)[-1] != 0:
-                edge = np.append(edge, edge[-1] + bin_size)
-        except IndexError:
-            if hist[0] != 0:
-                edge = np.insert(edge, 0, edge[0] - bin_size)
-            if hist[-1] != 0:
-                edge = np.append(edge, edge[-1] + bin_size)
-        new_edges.append(edge)
-
-    return new_edges
-
-
 def get_grid(position, bin_size=2.5, position_range=None,
              infer_track_interior=True):
     position = atleast_2d(position)
@@ -60,8 +40,6 @@ def get_grid(position, bin_size=2.5, position_range=None,
     position = position[~is_nan]
     n_bins = get_n_bins(position, bin_size, position_range)
     hist, edges = np.histogramdd(position, bins=n_bins, range=position_range)
-    if infer_track_interior:
-        edges = add_zero_end_bins(hist, edges)
     mesh_edges = np.meshgrid(*edges)
     place_bin_edges = np.stack([edge.ravel() for edge in mesh_edges], axis=1)
 
