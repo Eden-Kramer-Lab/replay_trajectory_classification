@@ -26,7 +26,7 @@ def fit_occupancy(position, place_bin_centers, model,
 
     '''
     occupancy_model = model(**model_kwargs).fit(atleast_2d(position))
-    occupancy = np.full((place_bin_centers.shape[0],), np.nan)
+    occupancy = np.zeros((place_bin_centers.shape[0],))
     occupancy[is_track_interior] = np.exp(occupancy_model.score_samples(
         atleast_2d(place_bin_centers[is_track_interior])))
     return occupancy, occupancy_model
@@ -54,7 +54,7 @@ def fit_marginal_model(multiunit, position, place_bin_centers,
     not_nan_position = np.all(~np.isnan(atleast_2d(position)), axis=1)
     marginal_model = (model(**model_kwargs)
                       .fit(atleast_2d(position)[is_spike & not_nan_position]))
-    marginal_density = np.full((place_bin_centers.shape[0],), np.nan)
+    marginal_density = np.zeros((place_bin_centers.shape[0],))
     marginal_density[is_track_interior] = np.exp(
         marginal_model.score_samples(
             atleast_2d(place_bin_centers[is_track_interior])))
@@ -145,7 +145,7 @@ def estimate_ground_process_intensity(multiunit, position, place_bin_centers,
     marginal_pdf = fit_marginal_model(
         multiunit, position, place_bin_centers, model, model_kwargs,
         is_track_interior)
-    ground_process_intensity = np.full((1, place_bin_centers.shape[0]), np.nan)
+    ground_process_intensity = np.zeros((1, place_bin_centers.shape[0],))
     ground_process_intensity[:, is_track_interior] = estimate_intensity(
         marginal_pdf[is_track_interior], occupancy[is_track_interior],
         mean_rate)
@@ -176,7 +176,7 @@ def estimate_joint_mark_intensity(
     n_time = multiunit.shape[0]
     is_nan = np.any(np.isnan(multiunit), axis=1)
     n_spikes = np.sum(~is_nan)
-    joint_mark_intensity = np.full((n_time, n_bins), np.nan)
+    joint_mark_intensity = np.ones((n_time, n_bins))
     interior_bin_inds = np.nonzero(is_track_interior)[0]
 
     if n_spikes > 0:

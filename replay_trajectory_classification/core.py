@@ -88,7 +88,7 @@ def normalize_to_probability(distribution):
     '''Ensure the distribution integrates to 1 so that it is a probability
     distribution
     '''
-    return distribution / np.nansum(distribution)
+    return distribution / np.sum(distribution)
 
 
 @njit(nogil=True)
