@@ -332,6 +332,6 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
             dtype=np.float64, shape=shape)
         for multiunit, joint_model, mean_rate, ground_process_intensity
         in zipped]
-    log_likelihood = da.stack(log_likelihood, axis=0).sum(axis=0)
-
-    return scaled_likelihood(log_likelihood.compute(), is_track_interior)
+    log_likelihood = da.stack(log_likelihood, axis=0).sum(axis=0).compute()
+    log_likelihood[:, ~is_track_interior] = np.nan
+    return scaled_likelihood(log_likelihood)

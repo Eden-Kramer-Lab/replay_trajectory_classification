@@ -5,7 +5,7 @@ channels:
 - edeno
 - anaconda
 dependencies:
-- "python >= 3.4"
+- "python >= 3.6"
 - numpy
 - scipy
 - pandas

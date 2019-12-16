@@ -33,26 +33,6 @@ def get_centers(edge):
     return edge[:-1] + np.diff(edge) / 2
 
 
-def add_zero_end_bins(hist, edges):
-    new_edges = []
-
-    for edge_ind, edge in enumerate(edges):
-        bin_size = np.diff(edge)[0]
-        try:
-            if hist.sum(axis=edge_ind)[0] != 0:
-                edge = np.insert(edge, 0, edge[0] - bin_size)
-            if hist.sum(axis=edge_ind)[-1] != 0:
-                edge = np.append(edge, edge[-1] + bin_size)
-        except IndexError:
-            if hist[0] != 0:
-                edge = np.insert(edge, 0, edge[0] - bin_size)
-            if hist[-1] != 0:
-                edge = np.append(edge, edge[-1] + bin_size)
-        new_edges.append(edge)
-
-    return new_edges
-
-
 def get_grid(position, bin_size=2.5, position_range=None,
              infer_track_interior=True):
     position = atleast_2d(position)
@@ -60,8 +40,6 @@ def get_grid(position, bin_size=2.5, position_range=None,
     position = position[~is_nan]
     n_bins = get_n_bins(position, bin_size, position_range)
     hist, edges = np.histogramdd(position, bins=n_bins, range=position_range)
-    if infer_track_interior:
-        edges = add_zero_end_bins(hist, edges)
     mesh_edges = np.meshgrid(*edges)
     place_bin_edges = np.stack([edge.ravel() for edge in mesh_edges], axis=1)
 
@@ -110,7 +88,7 @@ def normalize_to_probability(distribution):
     '''Ensure the distribution integrates to 1 so that it is a probability
     distribution
     '''
-    return distribution / np.sum(distribution)
+    return distribution / np.nansum(distribution)
 
 
 @njit(nogil=True)
@@ -306,20 +284,18 @@ def get_track_border(is_maze, edges):
     return order_border(border)
 
 
-def scaled_likelihood(log_likelihood, is_track_interior):
+def scaled_likelihood(log_likelihood):
     '''
     Parameters
     ----------
     log_likelihood : ndarray, shape (n_time, n_bins)
-    is_track_interior : ndarray, shape (n_bins,)
 
     Returns
     -------
     scaled_log_likelihood : ndarray, shape (n_time, n_bins)
 
     '''
-    not_track = is_track_interior.copy().astype(np.float)
-    not_track[~is_track_interior] = np.nan
-    log_likelihood *= not_track[np.newaxis]
-    return np.exp(log_likelihood -
-                  np.nanmax(log_likelihood, axis=1, keepdims=True))
+    max_log_likelihood = np.nanmax(log_likelihood, axis=1, keepdims=True)
+    likelihood = np.exp(log_likelihood - max_log_likelihood)
+    likelihood[np.isnan(likelihood)] = 0.0
+    return likelihood

@@ -120,10 +120,10 @@ def estimate_spiking_likelihood(spikes, conditional_intensity,
         n_bins = conditional_intensity.shape[0]
         is_track_interior = np.ones((n_bins,), dtype=np.bool)
 
-    likelihood = scaled_likelihood(
-        combined_likelihood(spikes, conditional_intensity), is_track_interior)
-    likelihood[:, ~is_track_interior] = 0.0
-    return likelihood
+    log_likelihood = combined_likelihood(spikes, conditional_intensity)
+    log_likelihood[:, ~is_track_interior] = np.nan
+
+    return scaled_likelihood(log_likelihood)
 
 
 def estimate_place_fields(position, spikes, place_bin_centers, penalty=1E-1,
