@@ -224,6 +224,25 @@ def inverse_random_walk(place_bin_centers, is_track_interior, position, edges,
     return _normalize_row_probability(transition_matrix)
 
 
+def random_walk_plus_uniform(place_bin_centers, is_track_interior, position,
+                             edges, is_training, replay_speed, position_extent,
+                             movement_var, labels, place_bin_edges):
+    random = random_walk(
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges)
+    uniform = uniform_state_transition(
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges)
+    transition_matrix = uniform + random
+    is_track_interior = is_track_interior.ravel(order='F')
+    transition_matrix[~is_track_interior] = 0.0
+    transition_matrix[:, ~is_track_interior] = 0.0
+
+    return _normalize_row_probability(transition_matrix)
+
+
 def _center_arm(row, bin_labels, before_gaussian, after_gaussian):
     arm_ind = bin_labels.loc[(bin_labels == 'Right Arm')].index
     n_samples = min(arm_ind.size, after_gaussian.size)
@@ -340,6 +359,26 @@ def w_track_1D_inverse_random_walk(
     return _normalize_row_probability(transition_matrix)
 
 
+def w_track_1D_random_walk_plus_uniform(
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges):
+    random = w_track_1D_random_walk(
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges)
+    uniform = uniform_state_transition(
+        place_bin_centers, is_track_interior, position,
+        edges, is_training, replay_speed, position_extent,
+        movement_var, labels, place_bin_edges)
+    transition_matrix = uniform + random
+    is_track_interior = is_track_interior.ravel(order='F')
+    transition_matrix[~is_track_interior] = 0.0
+    transition_matrix[:, ~is_track_interior] = 0.0
+
+    return _normalize_row_probability(transition_matrix)
+
+
 def identity_discrete(n_states, diag):
     '''
 
@@ -419,9 +458,11 @@ CONTINUOUS_TRANSITIONS = {
     'uniform_minus_random_walk': uniform_minus_random_walk,
     'empirical_minus_identity': empirical_minus_identity,
     'random_walk_minus_identity': random_walk_minus_identity,
+    'random_walk_plus_uniform': random_walk_plus_uniform,
     'inverse_random_walk': inverse_random_walk,
-    'w_track_1D_random_walk_minus_identity': w_track_1D_random_walk_minus_identity, # noqa
+    'w_track_1D_random_walk_minus_identity': w_track_1D_random_walk_minus_identity,  # noqa
     'w_track_1D_inverse_random_walk': w_track_1D_inverse_random_walk,
+    'w_track_1D_random_walk_plus_uniform': w_track_1D_random_walk_plus_uniform,
 }
 
 DISCRETE_TRANSITIONS = {
