@@ -8,7 +8,7 @@ from sklearn.base import BaseEstimator
 import joblib
 
 from .core import (_acausal_classify, _causal_classify, atleast_2d,
-                   get_centers, get_grid, get_track_interior)
+                   get_centers, get_grid, get_track_interior, mask)
 from .initial_conditions import uniform_on_track
 from .misc import NumbaKDE
 from .multiunit_likelihood import (estimate_multiunit_likelihood,
@@ -308,7 +308,7 @@ class SortedSpikesClassifier(_ClassifierBase):
                 state=np.diag(np.asarray(self.continuous_transition_types)),
             )
             results = xr.Dataset(
-                {key: (dims, (value.squeeze(axis=-1)
+                {key: (dims, (mask(value, is_track_interior).squeeze(axis=-1)
                               .reshape(new_shape).swapaxes(-1, -2)))
                  for key, value in results.items()},
                 coords=coords)
@@ -320,7 +320,7 @@ class SortedSpikesClassifier(_ClassifierBase):
                 state=np.diag(np.asarray(self.continuous_transition_types)),
             )
             results = xr.Dataset(
-                {key: (dims, (value.squeeze(axis=-1)))
+                {key: (dims, (mask(value, is_track_interior).squeeze(axis=-1)))
                  for key, value in results.items()},
                 coords=coords)
 
@@ -503,7 +503,7 @@ class ClusterlessClassifier(_ClassifierBase):
                 state=np.diag(np.asarray(self.continuous_transition_types)),
             )
             results = xr.Dataset(
-                {key: (dims, (value.squeeze(axis=-1)
+                {key: (dims, (mask(value, is_track_interior).squeeze(axis=-1)
                               .reshape(new_shape).swapaxes(-1, -2)))
                  for key, value in results.items()},
                 coords=coords)
@@ -515,7 +515,7 @@ class ClusterlessClassifier(_ClassifierBase):
                 state=np.diag(np.asarray(self.continuous_transition_types)),
             )
             results = xr.Dataset(
-                {key: (dims, (value.squeeze(axis=-1)))
+                {key: (dims, (mask(value, is_track_interior).squeeze(axis=-1)))
                  for key, value in results.items()},
                 coords=coords)
 

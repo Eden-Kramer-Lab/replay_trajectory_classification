@@ -1,8 +1,9 @@
-import networkx as nx
 import numpy as np
 from numba import njit
 from scipy import ndimage
 from sklearn.neighbors import NearestNeighbors
+
+import networkx as nx
 
 
 def get_n_bins(position, bin_size=2.5, position_range=None):
@@ -299,3 +300,11 @@ def scaled_likelihood(log_likelihood):
     likelihood = np.exp(log_likelihood - max_log_likelihood)
     likelihood[np.isnan(likelihood)] = 0.0
     return likelihood
+
+
+def mask(value, is_track_interior):
+    try:
+        value[..., ~is_track_interior] = np.nan
+    except IndexError:
+        value[..., ~is_track_interior, :] = np.nan
+    return value
