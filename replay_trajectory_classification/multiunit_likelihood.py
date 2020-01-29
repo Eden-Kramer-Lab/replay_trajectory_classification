@@ -336,6 +336,5 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
     log_likelihood = da.stack(log_likelihood, axis=0).sum(axis=0).compute()
     mask = np.ones_like(is_track_interior, dtype=np.float)
     mask[~is_track_interior] = np.nan
-    log_likelihood = log_likelihood * mask
 
-    return scaled_likelihood(log_likelihood)
+    return scaled_likelihood(log_likelihood * mask)
