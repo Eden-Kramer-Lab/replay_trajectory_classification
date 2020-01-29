@@ -2,6 +2,7 @@ import dask
 import dask.array as da
 import numpy as np
 from dask.distributed import Client, get_client
+
 from replay_trajectory_classification.core import scaled_likelihood
 
 from .core import atleast_2d
@@ -333,5 +334,8 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
         for multiunit, joint_model, mean_rate, ground_process_intensity
         in zipped]
     log_likelihood = da.stack(log_likelihood, axis=0).sum(axis=0).compute()
-    log_likelihood[:, ~is_track_interior] = np.nan
+    mask = np.ones_like(is_track_interior, dtype=np.float)
+    mask[~is_track_interior] = np.nan
+    log_likelihood = log_likelihood * mask
+
     return scaled_likelihood(log_likelihood)
