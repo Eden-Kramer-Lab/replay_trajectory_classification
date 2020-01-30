@@ -272,33 +272,6 @@ def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
     return joint_pdf_models, ground_process_intensities, occupancy, mean_rates
 
 
-@dask.delayed
-def get_likelihood(multiunit, place_bin_centers, occupancy, joint_model,
-                   mean_rate, ground_process_intensity, is_track_interior):
-    '''
-
-    Parameters
-    ----------
-    multiunit : ndarray, shape (n_time, n_marks)
-    place_bin_centers : ndarray, (n_bins, n_position_dims)
-    occupancy : ndarray, (n_bins, n_position_dims)
-    joint_model : sklearn model
-    mean_rate : float
-    ground_process_intensity : ndarray, shape (n_bins,)
-    is_track_interior : ndarray, shape (n_bins,)
-
-    Returns
-    -------
-    log_likelihood : ndarray, shape (n_time, n_bins)
-
-    '''
-    joint_mark_intensity = estimate_joint_mark_intensity(
-        multiunit, place_bin_centers, occupancy, joint_model, mean_rate,
-        is_track_interior)
-    return poisson_mark_log_likelihood(
-        joint_mark_intensity, np.atleast_2d(ground_process_intensity))
-
-
 def estimate_multiunit_likelihood(multiunits, place_bin_centers,
                                   joint_pdf_models,
                                   ground_process_intensities, occupancy,
@@ -322,18 +295,20 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
     if is_track_interior is None:
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
-    shape = multiunits.shape[0], place_bin_centers.shape[0]
+
+    n_bin = place_bin_centers.size
+    n_time = multiunits.shape[1]
+    log_likelihood = np.zeros((n_time, n_bin))
+
     zipped = zip(np.moveaxis(multiunits, -1, 0), joint_pdf_models,
                  mean_rates, ground_process_intensities)
-    log_likelihood = [
-        da.from_delayed(
-            get_likelihood(multiunit, place_bin_centers, occupancy,
-                           joint_model, mean_rate, ground_process_intensity,
-                           is_track_interior),
-            dtype=np.float64, shape=shape)
-        for multiunit, joint_model, mean_rate, ground_process_intensity
-        in zipped]
-    log_likelihood = da.stack(log_likelihood, axis=0).sum(axis=0).compute()
+    for multiunit, joint_model, mean_rate, ground_process_intensity in zipped:
+        joint_mark_intensity = estimate_joint_mark_intensity(
+            multiunit, place_bin_centers, occupancy, joint_model, mean_rate,
+            is_track_interior)
+        log_likelihood += poisson_mark_log_likelihood(
+            joint_mark_intensity, np.atleast_2d(ground_process_intensity))
+
     mask = np.ones_like(is_track_interior, dtype=np.float)
     mask[~is_track_interior] = np.nan
 
