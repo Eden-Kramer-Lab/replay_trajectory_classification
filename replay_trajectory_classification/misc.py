@@ -48,13 +48,27 @@ class WhitenedKDE(BaseEstimator, DensityMixin):
         return self.kde.score_samples(self.pre_whiten.transform(X))
 
 
-@numba.njit(nogil=True, cache=True)
+@numba.njit(nogil=True, cache=True, parallel=True)
 def numba_kde(eval_points, samples, bandwidths):
+    '''
+
+    Parameters
+    ----------
+    eval_points : np.ndarray, shape (n_eval_points, n_bandwidths)
+    samples : np.ndarray, shape (n_samples, n_bandwidths)
+    bandwidths : np.ndarray, shape (n_bandwidths,)
+
+
+    Returns
+    -------
+    kernel_density_estimate : np.ndarray, shape (n_eval_points, n_samples)
+
+    '''
     n_eval_points, n_bandwidths = eval_points.shape
     result = np.zeros((n_eval_points,))
     n_samples = len(samples)
 
-    for i in range(n_eval_points):
+    for i in numba.prange(n_eval_points):
         for j in range(n_samples):
             product_kernel = 1.0
             for k in range(n_bandwidths):
