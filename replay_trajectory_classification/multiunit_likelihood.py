@@ -1,8 +1,5 @@
-import dask
-import dask.array as da
-import numpy as np
-from dask.distributed import Client, get_client
 
+import numpy as np
 from replay_trajectory_classification.core import scaled_likelihood
 
 from .core import atleast_2d
@@ -62,7 +59,6 @@ def fit_marginal_model(multiunit, position, place_bin_centers,
     return marginal_density
 
 
-@dask.delayed
 def train_joint_model(multiunit, position, model, model_kwargs):
     '''Fits a density model to the joint pdf of position and mark.
 
@@ -121,7 +117,6 @@ def estimate_intensity(density, occupancy, mean_rate):
     return np.exp(np.log(mean_rate) + np.log(density) - np.log(occupancy))
 
 
-@dask.delayed
 def estimate_ground_process_intensity(multiunit, position, place_bin_centers,
                                       occupancy, mean_rate, model,
                                       model_kwargs, is_track_interior):
@@ -238,10 +233,6 @@ def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
     mean_rates : ndarray, (n_electrodes,)
 
     '''
-    try:
-        client = get_client()
-    except ValueError:
-        client = Client()
 
     if is_track_interior is None:
         is_track_interior = np.ones((place_bin_centers.shape[0],),
@@ -260,14 +251,6 @@ def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
                 mean_rates[-1], model, model_kwargs, is_track_interior))
         joint_pdf_models.append(
             train_joint_model(multiunit, position, model, model_kwargs))
-
-    ground_process_intensities = dask.compute(*ground_process_intensities)
-    joint_pdf_models = dask.compute(*joint_pdf_models)
-
-    joint_pdf_models = client.scatter(joint_pdf_models)
-    ground_process_intensities = client.scatter(ground_process_intensities)
-    occupancy = client.scatter(occupancy, broadcast=True)
-    mean_rates = client.scatter(mean_rates)
 
     return joint_pdf_models, ground_process_intensities, occupancy, mean_rates
 
