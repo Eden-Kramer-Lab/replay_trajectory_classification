@@ -1,11 +1,10 @@
 from copy import deepcopy
 from logging import getLogger
 
+import joblib
 import numpy as np
 import xarray as xr
 from sklearn.base import BaseEstimator
-
-import joblib
 
 from .core import (_acausal_classify, _causal_classify, atleast_2d,
                    get_centers, get_grid, get_track_interior, mask)
@@ -308,8 +307,9 @@ class SortedSpikesClassifier(_ClassifierBase):
                 state=np.diag(np.asarray(self.continuous_transition_types)),
             )
             results = xr.Dataset(
-                {key: (dims, (mask(value, is_track_interior).squeeze(axis=-1)
-                              .reshape(new_shape).swapaxes(-1, -2)))
+                {key: (dims,
+                       (mask(value, self.is_track_interior_).squeeze(axis=-1)
+                        .reshape(new_shape).swapaxes(-1, -2)))
                  for key, value in results.items()},
                 coords=coords)
         else:
@@ -320,7 +320,8 @@ class SortedSpikesClassifier(_ClassifierBase):
                 state=np.diag(np.asarray(self.continuous_transition_types)),
             )
             results = xr.Dataset(
-                {key: (dims, (mask(value, is_track_interior).squeeze(axis=-1)))
+                {key: (dims,
+                       (mask(value, self.is_track_interior_).squeeze(axis=-1)))
                  for key, value in results.items()},
                 coords=coords)
 
@@ -503,8 +504,9 @@ class ClusterlessClassifier(_ClassifierBase):
                 state=np.diag(np.asarray(self.continuous_transition_types)),
             )
             results = xr.Dataset(
-                {key: (dims, (mask(value, is_track_interior).squeeze(axis=-1)
-                              .reshape(new_shape).swapaxes(-1, -2)))
+                {key: (dims,
+                       (mask(value, self.is_track_interior_).squeeze(axis=-1)
+                        .reshape(new_shape).swapaxes(-1, -2)))
                  for key, value in results.items()},
                 coords=coords)
         else:
@@ -515,7 +517,8 @@ class ClusterlessClassifier(_ClassifierBase):
                 state=np.diag(np.asarray(self.continuous_transition_types)),
             )
             results = xr.Dataset(
-                {key: (dims, (mask(value, is_track_interior).squeeze(axis=-1)))
+                {key: (dims,
+                       (mask(value, self.is_track_interior_).squeeze(axis=-1)))
                  for key, value in results.items()},
                 coords=coords)
 

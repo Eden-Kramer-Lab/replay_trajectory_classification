@@ -280,7 +280,7 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
                                     dtype=np.bool)
 
     n_bin = place_bin_centers.size
-    n_time = multiunits.shape[1]
+    n_time = multiunits.shape[0]
     log_likelihood = np.zeros((n_time, n_bin))
 
     zipped = zip(np.moveaxis(multiunits, -1, 0), joint_pdf_models,
