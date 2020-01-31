@@ -473,6 +473,9 @@ def get_track_grid(
     not_track = change_edge_ind[np.array(edge_spacing) > 0]
     is_track_interior[not_track] = False
 
+    place_bin_center_ind_to_edge_id = place_bin_edge_ind_to_edge_id[1:].copy()
+    place_bin_center_ind_to_edge_id[~is_track_interior] = -1
+
     closest_node_ind = np.argmin(
         np.abs(node_linear_position - place_bin_centers[:, np.newaxis]),
         axis=1)
@@ -504,4 +507,5 @@ def get_track_grid(
         centers_shape,
         edges,
         track_graph1,
+        place_bin_center_ind_to_edge_id,
     )
