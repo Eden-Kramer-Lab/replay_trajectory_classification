@@ -311,14 +311,14 @@ def mask(value, is_track_interior):
 
 
 def convert_linear_distance_to_linear_position(
-        linear_distance, edge_id, edge_order, spacing=30):
+        linear_distance, edge_id, edge_order, edge_spacing=30):
     linear_position = linear_distance.copy()
     n_edges = len(edge_order)
-    if isinstance(spacing, int) | isinstance(spacing, float):
-        spacing = [spacing, ] * (n_edges - 1)
+    if isinstance(edge_spacing, int) | isinstance(edge_spacing, float):
+        edge_spacing = [edge_spacing, ] * (n_edges - 1)
 
     for prev_edge, cur_edge, space in zip(
-            edge_order[:-1], edge_order[1:], spacing):
+            edge_order[:-1], edge_order[1:], edge_spacing):
         is_cur_edge = (edge_id == cur_edge)
         is_prev_edge = (edge_id == prev_edge)
 
@@ -393,7 +393,7 @@ def get_graph_1D_2D_relationships(track_graph, edge_order, edge_spacing,
         np.diff(node_2D_position, axis=1), axis=2).squeeze()
 
     node_linear_position = convert_linear_distance_to_linear_position(
-        linear_distance, edge_id, edge_order, spacing=edge_spacing
+        linear_distance, edge_id, edge_order, edge_spacing=edge_spacing
     )
 
     node_linear_position = node_linear_position.reshape((n_edges, 2))[
@@ -457,21 +457,22 @@ def get_track_grid(
     is_bin_edge = np.array([is_bin_edges[node_id] for node_id in node_ids])
 
     node_linear_position = convert_linear_distance_to_linear_position(
-        linear_distance, edge_id, edge_order, spacing=edge_spacing
+        linear_distance, edge_id, edge_order, edge_spacing=edge_spacing
     )
 
-    place_bin_edges = np.unique(node_linear_position[is_bin_edge])
+    place_bin_edges, unique_ind = np.unique(
+        node_linear_position[is_bin_edge], return_index=True)
     place_bin_centers = get_centers(place_bin_edges)
-    interior_bin_centers = node_linear_position[~is_bin_edge]
-    interior_bin_centers = interior_bin_centers[np.argsort(
-        interior_bin_centers)]
+    place_bin_edge_ind_to_edge_id = edge_id[is_bin_edge][unique_ind]
+    change_edge_ind = np.nonzero(np.diff(place_bin_edge_ind_to_edge_id))[0]
+    if isinstance(edge_spacing, int) | isinstance(edge_spacing, float):
+        n_edges = len(edge_order)
+        edge_spacing = [edge_spacing, ] * (n_edges - 1)
 
-    is_track_interior = np.array(
-        [
-            np.any(np.isclose(interior_bin_centers, bin_center))
-            for bin_center in place_bin_centers
-        ]
-    )
+    is_track_interior = np.ones_like(place_bin_centers, dtype=np.bool)
+    not_track = change_edge_ind[np.array(edge_spacing) > 0]
+    is_track_interior[not_track] = False
+
     closest_node_ind = np.argmin(
         np.abs(node_linear_position - place_bin_centers[:, np.newaxis]),
         axis=1)
