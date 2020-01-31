@@ -85,10 +85,9 @@ def random_walk(place_bin_centers, is_track_interior, position, edges,
 
     '''
     if place_bin_center_ind_to_node is None:
-        gaussian = multivariate_normal(
-            mean=bin, cov=movement_var * replay_speed)
         transition_matrix = np.stack(
-            [gaussian.pdf(
+            [multivariate_normal(
+                mean=bin, cov=movement_var * replay_speed).pdf(
                 place_bin_centers)
              for bin in place_bin_centers], axis=1)
     else:
