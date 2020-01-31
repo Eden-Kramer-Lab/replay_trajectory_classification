@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 from scipy.stats import multivariate_normal
 
 from .core import atleast_2d
@@ -13,9 +12,11 @@ def _normalize_row_probability(x):
     return x
 
 
-def empirical_movement(place_bin_centers, is_track_interior, position, edges,
-                       is_training, replay_speed, position_extent,
-                       movement_var, labels, place_bin_edges):
+def empirical_movement(
+    place_bin_centers, is_track_interior, position, edges,
+        is_training, replay_speed, position_extent, movement_var,
+        place_bin_center_ind_to_node,
+        distance_between_nodes):
     '''Estimate the probablity of the next position based on the movement
      data, given the movment is sped up by the
      `replay_speed`
@@ -64,7 +65,8 @@ def empirical_movement(place_bin_centers, is_track_interior, position, edges,
 
 def random_walk(place_bin_centers, is_track_interior, position, edges,
                 is_training, replay_speed, position_extent, movement_var,
-                labels, place_bin_edges):
+                place_bin_center_ind_to_node,
+                distance_between_nodes):
     '''Zero mean random walk.
 
     This version makes the sped up gaussian without constraints and then
@@ -82,10 +84,20 @@ def random_walk(place_bin_centers, is_track_interior, position, edges,
     transition_matrix : ndarray, shape (n_bins, n_bins)
 
     '''
-    transition_matrix = np.stack(
-        [multivariate_normal(mean=bin, cov=movement_var * replay_speed).pdf(
-            place_bin_centers)
-         for bin in place_bin_centers], axis=1)
+    if place_bin_center_ind_to_node is None:
+        gaussian = multivariate_normal(
+            mean=bin, cov=movement_var * replay_speed)
+        transition_matrix = np.stack(
+            [gaussian.pdf(
+                place_bin_centers)
+             for bin in place_bin_centers], axis=1)
+    else:
+        transition_matrix = _random_walk_on_track_graph(
+            place_bin_centers, is_track_interior, position, edges,
+            is_training, replay_speed, position_extent, movement_var,
+            place_bin_center_ind_to_node,
+            distance_between_nodes,
+        )
     is_track_interior = is_track_interior.ravel(order='F')
     transition_matrix[~is_track_interior] = 0.0
     transition_matrix[:, ~is_track_interior] = 0.0
@@ -93,9 +105,48 @@ def random_walk(place_bin_centers, is_track_interior, position, edges,
     return _normalize_row_probability(transition_matrix)
 
 
-def uniform_state_transition(place_bin_centers, is_track_interior, position,
-                             edges, is_training, replay_speed, position_extent,
-                             movement_var, labels, place_bin_edges):
+def _random_walk_on_track_graph(
+    place_bin_centers, is_track_interior, position, edges,
+    is_training, replay_speed, position_extent, movement_var,
+    place_bin_center_ind_to_node,
+    distance_between_nodes
+):
+    """
+
+    Parameters
+    ----------
+    node_linear_position : np.ndarray, shape (n_nodes,)
+    place_bin_centers : np.ndarray, shape (n_bins)
+    is_track_interior : np.ndarray, shape (n_bins)
+    distance_between_nodes : dict of dicts, shape (n_nodes, n_nodes)
+    bin_to_node : tuple, shape (n_nodes,)
+    movement_var : float, optional
+    replay_speed : float, optional
+
+    Returns
+    -------
+    state_transition : np.ndarray, shape (n_bins, n_bins)
+    bin_to_node : np.array, shape (n_bins)
+
+    """
+    state_transition = np.zeros(
+        (place_bin_centers.size, place_bin_centers.size))
+    gaussian = multivariate_normal(mean=0, cov=movement_var * replay_speed)
+
+    for bin_ind1, node1 in enumerate(place_bin_center_ind_to_node):
+        for bin_ind2, node2 in enumerate(place_bin_center_ind_to_node):
+            state_transition[bin_ind1, bin_ind2] = gaussian.pdf(
+                distance_between_nodes[node1][node2]
+            )
+
+    return state_transition
+
+
+def uniform_state_transition(
+    place_bin_centers, is_track_interior, position, edges,
+        is_training, replay_speed, position_extent, movement_var,
+        place_bin_center_ind_to_node,
+        distance_between_nodes):
     '''Equally likely to go somewhere on the track.
 
     Parameters
@@ -120,7 +171,8 @@ def uniform_state_transition(place_bin_centers, is_track_interior, position,
 
 def identity(place_bin_centers, is_track_interior, position, edges,
              is_training, replay_speed, position_extent, movement_var,
-             labels, place_bin_edges):
+             place_bin_center_ind_to_node,
+             distance_between_nodes):
     '''Stay in one place on the track.
 
     Parameters
@@ -143,79 +195,48 @@ def identity(place_bin_centers, is_track_interior, position, edges,
     return _normalize_row_probability(transition_matrix)
 
 
-def uniform_minus_empirical(place_bin_centers, is_track_interior, position,
-                            edges, is_training, replay_speed, position_extent,
-                            movement_var, labels, place_bin_edges):
-    uniform = uniform_state_transition(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges)
-    empirical = empirical_movement(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges)
+def uniform_minus_empirical(*args):
+    uniform = uniform_state_transition(*args)
+    empirical = empirical_movement(*args)
     difference = uniform - empirical
     difference[difference < 0] = 0.0
     return _normalize_row_probability(difference)
 
 
-def uniform_minus_random_walk(place_bin_centers, is_track_interior, position,
-                              edges, is_training, replay_speed,
-                              position_extent, movement_var, labels,
-                              place_bin_edges):
-    uniform = uniform_state_transition(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges)
-    random = random_walk(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges)
+def uniform_minus_random_walk(*args):
+    uniform = uniform_state_transition(*args)
+    random = random_walk(*args)
     difference = uniform - random
     difference[difference < 0] = 0.0
     return _normalize_row_probability(difference)
 
 
-def empirical_minus_identity(place_bin_centers, is_track_interior, position,
-                             edges, is_training, replay_speed, position_extent,
-                             movement_var, labels, place_bin_edges):
-    empirical = empirical_movement(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges)
-    ident = identity(place_bin_centers, is_track_interior, position,
-                     edges, is_training, replay_speed,
-                     position_extent, movement_var, labels,
-                     place_bin_edges)
+def empirical_minus_identity(*args):
+    empirical = empirical_movement(*args)
+    ident = identity(*args)
     difference = empirical - ident
     difference[difference < 0] = 0.0
     return _normalize_row_probability(difference)
 
 
-def random_walk_minus_identity(place_bin_centers, is_track_interior, position,
-                               edges, is_training, replay_speed,
-                               position_extent, movement_var, labels,
-                               place_bin_edges):
-    random = random_walk(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges)
-    ident = identity(place_bin_centers, is_track_interior, position,
-                     edges, is_training, replay_speed,
-                     position_extent, movement_var, labels,
-                     place_bin_edges)
+def random_walk_minus_identity(*args):
+    random = random_walk(*args)
+    ident = identity(*args)
     difference = random - ident
     difference[difference < 0] = 0.0
     return _normalize_row_probability(difference)
 
 
-def inverse_random_walk(place_bin_centers, is_track_interior, position, edges,
-                        is_training, replay_speed, position_extent,
-                        movement_var, labels, place_bin_edges):
+def inverse_random_walk(
+    place_bin_centers, is_track_interior, position, edges,
+        is_training, replay_speed, position_extent, movement_var,
+        place_bin_center_ind_to_node,
+        distance_between_nodes):
     rw = random_walk(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges)
+        place_bin_centers, is_track_interior, position, edges,
+        is_training, replay_speed, position_extent, movement_var,
+        place_bin_center_ind_to_node,
+        distance_between_nodes)
     transition_matrix = rw.max(axis=1, keepdims=True) - rw
 
     is_track_interior = is_track_interior.ravel(order='F')
@@ -224,153 +245,21 @@ def inverse_random_walk(place_bin_centers, is_track_interior, position, edges,
     return _normalize_row_probability(transition_matrix)
 
 
-def random_walk_plus_uniform(place_bin_centers, is_track_interior, position,
-                             edges, is_training, replay_speed, position_extent,
-                             movement_var, labels, place_bin_edges):
+def random_walk_plus_uniform(
+    place_bin_centers, is_track_interior, position, edges,
+        is_training, replay_speed, position_extent, movement_var,
+        place_bin_center_ind_to_node,
+        distance_between_nodes):
     random = random_walk(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges)
+        place_bin_centers, is_track_interior, position, edges,
+        is_training, replay_speed, position_extent, movement_var,
+        place_bin_center_ind_to_node,
+        distance_between_nodes)
     uniform = uniform_state_transition(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges)
-    transition_matrix = uniform + random
-    is_track_interior = is_track_interior.ravel(order='F')
-    transition_matrix[~is_track_interior] = 0.0
-    transition_matrix[:, ~is_track_interior] = 0.0
-
-    return _normalize_row_probability(transition_matrix)
-
-
-def _center_arm(row, bin_labels, before_gaussian, after_gaussian):
-    arm_ind = bin_labels.loc[(bin_labels == 'Right Arm')].index
-    n_samples = min(arm_ind.size, after_gaussian.size)
-    row[arm_ind[:n_samples]] = after_gaussian[:n_samples] / 2
-
-    arm_ind = bin_labels.loc[(bin_labels == 'Left Arm')].index
-    n_samples = min(arm_ind.size, after_gaussian.size)
-    row[arm_ind[:n_samples]] = after_gaussian[:n_samples] / 2
-    return row
-
-
-def _left_arm(row, bin_labels, before_gaussian, after_gaussian):
-    arm_ind = bin_labels.loc[(bin_labels == 'Center Arm')].index
-    n_samples = min(arm_ind.size, before_gaussian.size)
-    row[arm_ind[-n_samples:]] = before_gaussian[-n_samples:] / 2
-
-    arm_ind = bin_labels.loc[(bin_labels == 'Right Arm')].index
-    n_samples = min(arm_ind.size, before_gaussian.size)
-    row[arm_ind[:n_samples]] = before_gaussian[-n_samples:][::-1] / 2
-    return row
-
-
-def _right_arm(row, bin_labels, before_gaussian, after_gaussian):
-    arm_ind = bin_labels.loc[(bin_labels == 'Center Arm')].index
-    n_samples = min(arm_ind.size, before_gaussian.size)
-    row[arm_ind[-n_samples:]] = before_gaussian[-n_samples:] / 2
-
-    arm_ind = bin_labels.loc[(bin_labels == 'Left Arm')].index
-    n_samples = min(arm_ind.size, before_gaussian.size)
-    row[arm_ind[:n_samples]] = before_gaussian[-n_samples:][::-1] / 2
-    return row
-
-
-_ARM_FUNCS = {
-    'Left Arm': _left_arm,
-    'Right Arm': _right_arm,
-    'Center Arm': _center_arm,
-}
-
-
-def w_track_1D_random_walk(place_bin_centers, is_track_interior, position,
-                           edges, is_training, replay_speed, position_extent,
-                           movement_var, labels, place_bin_edges):
-    position = position.squeeze()
-    place_bin_edges = place_bin_edges.squeeze()
-    place_bin_centers = place_bin_centers.squeeze()
-    bin_inds = np.digitize(position, bins=place_bin_edges) - 1
-    n_bins = place_bin_edges.size - 1
-    bin_inds[bin_inds >= n_bins] = n_bins - 1
-    bin_labels = pd.Series(labels).groupby(
-        bin_inds).unique().apply(lambda s: s[0])
-
-    transition_matrix = []
-
-    for bin_ind in np.arange(n_bins):
-        bin_center = place_bin_centers[bin_ind]
-        row = np.zeros((n_bins,))
-        try:
-            bin_label = bin_labels.loc[bin_ind]
-            is_same_bin = (bin_labels == bin_label)
-            is_same_bin_ind = is_same_bin[is_same_bin].index
-            is_same_bin = np.zeros_like(
-                place_bin_centers.squeeze(), dtype=np.bool)
-            is_same_bin[is_same_bin_ind] = True
-
-            gaussian = multivariate_normal(
-                mean=bin_center, cov=movement_var * replay_speed).pdf(
-                place_bin_centers)
-            row[is_same_bin] = gaussian[is_same_bin]
-            before_gaussian = gaussian[:np.nonzero(is_same_bin)[0][0]]
-            after_gaussian = gaussian[np.nonzero(is_same_bin)[0][-1]:]
-            row = _ARM_FUNCS[bin_label](row, bin_labels, before_gaussian,
-                                        after_gaussian)
-        except KeyError:
-            pass
-        transition_matrix.append(row)
-
-    transition_matrix = np.stack(transition_matrix, axis=1)
-    is_track_interior = is_track_interior.ravel(order='F')
-    transition_matrix[~is_track_interior] = 0.0
-    transition_matrix[:, ~is_track_interior] = 0.0
-    return _normalize_row_probability(transition_matrix)
-
-
-def w_track_1D_random_walk_minus_identity(
-    place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges):
-    rw = w_track_1D_random_walk(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges)
-    ident = identity(place_bin_centers, is_track_interior, position,
-                     edges, is_training, replay_speed, position_extent,
-                     movement_var, labels, place_bin_edges)
-    difference = rw - ident
-    difference[difference < 0] = 0.0
-    return _normalize_row_probability(difference)
-
-
-def w_track_1D_inverse_random_walk(
-    place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges):
-    rw = w_track_1D_random_walk(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges)
-    transition_matrix = rw.max(axis=1, keepdims=True) - rw
-
-    is_track_interior = is_track_interior.ravel(order='F')
-    transition_matrix[~is_track_interior] = 0.0
-    transition_matrix[:, ~is_track_interior] = 0.0
-    return _normalize_row_probability(transition_matrix)
-
-
-def w_track_1D_random_walk_plus_uniform(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges):
-    random = w_track_1D_random_walk(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges)
-    uniform = uniform_state_transition(
-        place_bin_centers, is_track_interior, position,
-        edges, is_training, replay_speed, position_extent,
-        movement_var, labels, place_bin_edges)
+        place_bin_centers, is_track_interior, position, edges,
+        is_training, replay_speed, position_extent, movement_var,
+        place_bin_center_ind_to_node,
+        distance_between_nodes)
     transition_matrix = uniform + random
     is_track_interior = is_track_interior.ravel(order='F')
     transition_matrix[~is_track_interior] = 0.0
@@ -453,16 +342,12 @@ CONTINUOUS_TRANSITIONS = {
     'random_walk': random_walk,
     'uniform': uniform_state_transition,
     'identity': identity,
-    'w_track_1D_random_walk': w_track_1D_random_walk,
     'uniform_minus_empirical': uniform_minus_empirical,
     'uniform_minus_random_walk': uniform_minus_random_walk,
     'empirical_minus_identity': empirical_minus_identity,
     'random_walk_minus_identity': random_walk_minus_identity,
     'random_walk_plus_uniform': random_walk_plus_uniform,
     'inverse_random_walk': inverse_random_walk,
-    'w_track_1D_random_walk_minus_identity': w_track_1D_random_walk_minus_identity,  # noqa
-    'w_track_1D_inverse_random_walk': w_track_1D_inverse_random_walk,
-    'w_track_1D_random_walk_plus_uniform': w_track_1D_random_walk_plus_uniform,
 }
 
 DISCRETE_TRANSITIONS = {
