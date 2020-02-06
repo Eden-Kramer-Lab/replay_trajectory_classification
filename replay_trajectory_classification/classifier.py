@@ -78,6 +78,7 @@ class _ClassifierBase(BaseEstimator):
                 self.edges_,
                 self.track_graph_,
                 self.place_bin_center_ind_to_edge_id_,
+                self._nodes_df,
             ) = get_track_grid(track_graph, center_well_id, edge_order,
                                edge_spacing, self.place_bin_size)
 
