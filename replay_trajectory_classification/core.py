@@ -417,10 +417,17 @@ def get_track_grid(
         )
         n_bins = 2 * np.ceil(edge_size / place_bin_size).astype(np.int) + 1
 
-        f = interp1d((node1_x_pos, node2_x_pos), (node1_y_pos, node2_y_pos))
-
-        xnew = np.linspace(node1_x_pos, node2_x_pos, num=n_bins, endpoint=True)
-        xy = np.stack((xnew, f(xnew)), axis=1)
+        if ~np.isclose(node1_x_pos, node2_x_pos):
+            f = interp1d((node1_x_pos, node2_x_pos),
+                         (node1_y_pos, node2_y_pos))
+            xnew = np.linspace(node1_x_pos, node2_x_pos,
+                               num=n_bins, endpoint=True)
+            xy = np.stack((xnew, f(xnew)), axis=1)
+        else:
+            ynew = np.linspace(node1_y_pos, node2_y_pos,
+                               num=n_bins, endpoint=True)
+            xnew = np.ones_like(ynew) * node1_x_pos
+            xy = np.stack((xnew, ynew), axis=1)
         dist_between_nodes = np.linalg.norm(np.diff(xy, axis=0), axis=1)
 
         new_node_ids = n_nodes + np.arange(len(dist_between_nodes) + 1)
