@@ -95,3 +95,18 @@ class NumbaKDE(BaseEstimator, DensityMixin):
     def score_samples(self, X):
         return np.log(numba_kde(X, self.training_data,
                                 self.bandwidth[-X.shape[1]:]))
+
+
+def get_2D_position(linear_position, classifier):
+    linear_position = np.asarray(linear_position)
+    original_shape = linear_position.shape
+    linear_position = linear_position.ravel()
+    actual_position_ind = np.searchsorted(
+        classifier.place_bin_edges_.squeeze(), linear_position,
+    )
+    is_last_bin_edge = actual_position_ind >= classifier.place_bin_edges_.size
+    actual_position_ind[is_last_bin_edge] = (
+        actual_position_ind[is_last_bin_edge] - 2)
+
+    return (classifier.place_bin_center_2D_position_[actual_position_ind]
+            .reshape((*original_shape, 2)))
