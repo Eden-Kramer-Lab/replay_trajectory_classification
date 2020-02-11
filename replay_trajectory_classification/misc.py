@@ -48,7 +48,7 @@ class WhitenedKDE(BaseEstimator, DensityMixin):
         return self.kde.score_samples(self.pre_whiten.transform(X))
 
 
-@numba.njit(nogil=True, cache=True, parallel=True)
+@numba.njit(nogil=True, cache=True, parallel=True, error_model='numpy')
 def numba_kde(eval_points, samples, bandwidths):
     '''
 

@@ -1,5 +1,6 @@
 
 import numpy as np
+
 from replay_trajectory_classification.core import scaled_likelihood
 
 from .core import atleast_2d
@@ -279,7 +280,7 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
 
-    n_bin = place_bin_centers.size
+    n_bin = place_bin_centers.shape[0]
     n_time = multiunits.shape[0]
     log_likelihood = np.zeros((n_time, n_bin))
 

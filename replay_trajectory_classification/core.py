@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+import pandas as pd
 from numba import njit
 from scipy import ndimage
 from scipy.interpolate import interp1d
@@ -416,11 +417,17 @@ def get_track_grid(
             [(node2_x_pos - node1_x_pos), (node2_y_pos - node1_y_pos)]
         )
         n_bins = 2 * np.ceil(edge_size / place_bin_size).astype(np.int) + 1
-
-        f = interp1d((node1_x_pos, node2_x_pos), (node1_y_pos, node2_y_pos))
-
-        xnew = np.linspace(node1_x_pos, node2_x_pos, num=n_bins, endpoint=True)
-        xy = np.stack((xnew, f(xnew)), axis=1)
+        if ~np.isclose(node1_x_pos, node2_x_pos):
+            f = interp1d((node1_x_pos, node2_x_pos),
+                         (node1_y_pos, node2_y_pos))
+            xnew = np.linspace(node1_x_pos, node2_x_pos,
+                               num=n_bins, endpoint=True)
+            xy = np.stack((xnew, f(xnew)), axis=1)
+        else:
+            ynew = np.linspace(node1_y_pos, node2_y_pos,
+                               num=n_bins, endpoint=True)
+            xnew = np.ones_like(ynew) * node1_x_pos
+            xy = np.stack((xnew, ynew), axis=1)
         dist_between_nodes = np.linalg.norm(np.diff(xy, axis=0), axis=1)
 
         new_node_ids = n_nodes + np.arange(len(dist_between_nodes) + 1)
@@ -459,6 +466,11 @@ def get_track_grid(
     node_linear_position = convert_linear_distance_to_linear_position(
         linear_distance, edge_id, edge_order, edge_spacing=edge_spacing
     )
+
+    nodes_df = (pd.DataFrame(
+        dict(node_ids=node_ids, edge_id=edge_id, is_bin_edge=is_bin_edge,
+             linear_position=node_linear_position))
+        .sort_values(by=['linear_position', 'edge_id'], axis='rows'))
 
     place_bin_edges, unique_ind = np.unique(
         node_linear_position[is_bin_edge], return_index=True)
@@ -508,4 +520,5 @@ def get_track_grid(
         edges,
         track_graph1,
         place_bin_center_ind_to_edge_id,
+        nodes_df,
     )
