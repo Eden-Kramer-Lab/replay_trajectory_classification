@@ -278,13 +278,13 @@ class SortedSpikesDecoder(_DecoderBase):
         new_shape = (n_time, *self.centers_shape_)
         try:
             results = xr.Dataset(
-                {key: (dims, mask(value, self.is_track_interior_)
+                {key: (dims, mask(value, self.is_track_interior_.ravel(order='F'))
                        .reshape(new_shape).swapaxes(-1, -2))
                  for key, value in results.items()},
                 coords=coords)
         except ValueError:
             results = xr.Dataset(
-                {key: (dims, mask(value, self.is_track_interior_)
+                {key: (dims, mask(value, self.is_track_interior_.ravel(order='F'))
                        .reshape(new_shape))
                  for key, value in results.items()},
                 coords=coords)
@@ -449,14 +449,16 @@ class ClusterlessDecoder(_DecoderBase):
         new_shape = (n_time, *self.centers_shape_)
         try:
             results = xr.Dataset(
-                {key: (dims, (mask(value, self.is_track_interior_)
+                {key: (dims, (mask(value,
+                                   self.is_track_interior_.ravel(order='F'))
                               .squeeze(axis=-1)
                               .reshape(new_shape).swapaxes(-1, -2)))
                  for key, value in results.items()},
                 coords=coords)
         except ValueError:
             results = xr.Dataset(
-                {key: (dims, mask(value, self.is_track_interior_)
+                {key: (dims, mask(value,
+                                  self.is_track_interior_.ravel(order='F'))
                        .reshape(new_shape))
                  for key, value in results.items()},
                 coords=coords)

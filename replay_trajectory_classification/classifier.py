@@ -329,7 +329,9 @@ class SortedSpikesClassifier(_ClassifierBase):
             )
             results = xr.Dataset(
                 {key: (dims,
-                       (mask(value, self.is_track_interior_).squeeze(axis=-1)
+                       (mask(value,
+                             self.is_track_interior_.ravel(order='F')
+                             ).squeeze(axis=-1)
                         .reshape(new_shape).swapaxes(-1, -2)))
                  for key, value in results.items()},
                 coords=coords)
@@ -342,7 +344,9 @@ class SortedSpikesClassifier(_ClassifierBase):
             )
             results = xr.Dataset(
                 {key: (dims,
-                       (mask(value, self.is_track_interior_).squeeze(axis=-1)))
+                       (mask(value,
+                             self.is_track_interior_.ravel(order='F')
+                             ).squeeze(axis=-1)))
                  for key, value in results.items()},
                 coords=coords)
 
@@ -524,7 +528,9 @@ class ClusterlessClassifier(_ClassifierBase):
             )
             results = xr.Dataset(
                 {key: (dims,
-                       (mask(value, self.is_track_interior_).squeeze(axis=-1)
+                       (mask(value,
+                             self.is_track_interior_.ravel(order='F')
+                             ).squeeze(axis=-1)
                         .reshape(new_shape).swapaxes(-1, -2)))
                  for key, value in results.items()},
                 coords=coords)
@@ -537,7 +543,9 @@ class ClusterlessClassifier(_ClassifierBase):
             )
             results = xr.Dataset(
                 {key: (dims,
-                       (mask(value, self.is_track_interior_).squeeze(axis=-1)))
+                       (mask(value,
+                             self.is_track_interior_.ravel(order='F')
+                             ).squeeze(axis=-1)))
                  for key, value in results.items()},
                 coords=coords)
 
