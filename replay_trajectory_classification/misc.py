@@ -104,9 +104,16 @@ def get_2D_position(linear_position, classifier):
     actual_position_ind = np.searchsorted(
         classifier.place_bin_edges_.squeeze(), linear_position,
     )
-    is_last_bin_edge = actual_position_ind >= classifier.place_bin_edges_.size
+    is_last_bin_edge = (
+        actual_position_ind >= classifier.place_bin_centers_.size)
     actual_position_ind[is_last_bin_edge] = (
-        actual_position_ind[is_last_bin_edge] - 2)
+        classifier.place_bin_centers_.size - 1)
 
-    return (classifier.place_bin_center_2D_position_[actual_position_ind]
+    # Handle linear position that falls into not track bins
+    not_track_ind = np.nonzero(~classifier.is_track_interior_.squeeze())[0]
+    is_not_track = np.isin(actual_position_ind, not_track_ind)
+    actual_position_ind[is_not_track] = actual_position_ind[is_not_track] - 1
+
+    return (classifier
+            .place_bin_center_2D_position_[actual_position_ind]
             .reshape((*original_shape, 2)))
