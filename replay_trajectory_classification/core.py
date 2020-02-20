@@ -401,6 +401,12 @@ def get_graph_1D_2D_relationships(track_graph, edge_order, edge_spacing,
         edge_order]
     edges = np.array(track_graph.edges)[edge_order]
 
+    for edge_ind, sort_ind in enumerate(
+            np.argsort(node_linear_position, axis=1)):
+        node_linear_position[edge_ind] = node_linear_position[
+            edge_ind, sort_ind]
+        node_2D_position[edge_ind] = node_2D_position[edge_ind, sort_ind]
+
     return node_linear_position, edges, node_2D_position, edge_dist
 
 
