@@ -24,7 +24,9 @@ def fit_occupancy(position, place_bin_centers, model,
     occupancy_model : model class instance
 
     '''
-    occupancy_model = model(**model_kwargs).fit(atleast_2d(position))
+    not_nan_position = np.all(~np.isnan(atleast_2d(position)), axis=1)
+    occupancy_model = model(
+        **model_kwargs).fit(atleast_2d(position[not_nan_position]))
     occupancy = np.zeros((place_bin_centers.shape[0],))
     occupancy[is_track_interior] = np.exp(occupancy_model.score_samples(
         atleast_2d(place_bin_centers[is_track_interior])))
