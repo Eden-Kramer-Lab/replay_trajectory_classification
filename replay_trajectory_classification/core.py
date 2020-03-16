@@ -399,7 +399,7 @@ def get_graph_1D_2D_relationships(track_graph, edge_order, edge_spacing,
 
     node_linear_position = node_linear_position.reshape((n_edges, 2))[
         edge_order]
-    edges = np.array(track_graph.edges)[edge_order]
+    edges = np.asarray(list(track_graph.edges))[edge_order]
 
     for edge_ind, sort_ind in enumerate(
             np.argsort(node_linear_position, axis=1)):
