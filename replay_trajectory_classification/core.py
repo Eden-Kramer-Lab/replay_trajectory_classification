@@ -343,7 +343,7 @@ def linear_position_to_2D_projection(linear_position, node_linear_position,
         return np.full((2,), np.nan), -1
     pct_dist = (linear_position -
                 node_linear_position[edge_ind][0]) / edge_dist[edge_ind]
-    segment_diff = np.diff(node_2D_position, axis=1).squeeze()
+    segment_diff = np.diff(node_2D_position, axis=1).squeeze(axis=1)
     position_2D = node_2D_position[edge_ind, 0] + (
         segment_diff[edge_ind] * pct_dist)
     return position_2D, edge_ind
