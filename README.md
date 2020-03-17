@@ -8,13 +8,11 @@
 
 ```bash
 pip install replay_trajectory_classification
-python setup.py install
 ```
 Or
 
 ```bash
 conda install -c edeno replay_trajectory_classification
-python setup.py install
 ```
 
 ### Developer Installation ###
