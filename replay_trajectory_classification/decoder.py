@@ -3,6 +3,7 @@ from logging import getLogger
 
 import joblib
 import numpy as np
+import sklearn
 import xarray as xr
 from sklearn.base import BaseEstimator
 
@@ -17,6 +18,8 @@ from .spiking_likelihood import (estimate_place_fields,
 from .state_transition import CONTINUOUS_TRANSITIONS
 
 logger = getLogger(__name__)
+
+sklearn.set_config(print_changed_only=False)
 
 _DEFAULT_CLUSTERLESS_MODEL_KWARGS = dict(
     bandwidth=np.array([24.0, 24.0, 24.0, 24.0, 6.0, 6.0]))
