@@ -20,8 +20,11 @@ dependencies:
 - regularized_glm
 - patsy
 - jupyter
+- jupyterlab
 - nb_conda
 - setuptools
 - pytest
 - pytest-cov
 - coveralls
+- ripple_detection
+- loren_frank_data_processing
