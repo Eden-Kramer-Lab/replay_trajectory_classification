@@ -6,20 +6,20 @@ import numpy as np
 
 
 def _distance_to_bin_centers(left_node, right_node, distance_left_node,
-                             distance_right_node, track_graph,
+                             distance_right_node, time_ind, copy_graph,
                              place_bin_center_node_ids):
-    copy_graph = copy.deepcopy(track_graph)
-    copy_graph.add_node("actual_position")
+    node_name = f"actual_position_{time_ind}"
+    copy_graph.add_node(node_name)
     copy_graph.add_edge(
-        left_node, "actual_position", distance=distance_left_node)
+        left_node, node_name, distance=distance_left_node)
     copy_graph.add_edge(
-        "actual_position", right_node, distance=distance_right_node)
+        node_name, right_node, distance=distance_right_node)
     distance_to_bin_centers = [
         nx.shortest_path_length(
-            copy_graph, source=bin_center, target="actual_position",
+            copy_graph, source=bin_center, target=node_name,
             weight="distance")
         for bin_center in place_bin_center_node_ids]
-    copy_graph.remove_node("actual_position")
+    copy_graph.remove_node(node_name)
 
     return distance_to_bin_centers
 
@@ -51,12 +51,12 @@ def find_adjacent_nodes(nodes_df, linear_position):
 
 
 def get_distance_to_bin_centers(linear_position, decoder, npartitions=100):
+    copy_graph = copy.deepcopy(decoder.track_graph_)
     linear_position = linear_position.squeeze()
     nodes_df = decoder._nodes_df.set_index("node_ids")
     place_bin_center_node_ids = (
         nodes_df
         .loc[~nodes_df.is_bin_edge]
-        .sort_values(by=['linear_position'])
         .reset_index()
         .node_ids
         .values)
@@ -71,10 +71,12 @@ def get_distance_to_bin_centers(linear_position, decoder, npartitions=100):
         distance_left_node, npartitions=npartitions)
     distance_right_node = db.from_sequence(
         distance_right_node, npartitions=npartitions)
+    time_ind = db.from_sequence(
+        range(linear_position.shape[0]), npartitions=npartitions)
 
     return np.asarray(left_node.map(
         _distance_to_bin_centers, right_node, distance_left_node,
-        distance_right_node, decoder.track_graph_,
+        distance_right_node, time_ind, copy_graph,
         place_bin_center_node_ids).compute())
 
 
