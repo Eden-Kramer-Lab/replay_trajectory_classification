@@ -21,3 +21,4 @@ dependencies:
 - regularized_glm
 - patsy
 - setuptools
+- nb_conda
