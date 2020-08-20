@@ -1,3 +1,5 @@
 #!/bin/bash
 
 python setup.py install
+
+export NUMBA_CACHE_DIR=$(pwd)
