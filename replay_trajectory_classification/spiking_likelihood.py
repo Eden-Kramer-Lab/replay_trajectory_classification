@@ -1,13 +1,14 @@
+import logging
+
 import dask
 import numpy as np
 import pandas as pd
 import xarray as xr
 from dask.distributed import Client, get_client
 from patsy import build_design_matrices, dmatrix
-from statsmodels.api import families
-
 from regularized_glm import penalized_IRLS
 from replay_trajectory_classification.core import get_n_bins, scaled_likelihood
+from statsmodels.api import families
 
 
 def make_spline_design_matrix(position, bin_size=10):
@@ -147,6 +148,8 @@ def estimate_place_fields(position, spikes, place_bin_centers, penalty=1E-1,
     conditional_intensity : ndarray, shape (n_bins, n_neurons)
 
     '''
+    if np.any(np.ptp(position, axis=0) <= knot_spacing):
+        logging.warning("Range of position is smaller than knot spacing.")
     design_matrix = make_spline_design_matrix(position, knot_spacing)
     design_info = design_matrix.design_info
     try:
