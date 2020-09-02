@@ -24,7 +24,7 @@ def _distance_to_bin_centers(left_node, right_node, distance_left_node,
     return distance_to_bin_centers
 
 
-def find_adjacent_nodes(nodes_df, linear_position):
+def _find_adjacent_nodes(nodes_df, linear_position):
     # Find the index of the nodes to insert between
     right_bin_ind = np.searchsorted(
         nodes_df.linear_position.values, linear_position, side="right")
@@ -61,7 +61,7 @@ def get_distance_to_bin_centers(linear_position, decoder, npartitions=100):
         .node_ids
         .values)
     (left_node, right_node, distance_left_node,
-     distance_right_node) = find_adjacent_nodes(nodes_df, linear_position)
+     distance_right_node) = _find_adjacent_nodes(nodes_df, linear_position)
 
     left_node = db.from_sequence(
         left_node, npartitions=npartitions)
