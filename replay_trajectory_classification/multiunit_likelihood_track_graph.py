@@ -30,6 +30,10 @@ def _find_adjacent_nodes(nodes_df, linear_position):
         nodes_df.linear_position.values, linear_position, side="right")
     left_bin_ind = right_bin_ind - 1
 
+    # Fix indices that are exactly the maximum bin edge
+    n_bins = nodes_df.linear_position.shape[0]
+    right_bin_ind[right_bin_ind >= n_bins] -= 1
+
     # Fix for ones that fall into invalid track positions
     # Note: Need to test on different binnings
     # Another solution is to find the edge this falls on directly.
