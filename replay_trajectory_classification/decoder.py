@@ -7,8 +7,9 @@ import sklearn
 import xarray as xr
 from sklearn.base import BaseEstimator
 
-from .core import (_acausal_decode, _causal_decode, atleast_2d, get_centers,
-                   get_grid, get_track_grid, get_track_interior, mask)
+from .bins import (atleast_2d, get_centers, get_grid, get_track_grid,
+                   get_track_interior)
+from .core import _acausal_decode, _causal_decode, mask
 from .initial_conditions import uniform_on_track
 from .misc import NumbaKDE
 from .multiunit_likelihood import (estimate_multiunit_likelihood,
@@ -39,7 +40,7 @@ class _DecoderBase(BaseEstimator):
         self.initial_conditions_type = initial_conditions_type
         self.infer_track_interior = infer_track_interior
 
-    def fit_place_grid(self, position, track_graph=None, center_well_id=None,
+    def fit_place_grid(self, position, track_graph=None,
                        edge_order=None, edge_spacing=15,
                        infer_track_interior=True, is_track_interior=None):
         if track_graph is None:
@@ -47,9 +48,6 @@ class _DecoderBase(BaseEstimator):
              self.centers_shape_) = get_grid(
                 position, self.place_bin_size, self.position_range,
                 self.infer_track_interior)
-            self.place_bin_center_ind_to_node_ = None
-            self.distance_between_nodes_ = None
-
             self.infer_track_interior = infer_track_interior
 
             if is_track_interior is None and self.infer_track_interior:
@@ -64,15 +62,14 @@ class _DecoderBase(BaseEstimator):
                 self.place_bin_edges_,
                 self.is_track_interior_,
                 self.distance_between_nodes_,
-                self.place_bin_center_ind_to_node_,
-                self.place_bin_center_2D_position_,
-                self.place_bin_edges_2D_position_,
                 self.centers_shape_,
                 self.edges_,
-                self.track_graph_,
-                self.place_bin_center_ind_to_edge_id_,
-                self._nodes_df,
-            ) = get_track_grid(track_graph, center_well_id, edge_order,
+                self.track_graph_with_bin_centers_edges_,
+                self.original_nodes_df_,
+                self.place_bin_edges_nodes_df_,
+                self.place_bin_centers_nodes_df_,
+                self.nodes_df_
+            ) = get_track_grid(track_graph, edge_order,
                                edge_spacing, self.place_bin_size)
 
     def fit_initial_conditions(self, position=None):
@@ -91,12 +88,19 @@ class _DecoderBase(BaseEstimator):
             self.replay_speed = replay_speed
         self.transition_type = transition_type
 
-        self.state_transition_ = CONTINUOUS_TRANSITIONS[transition_type](
-            self.place_bin_centers_, self.is_track_interior_,
-            position, self.edges_, is_training, self.replay_speed,
-            self.position_range, self.movement_var,
-            self.place_bin_center_ind_to_node_,
-            self.distance_between_nodes_)
+        try:
+            self.state_transition_ = CONTINUOUS_TRANSITIONS[transition_type](
+                self.place_bin_centers_, self.is_track_interior_,
+                position, self.edges_, is_training, self.replay_speed,
+                self.position_range, self.movement_var,
+                self.place_bin_centers_nodes_df_.node_id.values,
+                self.distance_between_nodes_)
+        except AttributeError:
+            self.state_transition_ = CONTINUOUS_TRANSITIONS[transition_type](
+                self.place_bin_centers_, self.is_track_interior_,
+                position, self.edges_, is_training, self.replay_speed,
+                self.position_range, self.movement_var,
+                None, None)
 
     def fit(self):
         raise NotImplementedError
@@ -199,7 +203,7 @@ class SortedSpikesDecoder(_DecoderBase):
         return g
 
     def fit(self, position, spikes, is_training=None, is_track_interior=None,
-            track_graph=None, center_well_id=None, edge_order=None,
+            track_graph=None, edge_order=None,
             edge_spacing=15):
         '''
 
@@ -211,7 +215,6 @@ class SortedSpikesDecoder(_DecoderBase):
             Time bins to be used for encoding.
         is_track_interior : None or bool ndaarray, shape (n_x_bins, n_y_bins)
         track_graph : networkx.Graph
-        center_well_id : object
         edge_order : array_like
         edge_spacing : None, float or array_like
 
@@ -222,7 +225,7 @@ class SortedSpikesDecoder(_DecoderBase):
         '''
         position = atleast_2d(np.asarray(position))
         spikes = np.asarray(spikes)
-        self.fit_place_grid(position, track_graph, center_well_id,
+        self.fit_place_grid(position, track_graph,
                             edge_order, edge_spacing,
                             self.infer_track_interior, is_track_interior)
         self.fit_initial_conditions(position)
@@ -366,7 +369,7 @@ class ClusterlessDecoder(_DecoderBase):
             self.is_track_interior_.ravel(order='F'))
 
     def fit(self, position, multiunits, is_training=None,
-            is_track_interior=None, track_graph=None, center_well_id=None,
+            is_track_interior=None, track_graph=None,
             edge_order=None, edge_spacing=15):
         '''
 
@@ -377,7 +380,6 @@ class ClusterlessDecoder(_DecoderBase):
         is_training : None or array_like, shape (n_time,)
         is_track_interior : None or ndarray, shape (n_x_bins, n_y_bins)
         track_graph : networkx.Graph
-        center_well_id : object
         edge_order : array_like
         edge_spacing : None, float or array_like
 
@@ -389,7 +391,7 @@ class ClusterlessDecoder(_DecoderBase):
         position = atleast_2d(np.asarray(position))
         multiunits = np.asarray(multiunits)
 
-        self.fit_place_grid(position, track_graph, center_well_id,
+        self.fit_place_grid(position, track_graph,
                             edge_order, edge_spacing,
                             self.infer_track_interior, is_track_interior)
         self.fit_initial_conditions(position)

@@ -1,9 +1,8 @@
 
 import numpy as np
-
 from replay_trajectory_classification.core import scaled_likelihood
 
-from .core import atleast_2d
+from .bins import atleast_2d
 
 
 def fit_occupancy(position, place_bin_centers, model,

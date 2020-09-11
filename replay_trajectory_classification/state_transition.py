@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import multivariate_normal
 
-from .core import atleast_2d
+from .bins import atleast_2d
 
 
 def _normalize_row_probability(x):

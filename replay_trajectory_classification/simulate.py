@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import multivariate_normal
 
-from .core import atleast_2d
+from .bins import atleast_2d
 
 
 def simulate_time(n_samples, sampling_frequency):
@@ -70,7 +70,7 @@ def simulate_place_field_firing_rate(means, position, max_rate=15,
     return firing_rate
 
 
-def simulate_neuron_with_place_field(means, position, max_rate=15, variance=10,
+def simulate_neuron_with_place_field(means, position, max_rate=15, variance=36,
                                      sampling_frequency=500):
     '''Simulates the spiking of a neuron with a place field at `means`.
 
@@ -121,5 +121,5 @@ def simulate_multiunit_with_place_fields(place_means, position, mark_spacing=5,
         n_spikes = int(is_spike.sum())
         marks[is_spike] = multivariate_normal(
             mean=[mark_center] * n_mark_dims, cov=mark_variance
-            ).rvs(size=n_spikes)
+        ).rvs(size=n_spikes)
     return marks
