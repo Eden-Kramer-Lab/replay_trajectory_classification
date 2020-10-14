@@ -28,3 +28,4 @@ dependencies:
 - coveralls
 - ripple_detection
 - loren_frank_data_processing
+- track_linearization
