@@ -49,6 +49,10 @@ class _ClassifierBase(BaseEstimator):
         self.discrete_transition_diag = discrete_transition_diag
         self.infer_track_interior = infer_track_interior
 
+        if 2 * np.sqrt(replay_speed * movement_var) < place_bin_size:
+            logger.warning('Place bin size is too small for a random walk '
+                           'continuous state transition')
+
     def fit_place_grid(self, position, track_graph=None,
                        edge_order=None, edge_spacing=15,
                        infer_track_interior=True, is_track_interior=None):
