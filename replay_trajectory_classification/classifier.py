@@ -230,15 +230,14 @@ class SortedSpikesClassifier(_ClassifierBase):
             self.group_to_state_ = np.zeros((n_states,), dtype=np.int)
 
         is_training = np.asarray(is_training).squeeze()
-        self.place_fields_ = []
+        self.place_fields_ = {}
         for group in np.unique(group_labels):
-            self.place_fields_.append(
-                estimate_place_fields(
-                    position=position[is_training & (group_labels == group)],
-                    spikes=spikes[is_training & (group_labels == group)],
-                    place_bin_centers=self.place_bin_centers_,
-                    penalty=self.spike_model_penalty,
-                    knot_spacing=self.knot_spacing))
+            self.place_fields_[group] = estimate_place_fields(
+                position=position[is_training & (group_labels == group)],
+                spikes=spikes[is_training & (group_labels == group)],
+                place_bin_centers=self.place_bin_centers_,
+                penalty=self.spike_model_penalty,
+                knot_spacing=self.knot_spacing)
 
     def plot_place_fields(self, spikes=None, position=None,
                           sampling_frequency=1):
@@ -336,13 +335,12 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         results = {}
 
-        likelihood = []
-        for group in np.unique(self.group_to_state_):
-            likelihood.append(
-                estimate_spiking_likelihood(
-                    spikes,
-                    np.asarray(self.place_fields_[group]),
-                    self.is_track_interior_))
+        likelihood = {}
+        for group in self.place_fields_:
+            likelihood[group] = estimate_spiking_likelihood(
+                spikes,
+                np.asarray(self.place_fields_[group]),
+                self.is_track_interior_)
 
         results['likelihood'] = np.stack(
             [likelihood[group] for group in self.group_to_state_],
