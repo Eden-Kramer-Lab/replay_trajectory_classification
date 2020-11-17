@@ -140,6 +140,54 @@ class _ClassifierBase(BaseEstimator):
             self.discrete_transition_type](
                 n_states, self.discrete_transition_diag)
 
+    def convert_results_to_xarray(self, results, time, state_names=None):
+        n_position_dims = self.place_bin_centers_.shape[1]
+        diag_transition_names = np.diag(
+            np.asarray(self.continuous_transition_types))
+        if state_names is None:
+            if len(np.unique(self.group_to_state_)) == 1:
+                state_names = diag_transition_names
+            else:
+                state_names = [
+                    f"{state}-{transition}" for state, transition
+                    in zip(self.group_to_state_, diag_transition_names)]
+        n_time = time.shape[0]
+        n_states = len(state_names)
+
+        if n_position_dims > 1:
+            new_shape = (n_time, n_states, *self.centers_shape_)
+            dims = ['time', 'state', 'x_position', 'y_position']
+            coords = dict(
+                time=time,
+                x_position=get_centers(self.edges_[0]),
+                y_position=get_centers(self.edges_[1]),
+                state=state_names,
+            )
+            results = xr.Dataset(
+                {key: (dims,
+                       (mask(value,
+                             self.is_track_interior_.ravel(order='F')
+                             ).squeeze(axis=-1)
+                        .reshape(new_shape).swapaxes(-1, -2)))
+                 for key, value in results.items()},
+                coords=coords)
+        else:
+            dims = ['time', 'state', 'position']
+            coords = dict(
+                time=time,
+                position=get_centers(self.edges_[0]),
+                state=state_names,
+            )
+            results = xr.Dataset(
+                {key: (dims,
+                       (mask(value,
+                             self.is_track_interior_.ravel(order='F')
+                             ).squeeze(axis=-1)))
+                 for key, value in results.items()},
+                coords=coords)
+
+        return results
+
     def fit(self):
         raise NotImplementedError
 
@@ -316,7 +364,8 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         return self
 
-    def predict(self, spikes, time=None, is_compute_acausal=True):
+    def predict(self, spikes, time=None, is_compute_acausal=True,
+                state_names=None):
         '''
 
         Parameters
@@ -330,7 +379,6 @@ class SortedSpikesClassifier(_ClassifierBase):
         results : xarray.Dataset
 
         '''
-        n_states = self.continuous_state_transition_.shape[0]
         spikes = np.asarray(spikes)
 
         results = {}
@@ -360,40 +408,7 @@ class SortedSpikesClassifier(_ClassifierBase):
         if time is None:
             time = np.arange(n_time)
 
-        n_position_dims = self.place_bin_centers_.shape[1]
-        if n_position_dims > 1:
-            new_shape = (n_time, n_states, *self.centers_shape_)
-            dims = ['time', 'state', 'x_position', 'y_position']
-            coords = dict(
-                time=time,
-                x_position=get_centers(self.edges_[0]),
-                y_position=get_centers(self.edges_[1]),
-                state=np.diag(np.asarray(self.continuous_transition_types)),
-            )
-            results = xr.Dataset(
-                {key: (dims,
-                       (mask(value,
-                             self.is_track_interior_.ravel(order='F')
-                             ).squeeze(axis=-1)
-                        .reshape(new_shape).swapaxes(-1, -2)))
-                 for key, value in results.items()},
-                coords=coords)
-        else:
-            dims = ['time', 'state', 'position']
-            coords = dict(
-                time=time,
-                position=get_centers(self.edges_[0]),
-                state=np.diag(np.asarray(self.continuous_transition_types)),
-            )
-            results = xr.Dataset(
-                {key: (dims,
-                       (mask(value,
-                             self.is_track_interior_.ravel(order='F')
-                             ).squeeze(axis=-1)))
-                 for key, value in results.items()},
-                coords=coords)
-
-        return results
+        return self.convert_results_to_xarray(results, time, state_names)
 
 
 class ClusterlessClassifier(_ClassifierBase):
@@ -458,7 +473,8 @@ class ClusterlessClassifier(_ClassifierBase):
             self.occupancy_model = occupancy_model
             self.occupancy_kwargs = occupancy_kwargs
 
-    def fit_multiunits(self, position, multiunits, is_training=None):
+    def fit_multiunits(self, position, multiunits, is_training=None,
+                       group_labels=None, group_to_state=None):
         '''
 
         Parameters
@@ -471,19 +487,46 @@ class ClusterlessClassifier(_ClassifierBase):
         '''
         logger.info('Fitting multiunits...')
         if is_training is None:
-            is_training = np.ones((position.shape[0],), dtype=np.bool)
+            n_time = position.shape[0]
+            is_training = np.ones((n_time,), dtype=np.bool)
+
+        if group_labels is None:
+            n_time = position.shape[0]
+            group_labels = np.zeros((n_time,), dtype=np.int)
+
+        if group_to_state is None:
+            n_states = len(self.continuous_transition_types)
+            self.group_to_state_ = np.zeros((n_states,), dtype=np.int)
+
         is_training = np.asarray(is_training).squeeze()
 
-        (self.joint_pdf_models_, self.ground_process_intensities_,
-         self.occupancy_, self.mean_rates_) = fit_multiunit_likelihood(
-            position[is_training], multiunits[is_training],
-            self.place_bin_centers_, self.model, self.model_kwargs,
-            self.occupancy_model, self.occupancy_kwargs,
-            self.is_track_interior_.ravel(order='F'))
+        self.joint_pdf_models_ = {}
+        self.ground_process_intensities_ = {}
+        self.occupancy_ = {}
+        self.mean_rates_ = {}
 
-    def fit(self, position, multiunits, is_training=None,
-            is_track_interior=None, track_graph=None,
-            edge_order=None, edge_spacing=15):
+        for group in np.unique(group_labels):
+            (self.joint_pdf_models_[group],
+             self.ground_process_intensities_[group],
+             self.occupancy_[group],
+             self.mean_rates_[group]
+             ) = fit_multiunit_likelihood(
+                position[is_training & (group == group_labels)],
+                multiunits[is_training],
+                self.place_bin_centers_, self.model, self.model_kwargs,
+                self.occupancy_model, self.occupancy_kwargs,
+                self.is_track_interior_.ravel(order='F'))
+
+    def fit(self,
+            position,
+            multiunits,
+            is_training=None,
+            is_track_interior=None,
+            group_labels=None,
+            group_to_state=None,
+            track_graph=None,
+            edge_order=None,
+            edge_spacing=15):
         '''
 
         Parameters
@@ -512,11 +555,13 @@ class ClusterlessClassifier(_ClassifierBase):
             position, is_training,
             continuous_transition_types=self.continuous_transition_types)
         self.fit_discrete_state_transition()
-        self.fit_multiunits(position, multiunits, is_training)
+        self.fit_multiunits(position, multiunits, is_training,
+                            group_labels, group_to_state)
 
         return self
 
-    def predict(self, multiunits, time=None, is_compute_acausal=True):
+    def predict(self, multiunits, time=None, is_compute_acausal=True,
+                state_names=None):
         '''
 
         Parameters
@@ -531,18 +576,24 @@ class ClusterlessClassifier(_ClassifierBase):
         results : xarray.Dataset
 
         '''
-        n_states = self.continuous_state_transition_.shape[0]
         multiunits = np.asarray(multiunits)
 
         results = {}
-        results['likelihood'] = estimate_multiunit_likelihood(
-            multiunits, self.place_bin_centers_,
-            self.joint_pdf_models_, self.ground_process_intensities_,
-            self.occupancy_, self.mean_rates_,
-            self.is_track_interior_.ravel(order='F'))
 
-        results['likelihood'] = np.stack([results['likelihood']] *
-                                         n_states, axis=1)[..., np.newaxis]
+        likelihood = {}
+        for group in self.joint_pdf_models_:
+            likelihood[group] = estimate_multiunit_likelihood(
+                multiunits,
+                self.place_bin_centers_,
+                self.joint_pdf_models_[group],
+                self.ground_process_intensities_[group],
+                self.occupancy_[group],
+                self.mean_rates_[group],
+                self.is_track_interior_.ravel(order='F'))
+
+        results['likelihood'] = np.stack(
+            [likelihood[group] for group in self.group_to_state_],
+            axis=1)[..., np.newaxis]
 
         results['causal_posterior'] = _causal_classify(
             self.initial_conditions_, self.continuous_state_transition_,
@@ -558,37 +609,4 @@ class ClusterlessClassifier(_ClassifierBase):
         if time is None:
             time = np.arange(n_time)
 
-        n_position_dims = self.place_bin_centers_.shape[1]
-        if n_position_dims > 1:
-            new_shape = (n_time, n_states, *self.centers_shape_)
-            dims = ['time', 'state', 'x_position', 'y_position']
-            coords = dict(
-                time=time,
-                x_position=get_centers(self.edges_[0]),
-                y_position=get_centers(self.edges_[1]),
-                state=np.diag(np.asarray(self.continuous_transition_types)),
-            )
-            results = xr.Dataset(
-                {key: (dims,
-                       (mask(value,
-                             self.is_track_interior_.ravel(order='F')
-                             ).squeeze(axis=-1)
-                        .reshape(new_shape).swapaxes(-1, -2)))
-                 for key, value in results.items()},
-                coords=coords)
-        else:
-            dims = ['time', 'state', 'position']
-            coords = dict(
-                time=time,
-                position=get_centers(self.edges_[0]),
-                state=np.diag(np.asarray(self.continuous_transition_types)),
-            )
-            results = xr.Dataset(
-                {key: (dims,
-                       (mask(value,
-                             self.is_track_interior_.ravel(order='F')
-                             ).squeeze(axis=-1)))
-                 for key, value in results.items()},
-                coords=coords)
-
-        return results
+        return self.convert_results_to_xarray(results, time, state_names)
