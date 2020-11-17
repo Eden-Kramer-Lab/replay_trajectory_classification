@@ -214,15 +214,31 @@ class SortedSpikesClassifier(_ClassifierBase):
         self.knot_spacing = knot_spacing
         self.spike_model_penalty = spike_model_penalty
 
-    def fit_place_fields(self, position, spikes, is_training=None):
+    def fit_place_fields(self, position, spikes, is_training=None,
+                         group_labels=None, group_to_state=None):
         logger.info('Fitting place fields...')
         if is_training is None:
-            is_training = np.ones((position.shape[0],), dtype=np.bool)
+            n_time = position.shape[0]
+            is_training = np.ones((n_time,), dtype=np.bool)
+
+        if group_labels is None:
+            n_time = position.shape[0]
+            group_labels = np.zeros((n_time,), dtype=np.int)
+
+        if group_to_state is None:
+            n_states = len(self.continuous_transition_types)
+            self.group_to_state_ = np.zeros((n_states,), dtype=np.int)
+
         is_training = np.asarray(is_training).squeeze()
-        self.place_fields_ = estimate_place_fields(
-            position[is_training], spikes[is_training],
-            self.place_bin_centers_, penalty=self.spike_model_penalty,
-            knot_spacing=self.knot_spacing)
+        self.place_fields_ = []
+        for group in np.unique(group_labels):
+            self.place_fields_.append(
+                estimate_place_fields(
+                    position=position[is_training & (group_labels == group)],
+                    spikes=spikes[is_training & (group_labels == group)],
+                    place_bin_centers=self.place_bin_centers_,
+                    penalty=self.spike_model_penalty,
+                    knot_spacing=self.knot_spacing))
 
     def plot_place_fields(self, spikes=None, position=None,
                           sampling_frequency=1):
@@ -258,8 +274,15 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         return g
 
-    def fit(self, position, spikes, is_training=None, is_track_interior=None,
-            track_graph=None, edge_order=None,
+    def fit(self,
+            position,
+            spikes,
+            is_training=None,
+            is_track_interior=None,
+            group_labels=None,
+            group_to_state=None,
+            track_graph=None,
+            edge_order=None,
             edge_spacing=15):
         '''
 
@@ -289,7 +312,8 @@ class SortedSpikesClassifier(_ClassifierBase):
             position, is_training,
             continuous_transition_types=self.continuous_transition_types)
         self.fit_discrete_state_transition()
-        self.fit_place_fields(position, spikes, is_training)
+        self.fit_place_fields(position, spikes, is_training, group_labels,
+                              group_to_state)
 
         return self
 
@@ -311,10 +335,18 @@ class SortedSpikesClassifier(_ClassifierBase):
         spikes = np.asarray(spikes)
 
         results = {}
-        results['likelihood'] = estimate_spiking_likelihood(
-            spikes, np.asarray(self.place_fields_), self.is_track_interior_)
-        results['likelihood'] = np.stack([results['likelihood']] *
-                                         n_states, axis=1)[..., np.newaxis]
+
+        likelihood = []
+        for group in np.unique(self.group_to_state_):
+            likelihood.append(
+                estimate_spiking_likelihood(
+                    spikes,
+                    np.asarray(self.place_fields_[group]),
+                    self.is_track_interior_))
+
+        results['likelihood'] = np.stack(
+            [likelihood[group] for group in self.group_to_state_],
+            axis=1)[..., np.newaxis]
 
         results['causal_posterior'] = _causal_classify(
             self.initial_conditions_, self.continuous_state_transition_,
