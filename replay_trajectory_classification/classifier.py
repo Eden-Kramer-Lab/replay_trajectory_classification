@@ -3,6 +3,7 @@ from logging import getLogger
 
 import joblib
 import numpy as np
+import pandas as pd
 import sklearn
 import xarray as xr
 from sklearn.base import BaseEstimator
@@ -278,14 +279,17 @@ class SortedSpikesClassifier(_ClassifierBase):
             self.group_to_state_ = np.zeros((n_states,), dtype=np.int)
 
         is_training = np.asarray(is_training).squeeze()
-        self.place_fields_ = {}
+        self.place_fields_ = []
         for group in np.unique(group_labels):
-            self.place_fields_[group] = estimate_place_fields(
+            self.place_fields_.append(estimate_place_fields(
                 position=position[is_training & (group_labels == group)],
                 spikes=spikes[is_training & (group_labels == group)],
                 place_bin_centers=self.place_bin_centers_,
                 penalty=self.spike_model_penalty,
-                knot_spacing=self.knot_spacing)
+                knot_spacing=self.knot_spacing))
+        self.place_fields_ = xr.concat(
+            objs=self.place_fields_,
+            dim=pd.Index(np.unique(group_labels), name='group'))
 
     def plot_place_fields(self, spikes=None, position=None,
                           sampling_frequency=1):
@@ -384,10 +388,10 @@ class SortedSpikesClassifier(_ClassifierBase):
         results = {}
 
         likelihood = {}
-        for group in self.place_fields_:
+        for group in np.asarray(self.place_fields_.group):
             likelihood[group] = estimate_spiking_likelihood(
                 spikes,
-                np.asarray(self.place_fields_[group]),
+                np.asarray(self.place_fields_.sel(group=group)),
                 self.is_track_interior_)
 
         results['likelihood'] = np.stack(
