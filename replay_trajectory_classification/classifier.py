@@ -234,7 +234,8 @@ class SortedSpikesClassifier(_ClassifierBase):
         The default, None, is equivalent to passing a tuple of
         `n_position_dims` None values.
     continuous_transition_types : list of ('empirical_movement',
-                                           'random_walk', 'uniform',
+                                           'random_walk',
+                                           'uniform',
                                            'identity',
                                            'uniform_minus_empirical',
                                            'uniform_minus_random_walk',
@@ -349,6 +350,8 @@ class SortedSpikesClassifier(_ClassifierBase):
         is_training : None or bool ndarray, shape (n_time), optional
             Time bins to be used for encoding.
         is_track_interior : None or bool ndaarray, shape (n_x_bins, n_y_bins)
+        encoding_group_labels : None or ndarray, shape (n_time,)
+        encoding_group_to_state : None or ndarray, shape (n_states,)
         track_graph : networkx.Graph
         edge_order : array_like
         edge_spacing : None, float or array_like
@@ -383,6 +386,7 @@ class SortedSpikesClassifier(_ClassifierBase):
         spikes : ndarray, shape (n_time, n_neurons)
         time : ndarray or None, shape (n_time,), optional
         is_compute_acausal : bool, optional
+        state_names : None or array_like, shape (n_states,)
 
         Returns
         -------
@@ -443,7 +447,8 @@ class ClusterlessClassifier(_ClassifierBase):
         The default, None, is equivalent to passing a tuple of
         `n_position_dims` None values.
     continuous_transition_types : list of ('empirical_movement',
-                                           'random_walk', 'uniform',
+                                           'random_walk',
+                                           'uniform',
                                            'identity',
                                            'uniform_minus_empirical',
                                            'uniform_minus_random_walk',
@@ -549,6 +554,8 @@ class ClusterlessClassifier(_ClassifierBase):
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
         is_training : None or array_like, shape (n_time,)
         is_track_interior : None or ndarray, shape (n_x_bins, n_y_bins)
+        encoding_group_labels : None or ndarray, shape (n_time,)
+        encoding_group_to_state : None or ndarray, shape (n_states,)
         track_graph : networkx.Graph
         edge_order : array_like
         edge_spacing : None, float or array_like
@@ -584,6 +591,7 @@ class ClusterlessClassifier(_ClassifierBase):
         time : None or ndarray, shape (n_time,)
         is_compute_acausal : bool, optional
             Use future information to compute the posterior.
+        state_names : None or array_like, shape (n_states,)
 
         Returns
         -------
