@@ -146,12 +146,13 @@ class _ClassifierBase(BaseEstimator):
         diag_transition_names = np.diag(
             np.asarray(self.continuous_transition_types))
         if state_names is None:
-            if len(np.unique(self.group_to_state_)) == 1:
+            if len(np.unique(self.encoding_group_to_state_)) == 1:
                 state_names = diag_transition_names
             else:
                 state_names = [
                     f"{state}-{transition}" for state, transition
-                    in zip(self.group_to_state_, diag_transition_names)]
+                    in zip(self.encoding_group_to_state_,
+                           diag_transition_names)]
         n_time = time.shape[0]
         n_states = len(state_names)
 
@@ -264,32 +265,36 @@ class SortedSpikesClassifier(_ClassifierBase):
         self.spike_model_penalty = spike_model_penalty
 
     def fit_place_fields(self, position, spikes, is_training=None,
-                         group_labels=None, group_to_state=None):
+                         encoding_group_labels=None,
+                         encoding_group_to_state=None):
         logger.info('Fitting place fields...')
         if is_training is None:
             n_time = position.shape[0]
             is_training = np.ones((n_time,), dtype=np.bool)
 
-        if group_labels is None:
+        if encoding_group_labels is None:
             n_time = position.shape[0]
-            group_labels = np.zeros((n_time,), dtype=np.int)
+            encoding_group_labels = np.zeros((n_time,), dtype=np.int)
 
-        if group_to_state is None:
+        if encoding_group_to_state is None:
             n_states = len(self.continuous_transition_types)
-            self.group_to_state_ = np.zeros((n_states,), dtype=np.int)
+            self.encoding_group_to_state_ = np.zeros((n_states,), dtype=np.int)
 
         is_training = np.asarray(is_training).squeeze()
         self.place_fields_ = []
-        for group in np.unique(group_labels):
+        for encoding_group in np.unique(encoding_group_labels):
             self.place_fields_.append(estimate_place_fields(
-                position=position[is_training & (group_labels == group)],
-                spikes=spikes[is_training & (group_labels == group)],
+                position=position[is_training & (
+                    encoding_group_labels == encoding_group)],
+                spikes=spikes[is_training & (
+                    encoding_group_labels == encoding_group)],
                 place_bin_centers=self.place_bin_centers_,
                 penalty=self.spike_model_penalty,
                 knot_spacing=self.knot_spacing))
         self.place_fields_ = xr.concat(
             objs=self.place_fields_,
-            dim=pd.Index(np.unique(group_labels), name='group'))
+            dim=pd.Index(np.unique(encoding_group_labels),
+                         name='encoding_group'))
 
     def plot_place_fields(self, spikes=None, position=None,
                           sampling_frequency=1):
@@ -330,8 +335,8 @@ class SortedSpikesClassifier(_ClassifierBase):
             spikes,
             is_training=None,
             is_track_interior=None,
-            group_labels=None,
-            group_to_state=None,
+            encoding_group_labels=None,
+            encoding_group_to_state=None,
             track_graph=None,
             edge_order=None,
             edge_spacing=15):
@@ -363,8 +368,9 @@ class SortedSpikesClassifier(_ClassifierBase):
             position, is_training,
             continuous_transition_types=self.continuous_transition_types)
         self.fit_discrete_state_transition()
-        self.fit_place_fields(position, spikes, is_training, group_labels,
-                              group_to_state)
+        self.fit_place_fields(position, spikes, is_training,
+                              encoding_group_labels,
+                              encoding_group_to_state)
 
         return self
 
@@ -388,14 +394,16 @@ class SortedSpikesClassifier(_ClassifierBase):
         results = {}
 
         likelihood = {}
-        for group in np.asarray(self.place_fields_.group):
-            likelihood[group] = estimate_spiking_likelihood(
+        for encoding_group in np.asarray(self.place_fields_.encoding_group):
+            likelihood[encoding_group] = estimate_spiking_likelihood(
                 spikes,
-                np.asarray(self.place_fields_.sel(group=group)),
+                np.asarray(self.place_fields_.sel(
+                    encoding_group=encoding_group)),
                 self.is_track_interior_)
 
         results['likelihood'] = np.stack(
-            [likelihood[group] for group in self.group_to_state_],
+            [likelihood[encoding_group]
+                for encoding_group in self.encoding_group_to_state_],
             axis=1)[..., np.newaxis]
 
         results['causal_posterior'] = _causal_classify(
@@ -478,7 +486,8 @@ class ClusterlessClassifier(_ClassifierBase):
             self.occupancy_kwargs = occupancy_kwargs
 
     def fit_multiunits(self, position, multiunits, is_training=None,
-                       group_labels=None, group_to_state=None):
+                       encoding_group_labels=None,
+                       encoding_group_to_state=None):
         '''
 
         Parameters
@@ -494,13 +503,13 @@ class ClusterlessClassifier(_ClassifierBase):
             n_time = position.shape[0]
             is_training = np.ones((n_time,), dtype=np.bool)
 
-        if group_labels is None:
+        if encoding_group_labels is None:
             n_time = position.shape[0]
-            group_labels = np.zeros((n_time,), dtype=np.int)
+            encoding_group_labels = np.zeros((n_time,), dtype=np.int)
 
-        if group_to_state is None:
+        if encoding_group_to_state is None:
             n_states = len(self.continuous_transition_types)
-            self.group_to_state_ = np.zeros((n_states,), dtype=np.int)
+            self.encoding_group_to_state_ = np.zeros((n_states,), dtype=np.int)
 
         is_training = np.asarray(is_training).squeeze()
 
@@ -509,13 +518,14 @@ class ClusterlessClassifier(_ClassifierBase):
         self.occupancy_ = {}
         self.mean_rates_ = {}
 
-        for group in np.unique(group_labels):
-            (self.joint_pdf_models_[group],
-             self.ground_process_intensities_[group],
-             self.occupancy_[group],
-             self.mean_rates_[group]
+        for encoding_group in np.unique(encoding_group_labels):
+            (self.joint_pdf_models_[encoding_group],
+             self.ground_process_intensities_[encoding_group],
+             self.occupancy_[encoding_group],
+             self.mean_rates_[encoding_group]
              ) = fit_multiunit_likelihood(
-                position[is_training & (group == group_labels)],
+                position[is_training & (
+                    encoding_group == encoding_group_labels)],
                 multiunits[is_training],
                 self.place_bin_centers_, self.model, self.model_kwargs,
                 self.occupancy_model, self.occupancy_kwargs,
@@ -526,8 +536,8 @@ class ClusterlessClassifier(_ClassifierBase):
             multiunits,
             is_training=None,
             is_track_interior=None,
-            group_labels=None,
-            group_to_state=None,
+            encoding_group_labels=None,
+            encoding_group_to_state=None,
             track_graph=None,
             edge_order=None,
             edge_spacing=15):
@@ -560,7 +570,7 @@ class ClusterlessClassifier(_ClassifierBase):
             continuous_transition_types=self.continuous_transition_types)
         self.fit_discrete_state_transition()
         self.fit_multiunits(position, multiunits, is_training,
-                            group_labels, group_to_state)
+                            encoding_group_labels, encoding_group_to_state)
 
         return self
 
@@ -585,18 +595,19 @@ class ClusterlessClassifier(_ClassifierBase):
         results = {}
 
         likelihood = {}
-        for group in self.joint_pdf_models_:
-            likelihood[group] = estimate_multiunit_likelihood(
+        for encoding_group in self.joint_pdf_models_:
+            likelihood[encoding_group] = estimate_multiunit_likelihood(
                 multiunits,
                 self.place_bin_centers_,
-                self.joint_pdf_models_[group],
-                self.ground_process_intensities_[group],
-                self.occupancy_[group],
-                self.mean_rates_[group],
+                self.joint_pdf_models_[encoding_group],
+                self.ground_process_intensities_[encoding_group],
+                self.occupancy_[encoding_group],
+                self.mean_rates_[encoding_group],
                 self.is_track_interior_.ravel(order='F'))
 
         results['likelihood'] = np.stack(
-            [likelihood[group] for group in self.group_to_state_],
+            [likelihood[encoding_group]
+                for encoding_group in self.encoding_group_to_state_],
             axis=1)[..., np.newaxis]
 
         results['causal_posterior'] = _causal_classify(
