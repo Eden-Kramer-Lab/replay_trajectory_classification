@@ -64,7 +64,7 @@ def simulate_place_field_firing_rate(means, position, max_rate=15,
 
     '''
     if is_condition is None:
-        is_condition = np.ones_like(position, dtype=bool)
+        is_condition = np.ones(position.shape[0], dtype=bool)
     position = atleast_2d(position)
     firing_rate = multivariate_normal(means, variance).pdf(position)
     firing_rate /= firing_rate.max()
