@@ -140,6 +140,50 @@ def _random_walk_on_track_graph(
     return state_transition
 
 
+def random_walk_direction1(*args):
+    '''Zero mean random walk.
+
+    This version makes the sped up gaussian without constraints and then
+    imposes the constraints.
+
+    Parameters
+    ----------
+    place_bin_centers : ndarray, shape (n_bins, n_position_dims)
+    movement_var : float,
+    is_track_interior : bool ndarray, shape (n_x_bins, n_y_bins)
+    replay_speed : int
+
+    Returns
+    -------
+    transition_matrix : ndarray, shape (n_bins, n_bins)
+
+    '''
+    random = random_walk(*args)
+    return _normalize_row_probability(np.triu(random))
+
+
+def random_walk_direction2(*args):
+    '''Zero mean random walk.
+
+    This version makes the sped up gaussian without constraints and then
+    imposes the constraints.
+
+    Parameters
+    ----------
+    place_bin_centers : ndarray, shape (n_bins, n_position_dims)
+    movement_var : float,
+    is_track_interior : bool ndarray, shape (n_x_bins, n_y_bins)
+    replay_speed : int
+
+    Returns
+    -------
+    transition_matrix : ndarray, shape (n_bins, n_bins)
+
+    '''
+    random = random_walk(*args)
+    return _normalize_row_probability(np.tril(random))
+
+
 def uniform_state_transition(
     place_bin_centers, is_track_interior, position, edges,
         is_training, replay_speed, position_extent, movement_var,
@@ -346,6 +390,8 @@ CONTINUOUS_TRANSITIONS = {
     'random_walk_minus_identity': random_walk_minus_identity,
     'random_walk_plus_uniform': random_walk_plus_uniform,
     'inverse_random_walk': inverse_random_walk,
+    'random_walk_direction1': random_walk_direction1,
+    'random_walk_direction2': random_walk_direction2,
 }
 
 DISCRETE_TRANSITIONS = {
