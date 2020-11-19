@@ -527,16 +527,20 @@ class ClusterlessClassifier(_ClassifierBase):
         self.mean_rates_ = {}
 
         for encoding_group in np.unique(encoding_group_labels):
+            is_group = is_training & (
+                encoding_group == encoding_group_labels)
             (self.joint_pdf_models_[encoding_group],
              self.ground_process_intensities_[encoding_group],
              self.occupancy_[encoding_group],
              self.mean_rates_[encoding_group]
              ) = fit_multiunit_likelihood(
-                position[is_training & (
-                    encoding_group == encoding_group_labels)],
-                multiunits[is_training],
-                self.place_bin_centers_, self.model, self.model_kwargs,
-                self.occupancy_model, self.occupancy_kwargs,
+                position[is_group],
+                multiunits[is_group],
+                self.place_bin_centers_,
+                self.model,
+                self.model_kwargs,
+                self.occupancy_model,
+                self.occupancy_kwargs,
                 self.is_track_interior_.ravel(order='F'))
 
     def fit(self,
