@@ -211,37 +211,27 @@ class SortedSpikesDecoder(_DecoderBase):
             self.place_bin_centers_, penalty=self.spike_model_penalty,
             knot_spacing=self.knot_spacing)
 
-    def plot_place_fields(self, spikes=None, position=None,
-                          sampling_frequency=1):
+    def plot_place_fields(self, sampling_frequency=1, col_wrap=5):
         '''Plots the fitted 2D place fields for each neuron.
 
         Parameters
         ----------
-        spikes : None or array_like, shape (n_time, n_neurons), optional
-        position : None or array_like, shape (n_time, 2), optional
         sampling_frequency : float, optional
+        col_wrap : int, optional
 
         Returns
         -------
         g : xr.plot.FacetGrid instance
 
         '''
-        g = (self.place_fields_.unstack() * sampling_frequency).plot(
-            x='x_position', y='y_position', col='neuron', col_wrap=5, vmin=0.0,
-            robust=True)
-        if spikes is not None and position is not None:
-            spikes, position = np.asarray(spikes), np.asarray(position)
-            for ax, is_spike in zip(g.axes.flat, spikes.T):
-                is_spike = is_spike > 0
-                ax.plot(position[:, 0], position[:, 1], color='lightgrey',
-                        alpha=0.3, zorder=1)
-                ax.scatter(position[is_spike, 0], position[is_spike, 1],
-                           color='red', s=1, alpha=0.5, zorder=1)
-        elif position is not None:
-            position = np.asarray(position)
-            for ax in g.axes.flat:
-                ax.plot(position[:, 0], position[:, 1], color='lightgrey',
-                        alpha=0.3, zorder=1)
+        try:
+            g = (self.place_fields_.unstack('position') * sampling_frequency
+                 ).plot(x='x_position', y='y_position', col='neuron',
+                        hue='encoding_group', col_wrap=col_wrap)
+        except ValueError:
+            g = (self.place_fields_ * sampling_frequency).plot(
+                x='position', col='neuron', hue='encoding_group',
+                col_wrap=col_wrap)
 
         return g
 
