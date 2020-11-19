@@ -281,6 +281,8 @@ class SortedSpikesClassifier(_ClassifierBase):
         if encoding_group_to_state is None:
             n_states = len(self.continuous_transition_types)
             self.encoding_group_to_state_ = np.zeros((n_states,), dtype=np.int)
+        else:
+            self.encoding_group_to_state_ = encoding_group_to_state
 
         is_training = np.asarray(is_training).squeeze()
         self.place_fields_ = []
@@ -477,7 +479,8 @@ class ClusterlessClassifier(_ClassifierBase):
                  infer_track_interior=True,
                  model=NumbaKDE,
                  model_kwargs=_DEFAULT_CLUSTERLESS_MODEL_KWARGS,
-                 occupancy_model=None, occupancy_kwargs=None):
+                 occupancy_model=None,
+                 occupancy_kwargs=None):
         super().__init__(place_bin_size, replay_speed, movement_var,
                          position_range, continuous_transition_types,
                          discrete_transition_type, initial_conditions_type,
@@ -518,6 +521,8 @@ class ClusterlessClassifier(_ClassifierBase):
         if encoding_group_to_state is None:
             n_states = len(self.continuous_transition_types)
             self.encoding_group_to_state_ = np.zeros((n_states,), dtype=np.int)
+        else:
+            self.encoding_group_to_state_ = encoding_group_to_state
 
         is_training = np.asarray(is_training).squeeze()
 
