@@ -1,7 +1,6 @@
 import numpy as np
+from replay_trajectory_classification.bins import atleast_2d
 from scipy.stats import multivariate_normal
-
-from .bins import atleast_2d
 
 
 def _normalize_row_probability(x):
