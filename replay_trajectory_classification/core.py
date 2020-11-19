@@ -169,7 +169,7 @@ def _acausal_classify(causal_posterior, continuous_state_transition,
     return acausal_posterior
 
 
-def scaled_likelihood(log_likelihood):
+def scaled_likelihood(log_likelihood, axis=1):
     '''
     Parameters
     ----------
@@ -180,7 +180,7 @@ def scaled_likelihood(log_likelihood):
     scaled_log_likelihood : ndarray, shape (n_time, n_bins)
 
     '''
-    max_log_likelihood = np.nanmax(log_likelihood, axis=1, keepdims=True)
+    max_log_likelihood = np.nanmax(log_likelihood, axis=axis, keepdims=True)
     likelihood = np.exp(log_likelihood - max_log_likelihood)
     likelihood[np.isnan(likelihood)] = 0.0
     return likelihood

@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import sklearn
 import xarray as xr
+from replay_trajectory_classification.core import scaled_likelihood
 from sklearn.base import BaseEstimator
 
 from .bins import (atleast_2d, get_centers, get_grid, get_track_grid,
@@ -407,8 +408,10 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         results['likelihood'] = np.stack(
             [likelihood[encoding_group]
-                for encoding_group in self.encoding_group_to_state_],
-            axis=1)[..., np.newaxis]
+             for encoding_group in self.encoding_group_to_state_],
+            axis=1)
+        results['likelihood'] = scaled_likelihood(
+            results['likelihood'], axis=(1, 2))[..., np.newaxis]
 
         results['causal_posterior'] = _causal_classify(
             self.initial_conditions_, self.continuous_state_transition_,
@@ -615,8 +618,10 @@ class ClusterlessClassifier(_ClassifierBase):
 
         results['likelihood'] = np.stack(
             [likelihood[encoding_group]
-                for encoding_group in self.encoding_group_to_state_],
-            axis=1)[..., np.newaxis]
+             for encoding_group in self.encoding_group_to_state_],
+            axis=1)
+        results['likelihood'] = scaled_likelihood(
+            results['likelihood'], axis=(1, 2))[..., np.newaxis]
 
         results['causal_posterior'] = _causal_classify(
             self.initial_conditions_, self.continuous_state_transition_,

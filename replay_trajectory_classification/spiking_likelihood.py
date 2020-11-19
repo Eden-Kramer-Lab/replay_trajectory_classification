@@ -8,7 +8,6 @@ from dask.distributed import Client, get_client
 from patsy import build_design_matrices, dmatrix
 from regularized_glm import penalized_IRLS
 from replay_trajectory_classification.bins import get_n_bins
-from replay_trajectory_classification.core import scaled_likelihood
 from statsmodels.api import families
 
 
@@ -128,7 +127,7 @@ def estimate_spiking_likelihood(spikes, conditional_intensity,
     mask = np.ones_like(is_track_interior, dtype=np.float)
     mask[~is_track_interior] = np.nan
 
-    return scaled_likelihood(log_likelihood * mask)
+    return log_likelihood * mask
 
 
 def estimate_place_fields(position, spikes, place_bin_centers, penalty=1E-1,

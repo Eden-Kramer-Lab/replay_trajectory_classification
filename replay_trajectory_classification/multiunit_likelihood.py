@@ -1,8 +1,6 @@
 
 import numpy as np
-from replay_trajectory_classification.core import scaled_likelihood
-
-from .bins import atleast_2d
+from replay_trajectory_classification.bins import atleast_2d
 
 
 def fit_occupancy(position, place_bin_centers, model,
@@ -297,4 +295,4 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
     mask = np.ones_like(is_track_interior, dtype=np.float)
     mask[~is_track_interior] = np.nan
 
-    return scaled_likelihood(log_likelihood * mask)
+    return log_likelihood * mask

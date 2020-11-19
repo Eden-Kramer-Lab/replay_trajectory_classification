@@ -5,18 +5,22 @@ import joblib
 import numpy as np
 import sklearn
 import xarray as xr
+from replay_trajectory_classification.bins import (atleast_2d, get_centers,
+                                                   get_grid, get_track_grid,
+                                                   get_track_interior)
+from replay_trajectory_classification.core import (_acausal_decode,
+                                                   _causal_decode, mask,
+                                                   scaled_likelihood)
+from replay_trajectory_classification.initial_conditions import \
+    uniform_on_track
+from replay_trajectory_classification.misc import NumbaKDE
+from replay_trajectory_classification.multiunit_likelihood import (
+    estimate_multiunit_likelihood, fit_multiunit_likelihood)
+from replay_trajectory_classification.spiking_likelihood import (
+    estimate_place_fields, estimate_spiking_likelihood)
+from replay_trajectory_classification.state_transition import \
+    CONTINUOUS_TRANSITIONS
 from sklearn.base import BaseEstimator
-
-from .bins import (atleast_2d, get_centers, get_grid, get_track_grid,
-                   get_track_interior)
-from .core import _acausal_decode, _causal_decode, mask
-from .initial_conditions import uniform_on_track
-from .misc import NumbaKDE
-from .multiunit_likelihood import (estimate_multiunit_likelihood,
-                                   fit_multiunit_likelihood)
-from .spiking_likelihood import (estimate_place_fields,
-                                 estimate_spiking_likelihood)
-from .state_transition import CONTINUOUS_TRANSITIONS
 
 logger = getLogger(__name__)
 
@@ -256,8 +260,9 @@ class SortedSpikesDecoder(_DecoderBase):
         spikes = np.asarray(spikes)
 
         results = {}
-        results['likelihood'] = estimate_spiking_likelihood(
-            spikes, np.asarray(self.place_fields_))
+        results['likelihood'] = scaled_likelihood(
+            estimate_spiking_likelihood(
+                spikes, np.asarray(self.place_fields_)))
         results['causal_posterior'] = _causal_decode(
             self.initial_conditions_, self.state_transition_,
             results['likelihood'])
@@ -423,11 +428,12 @@ class ClusterlessDecoder(_DecoderBase):
         multiunits = np.asarray(multiunits)
 
         results = {}
-        results['likelihood'] = estimate_multiunit_likelihood(
-            multiunits, self.place_bin_centers_,
-            self.joint_pdf_models_, self.ground_process_intensities_,
-            self.occupancy_, self.mean_rates_,
-            self.is_track_interior_.ravel(order='F'))
+        results['likelihood'] = scaled_likelihood(
+            estimate_multiunit_likelihood(
+                multiunits, self.place_bin_centers_,
+                self.joint_pdf_models_, self.ground_process_intensities_,
+                self.occupancy_, self.mean_rates_,
+                self.is_track_interior_.ravel(order='F')))
         results['causal_posterior'] = _causal_decode(
             self.initial_conditions_, self.state_transition_,
             results['likelihood'])
