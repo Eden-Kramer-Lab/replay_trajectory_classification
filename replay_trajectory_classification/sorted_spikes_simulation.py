@@ -1,7 +1,8 @@
 import numpy as np
 from replay_trajectory_classification.simulate import (
-    simulate_linear_distance, simulate_neuron_with_place_field,
-    simulate_place_field_firing_rate, simulate_time)
+    get_trajectory_direction, simulate_linear_distance,
+    simulate_neuron_with_place_field, simulate_place_field_firing_rate,
+    simulate_time)
 
 SAMPLING_FREQUENCY = 1000
 TRACK_HEIGHT = 180
@@ -24,7 +25,8 @@ def make_simulated_run_data(sampling_frequency=SAMPLING_FREQUENCY,
                             track_height=TRACK_HEIGHT,
                             running_speed=RUNNING_SPEED, n_runs=N_RUNS,
                             place_field_variance=PLACE_FIELD_VARIANCE,
-                            place_field_means=PLACE_FIELD_MEANS):
+                            place_field_means=PLACE_FIELD_MEANS,
+                            make_inbound_outbound_neurons=False):
     '''Make simulated data of a rat running back and forth
     on a linear maze with sorted spikes.
 
@@ -53,15 +55,38 @@ def make_simulated_run_data(sampling_frequency=SAMPLING_FREQUENCY,
     linear_distance = simulate_linear_distance(
         time, track_height, running_speed)
 
-    place_fields = np.stack(
-        [simulate_place_field_firing_rate(place_field_mean, linear_distance,
-                                          variance=place_field_variance)
-         for place_field_mean in place_field_means], axis=1)
+    if not make_inbound_outbound_neurons:
+        place_fields = np.stack(
+            [simulate_place_field_firing_rate(
+                place_field_mean, linear_distance,
+                variance=place_field_variance)
+             for place_field_mean in place_field_means], axis=1)
+        spikes = np.stack([simulate_neuron_with_place_field(
+            place_field_mean, linear_distance, max_rate=15,
+            variance=place_field_variance,
+            sampling_frequency=sampling_frequency)
+            for place_field_mean in place_field_means.T], axis=1)
+    else:
+        trajectory_direction = get_trajectory_direction(linear_distance)
+        place_fields = []
+        spikes = []
+        for direction in np.unique(trajectory_direction):
+            is_condition = trajectory_direction == direction
+            for place_field_mean in place_field_means:
+                place_fields.append(
+                    simulate_place_field_firing_rate(
+                        place_field_mean, linear_distance,
+                        variance=place_field_variance,
+                        is_condition=is_condition))
+                spikes.append(
+                    simulate_neuron_with_place_field(
+                        place_field_mean, linear_distance, max_rate=15,
+                        variance=place_field_variance,
+                        sampling_frequency=sampling_frequency,
+                        is_condition=is_condition))
 
-    spikes = np.stack([simulate_neuron_with_place_field(
-        place_field_mean, linear_distance, max_rate=15,
-        variance=place_field_variance, sampling_frequency=sampling_frequency)
-        for place_field_mean in place_field_means.T], axis=1)
+        place_fields = np.stack(place_fields, axis=1)
+        spikes = np.stack(spikes, axis=1)
 
     return time, linear_distance, sampling_frequency, spikes, place_fields
 

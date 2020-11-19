@@ -1,7 +1,7 @@
 import numpy as np
 from replay_trajectory_classification.simulate import (
-    simulate_linear_distance, simulate_multiunit_with_place_fields,
-    simulate_time)
+    get_trajectory_direction, simulate_linear_distance,
+    simulate_multiunit_with_place_fields, simulate_time)
 
 SAMPLING_FREQUENCY = 1000
 TRACK_HEIGHT = 175
@@ -20,7 +20,8 @@ def make_simulated_run_data(sampling_frequency=SAMPLING_FREQUENCY,
                             running_speed=RUNNING_SPEED, n_runs=N_RUNS,
                             place_field_variance=PLACE_FIELD_VARIANCE,
                             place_field_means=PLACE_FIELD_MEANS,
-                            n_tetrodes=N_TETRODES):
+                            n_tetrodes=N_TETRODES,
+                            make_inbound_outbound_neurons=False):
     '''Make simulated data of a rat running back and forth
     on a linear maze with unclustered spikes.
 
@@ -50,11 +51,24 @@ def make_simulated_run_data(sampling_frequency=SAMPLING_FREQUENCY,
         time, track_height, running_speed)
 
     multiunits = []
-    for place_means in place_field_means.reshape(((n_tetrodes, -1))):
-        multiunits.append(
-            simulate_multiunit_with_place_fields(
-                place_means, linear_distance, mark_spacing=10, n_mark_dims=4,
-                sampling_frequency=sampling_frequency))
+    if not make_inbound_outbound_neurons:
+        for place_means in place_field_means.reshape(((n_tetrodes, -1))):
+            multiunits.append(
+                simulate_multiunit_with_place_fields(
+                    place_means, linear_distance, mark_spacing=10,
+                    n_mark_dims=4,
+                    sampling_frequency=sampling_frequency))
+    else:
+        trajectory_direction = get_trajectory_direction(linear_distance)
+        for direction in np.unique(trajectory_direction):
+            is_condition = trajectory_direction == direction
+            for place_means in place_field_means.reshape(((n_tetrodes, -1))):
+                multiunits.append(
+                    simulate_multiunit_with_place_fields(
+                        place_means, linear_distance, mark_spacing=10,
+                        n_mark_dims=4,
+                        sampling_frequency=sampling_frequency,
+                        is_condition=is_condition))
     multiunits = np.stack(multiunits, axis=-1)
     multiunits_spikes = np.any(~np.isnan(multiunits), axis=1)
 
@@ -136,7 +150,7 @@ def make_fragmented_replay(place_field_means=PLACE_FIELD_MEANS,
     replay_time = np.arange(N_TIME) / sampling_frequency
 
     n_total_neurons = place_field_means.size
-    neuron_inds = [1, n_total_neurons-1, 10, n_total_neurons-5, 8]
+    neuron_inds = [1, n_total_neurons - 1, 10, n_total_neurons - 5, 8]
     neuron_inds = np.unravel_index(neuron_inds, place_field_means.shape)
     spike_time_ind = [1, 3, 5, 7, 9]
     test_multiunits = np.full(
@@ -155,7 +169,8 @@ def make_hover_continuous_hover_replay(sampling_frequency=SAMPLING_FREQUENCY,
     _, test_multiunits1 = make_hover_replay(hover_neuron_ind=0)
     _, test_multiunits2 = make_continuous_replay()
     n_total_neurons = place_field_means.size
-    _, test_multiunits3 = make_hover_replay(hover_neuron_ind=n_total_neurons-1)
+    _, test_multiunits3 = make_hover_replay(
+        hover_neuron_ind=n_total_neurons - 1)
 
     test_multiunits = np.concatenate(
         (test_multiunits1, test_multiunits2, test_multiunits3))

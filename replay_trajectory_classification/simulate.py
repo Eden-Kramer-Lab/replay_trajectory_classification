@@ -1,7 +1,6 @@
 import numpy as np
+from replay_trajectory_classification.bins import atleast_2d
 from scipy.stats import multivariate_normal
-
-from .bins import atleast_2d
 
 
 def simulate_time(n_samples, sampling_frequency):
@@ -48,7 +47,7 @@ def simulate_poisson_spikes(rate, sampling_frequency):
 
 
 def simulate_place_field_firing_rate(means, position, max_rate=15,
-                                     variance=10):
+                                     variance=10, is_condition=None):
     '''Simulates the firing rate of a neuron with a place field at `means`.
 
     Parameters
@@ -57,21 +56,27 @@ def simulate_place_field_firing_rate(means, position, max_rate=15,
     position : ndarray, shape (n_time, n_position_dims)
     max_rate : float, optional
     variance : float, optional
+    is_condition : None or ndarray, (n_time,)
 
     Returns
     -------
     firing_rate : ndarray, shape (n_time,)
 
     '''
+    if is_condition is None:
+        is_condition = np.ones_like(position, dtype=bool)
     position = atleast_2d(position)
     firing_rate = multivariate_normal(means, variance).pdf(position)
     firing_rate /= firing_rate.max()
     firing_rate *= max_rate
+    firing_rate[~is_condition] = 0.0
+
     return firing_rate
 
 
 def simulate_neuron_with_place_field(means, position, max_rate=15, variance=36,
-                                     sampling_frequency=500):
+                                     sampling_frequency=500,
+                                     is_condition=None):
     '''Simulates the spiking of a neuron with a place field at `means`.
 
     Parameters
@@ -81,6 +86,7 @@ def simulate_neuron_with_place_field(means, position, max_rate=15, variance=36,
     max_rate : float, optional
     variance : float, optional
     sampling_frequency : float, optional
+    is_condition : None or ndarray, (n_time,)
 
     Returns
     -------
@@ -88,14 +94,15 @@ def simulate_neuron_with_place_field(means, position, max_rate=15, variance=36,
 
     '''
     firing_rate = simulate_place_field_firing_rate(
-        means, position, max_rate, variance)
+        means, position, max_rate, variance, is_condition)
     return simulate_poisson_spikes(firing_rate, sampling_frequency)
 
 
 def simulate_multiunit_with_place_fields(place_means, position, mark_spacing=5,
                                          n_mark_dims=4, place_variance=36.0,
                                          mark_variance=1.0, max_rate=100,
-                                         sampling_frequency=1000):
+                                         sampling_frequency=1000,
+                                         is_condition=None):
     '''Simulates a multiunit with neurons at `place_means`
 
     Parameters
@@ -117,9 +124,15 @@ def simulate_multiunit_with_place_fields(place_means, position, mark_spacing=5,
     for mean, mark_center in zip(place_means, mark_centers):
         is_spike = simulate_neuron_with_place_field(
             mean, position, max_rate=max_rate, variance=place_variance,
-            sampling_frequency=sampling_frequency) > 0
+            sampling_frequency=sampling_frequency,
+            is_condition=is_condition) > 0
         n_spikes = int(is_spike.sum())
         marks[is_spike] = multivariate_normal(
             mean=[mark_center] * n_mark_dims, cov=mark_variance
         ).rvs(size=n_spikes)
     return marks
+
+
+def get_trajectory_direction(linear_distance):
+    is_inbound = np.insert(np.diff(linear_distance) < 0, 0, False)
+    return np.where(is_inbound, 'Inbound', 'Outbound')
