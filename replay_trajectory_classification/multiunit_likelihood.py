@@ -49,13 +49,16 @@ def fit_marginal_model(multiunit, position, place_bin_centers,
 
     '''
     is_spike = np.any(~np.isnan(multiunit), axis=1)
-    not_nan_position = np.all(~np.isnan(atleast_2d(position)), axis=1)
-    marginal_model = (model(**model_kwargs)
-                      .fit(atleast_2d(position)[is_spike & not_nan_position]))
     marginal_density = np.zeros((place_bin_centers.shape[0],))
-    marginal_density[is_track_interior] = np.exp(
-        marginal_model.score_samples(
-            atleast_2d(place_bin_centers[is_track_interior])))
+    if is_spike.sum() > 0:
+        not_nan_position = np.all(~np.isnan(atleast_2d(position)), axis=1)
+        marginal_model = (model(**model_kwargs)
+                          .fit(atleast_2d(position)[is_spike &
+                                                    not_nan_position]))
+
+        marginal_density[is_track_interior] = np.exp(
+            marginal_model.score_samples(
+                atleast_2d(place_bin_centers[is_track_interior])))
     return marginal_density
 
 
