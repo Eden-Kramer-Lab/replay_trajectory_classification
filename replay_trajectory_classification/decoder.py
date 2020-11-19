@@ -126,6 +126,42 @@ class _DecoderBase(BaseEstimator):
     def copy(self):
         return deepcopy(self)
 
+    def convert_results_to_xarray(self, results, time):
+        n_position_dims = self.place_bin_centers_.shape[1]
+        n_time = time.shape[0]
+
+        if n_position_dims > 1:
+            dims = ['time', 'x_position', 'y_position']
+            coords = dict(
+                time=time,
+                x_position=get_centers(self.edges_[0]),
+                y_position=get_centers(self.edges_[1]),
+            )
+        else:
+            dims = ['time', 'position']
+            coords = dict(
+                time=time,
+                position=get_centers(self.edges_[0]),
+            )
+        new_shape = (n_time, *self.centers_shape_)
+        try:
+            results = xr.Dataset(
+                {key: (dims, (mask(value,
+                                   self.is_track_interior_.ravel(order='F'))
+                              .squeeze(axis=-1)
+                              .reshape(new_shape).swapaxes(-1, -2)))
+                 for key, value in results.items()},
+                coords=coords)
+        except ValueError:
+            results = xr.Dataset(
+                {key: (dims, mask(value,
+                                  self.is_track_interior_.ravel(order='F'))
+                       .reshape(new_shape))
+                 for key, value in results.items()},
+                coords=coords)
+
+        return results
+
 
 class SortedSpikesDecoder(_DecoderBase):
     def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
@@ -276,35 +312,7 @@ class SortedSpikesDecoder(_DecoderBase):
         if time is None:
             time = np.arange(n_time)
 
-        n_position_dims = self.place_bin_centers_.shape[1]
-        if n_position_dims > 1:
-            dims = ['time', 'x_position', 'y_position']
-            coords = dict(
-                time=time,
-                x_position=get_centers(self.edges_[0]),
-                y_position=get_centers(self.edges_[1]),
-            )
-        else:
-            dims = ['time', 'position']
-            coords = dict(
-                time=time,
-                position=get_centers(self.edges_[0]),
-            )
-        new_shape = (n_time, *self.centers_shape_)
-        try:
-            results = xr.Dataset(
-                {key: (dims, mask(value, self.is_track_interior_.ravel(order='F'))
-                       .reshape(new_shape).swapaxes(-1, -2))
-                 for key, value in results.items()},
-                coords=coords)
-        except ValueError:
-            results = xr.Dataset(
-                {key: (dims, mask(value, self.is_track_interior_.ravel(order='F'))
-                       .reshape(new_shape))
-                 for key, value in results.items()},
-                coords=coords)
-
-        return results
+        return self.convert_results_to_xarray(results, time)
 
 
 class ClusterlessDecoder(_DecoderBase):
@@ -447,35 +455,4 @@ class ClusterlessDecoder(_DecoderBase):
         if time is None:
             time = np.arange(n_time)
 
-        n_position_dims = self.place_bin_centers_.shape[1]
-        if n_position_dims > 1:
-            dims = ['time', 'x_position', 'y_position']
-            coords = dict(
-                time=time,
-                x_position=get_centers(self.edges_[0]),
-                y_position=get_centers(self.edges_[1]),
-            )
-        else:
-            dims = ['time', 'position']
-            coords = dict(
-                time=time,
-                position=get_centers(self.edges_[0]),
-            )
-        new_shape = (n_time, *self.centers_shape_)
-        try:
-            results = xr.Dataset(
-                {key: (dims, (mask(value,
-                                   self.is_track_interior_.ravel(order='F'))
-                              .squeeze(axis=-1)
-                              .reshape(new_shape).swapaxes(-1, -2)))
-                 for key, value in results.items()},
-                coords=coords)
-        except ValueError:
-            results = xr.Dataset(
-                {key: (dims, mask(value,
-                                  self.is_track_interior_.ravel(order='F'))
-                       .reshape(new_shape))
-                 for key, value in results.items()},
-                coords=coords)
-
-        return results
+        return self.convert_results_to_xarray(results, time)
