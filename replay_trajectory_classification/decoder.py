@@ -101,7 +101,7 @@ class _DecoderBase(BaseEstimator):
                 self.place_bin_centers_, self.is_track_interior_,
                 position, self.edges_, is_training, self.replay_speed,
                 self.position_range, self.movement_var,
-                self.place_bin_centers_nodes_df_.node_id.values,
+                np.asarray(self.place_bin_centers_nodes_df_.node_id),
                 self.distance_between_nodes_)
         except AttributeError:
             self.state_transition_ = CONTINUOUS_TRANSITIONS[transition_type](
