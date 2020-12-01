@@ -133,9 +133,14 @@ def _random_walk_on_track_graph(
 
     for bin_ind1, node1 in enumerate(place_bin_center_ind_to_node):
         for bin_ind2, node2 in enumerate(place_bin_center_ind_to_node):
-            state_transition[bin_ind1, bin_ind2] = gaussian.pdf(
-                distance_between_nodes[node1][node2]
-            )
+            try:
+                state_transition[bin_ind1, bin_ind2] = gaussian.pdf(
+                    distance_between_nodes[node1][node2]
+                )
+            except KeyError:
+                # bins not on track interior will be -1 and not in distance
+                # between nodes
+                continue
 
     return state_transition
 
