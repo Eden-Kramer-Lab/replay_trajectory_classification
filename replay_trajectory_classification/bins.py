@@ -280,7 +280,7 @@ def extract_bin_info_from_track_graph(
         .drop(columns="pos")
     )
     node_linear_position, _, _ = _calulcate_linear_position(
-        track_graph, nodes_df.loc[:, ["x_position", "y_position"]].values,
+        track_graph, np.asarray(nodes_df.loc[:, ["x_position", "y_position"]]),
         nodes_df.edge_id, edge_order, edge_spacing)
     nodes_df["linear_position"] = node_linear_position
     nodes_df = nodes_df.rename_axis(index="node_id")
