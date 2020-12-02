@@ -160,7 +160,7 @@ def project_points_to_segment(track_segments, position):
         nx[:, :, np.newaxis] * segment_diff[np.newaxis, ...])
 
 
-def _calulcate_linear_position(track_graph, position, track_segment_id,
+def _calculate_linear_position(track_graph, position, track_segment_id,
                                edge_order, edge_spacing):
     is_nan = np.isnan(track_segment_id)
     track_segment_id[is_nan] = 0  # need to check
@@ -217,6 +217,8 @@ def _calulcate_linear_position(track_graph, position, track_segment_id,
 
 
 def make_track_graph_with_bin_centers_edges(track_graph, place_bin_size):
+    """Insert the bin center and bin edge positions as nodes in the track graph.
+    """
     track_graph_with_bin_centers_edges = track_graph.copy()
     n_nodes = len(track_graph.nodes)
 
@@ -272,6 +274,8 @@ def make_track_graph_with_bin_centers_edges(track_graph, place_bin_size):
 def extract_bin_info_from_track_graph(
         track_graph, track_graph_with_bin_centers_edges, edge_order,
         edge_spacing):
+    """For each node, find edge_id, is_bin_edge, x_position, y_position, and
+    linear_position"""
     nodes_df = (pd.DataFrame.from_dict(
         dict(track_graph_with_bin_centers_edges.nodes(data=True)),
         orient="index")
@@ -279,7 +283,7 @@ def extract_bin_info_from_track_graph(
         .assign(y_position=lambda df: np.asarray(list(df.pos))[:, 1])
         .drop(columns="pos")
     )
-    node_linear_position, _, _ = _calulcate_linear_position(
+    node_linear_position, _, _ = _calculate_linear_position(
         track_graph, np.asarray(nodes_df.loc[:, ["x_position", "y_position"]]),
         nodes_df.edge_id, edge_order, edge_spacing)
     nodes_df["linear_position"] = node_linear_position
@@ -290,7 +294,7 @@ def extract_bin_info_from_track_graph(
     nodes_df = (pd.merge(nodes_df.reset_index(), edge_avg_linear_position,
                          on="edge_id")
                 .sort_values(
-                    by=['linear_position', 'edge_avg_linear_position'],
+                    by=['edge_avg_linear_position', 'linear_position'],
                     axis='rows')
                 .set_index("node_id")
                 .drop(columns="edge_avg_linear_position")
@@ -306,9 +310,10 @@ def get_track_grid(track_graph, edge_order, edge_spacing, place_bin_size):
         track_graph, track_graph_with_bin_centers_edges, edge_order,
         edge_spacing)
 
-    original_nodes_df = nodes_df.loc[list(track_graph.nodes)].reset_index()
+    original_nodes = list(track_graph.nodes)
+    original_nodes_df = nodes_df.loc[original_nodes].reset_index()
     place_bin_edges_nodes_df = nodes_df.loc[~nodes_df.index.isin(
-        list(track_graph.nodes)) & nodes_df.is_bin_edge].reset_index()
+        original_nodes) & nodes_df.is_bin_edge].reset_index()
     place_bin_centers_nodes_df = (nodes_df
                                   .loc[~nodes_df.is_bin_edge]
                                   .reset_index())
@@ -332,7 +337,7 @@ def get_track_grid(track_graph, edge_order, edge_spacing, place_bin_size):
         edge_spacing = [edge_spacing, ] * (n_edges - 1)
 
     is_track_interior = np.ones_like(place_bin_centers, dtype=np.bool)
-    not_track = change_edge_ind[np.array(edge_spacing) > 0]
+    not_track = change_edge_ind[np.asarray(edge_spacing) > 0]
     is_track_interior[not_track] = False
 
     # Add information about bin centers not on track
