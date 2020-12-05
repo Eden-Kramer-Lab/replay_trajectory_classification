@@ -283,11 +283,11 @@ class SortedSpikesClassifier(_ClassifierBase):
             n_states = len(self.continuous_transition_types)
             self.encoding_group_to_state_ = np.zeros((n_states,), dtype=np.int)
         else:
-            self.encoding_group_to_state_ = encoding_group_to_state
+            self.encoding_group_to_state_ = np.asarray(encoding_group_to_state)
 
         is_training = np.asarray(is_training).squeeze()
         self.place_fields_ = []
-        for encoding_group in np.unique(encoding_group_labels):
+        for encoding_group in np.unique(encoding_group_labels[is_training]):
             self.place_fields_.append(estimate_place_fields(
                 position=position[is_training & (
                     encoding_group_labels == encoding_group)],
@@ -513,7 +513,7 @@ class ClusterlessClassifier(_ClassifierBase):
             n_states = len(self.continuous_transition_types)
             self.encoding_group_to_state_ = np.zeros((n_states,), dtype=np.int)
         else:
-            self.encoding_group_to_state_ = encoding_group_to_state
+            self.encoding_group_to_state_ = np.asarray(encoding_group_to_state)
 
         is_training = np.asarray(is_training).squeeze()
 
@@ -522,7 +522,7 @@ class ClusterlessClassifier(_ClassifierBase):
         self.occupancy_ = {}
         self.mean_rates_ = {}
 
-        for encoding_group in np.unique(encoding_group_labels):
+        for encoding_group in np.unique(encoding_group_labels[is_training]):
             is_group = is_training & (
                 encoding_group == encoding_group_labels)
             (self.joint_pdf_models_[encoding_group],
