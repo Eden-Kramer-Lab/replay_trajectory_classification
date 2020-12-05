@@ -287,7 +287,8 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         is_training = np.asarray(is_training).squeeze()
         self.place_fields_ = []
-        for encoding_group in np.unique(encoding_group_labels[is_training]):
+        unique_labels = np.unique(encoding_group_labels[is_training])
+        for encoding_group in unique_labels:
             self.place_fields_.append(estimate_place_fields(
                 position=position[is_training & (
                     encoding_group_labels == encoding_group)],
@@ -298,8 +299,7 @@ class SortedSpikesClassifier(_ClassifierBase):
                 knot_spacing=self.knot_spacing))
         self.place_fields_ = xr.concat(
             objs=self.place_fields_,
-            dim=pd.Index(np.unique(encoding_group_labels),
-                         name='encoding_group'))
+            dim=pd.Index(unique_labels, name='encoding_group'))
 
     def plot_place_fields(self, sampling_frequency=1, col_wrap=5):
         '''Plots the fitted 2D place fields for each neuron.
