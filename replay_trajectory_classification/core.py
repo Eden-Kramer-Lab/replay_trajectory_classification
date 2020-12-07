@@ -42,7 +42,7 @@ def _causal_decode(initial_conditions, state_transition, likelihood):
         initial_conditions.copy() * likelihood[0])
 
     for time_ind in np.arange(1, n_time):
-        prior = state_transition @ posterior[time_ind - 1]
+        prior = state_transition.T @ posterior[time_ind - 1]
         posterior[time_ind] = normalize_to_probability(
             prior * likelihood[time_ind])
 
@@ -70,7 +70,7 @@ def _acausal_decode(causal_posterior, state_transition):
 
     for time_ind in np.arange(n_time - 2, -1, -1):
         acausal_prior = (
-            state_transition @ causal_posterior[time_ind])
+            state_transition.T @ causal_posterior[time_ind])
         log_ratio = (
             np.log(acausal_posterior[time_ind + 1, ..., 0] + np.spacing(1)) -
             np.log(acausal_prior[..., 0] + np.spacing(1)))
@@ -113,7 +113,7 @@ def _causal_classify(initial_conditions, continuous_state_transition,
             for state_k_1 in np.arange(n_states):
                 prior[state_k, :] += (
                     discrete_state_transition[state_k_1, state_k] *
-                    continuous_state_transition[state_k_1, state_k] @
+                    continuous_state_transition[state_k_1, state_k].T @
                     posterior[k - 1, state_k_1])
         posterior[k] = normalize_to_probability(prior * likelihood[k])
 
@@ -148,7 +148,7 @@ def _acausal_classify(causal_posterior, continuous_state_transition,
             for state_k in np.arange(n_states):
                 prior[state_k_1, :] += (
                     discrete_state_transition[state_k, state_k_1] *
-                    continuous_state_transition[state_k, state_k_1] @
+                    continuous_state_transition[state_k, state_k_1].T @
                     causal_posterior[k, state_k])
 
         # Backwards Update
