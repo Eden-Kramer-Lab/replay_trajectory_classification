@@ -95,14 +95,21 @@ def make_continuous_replay(sampling_frequency=SAMPLING_FREQUENCY,
                            track_height=TRACK_HEIGHT,
                            running_speed=RUNNING_SPEED,
                            place_field_means=PLACE_FIELD_MEANS,
-                           replay_speedup=REPLAY_SPEEDUP):
+                           replay_speedup=REPLAY_SPEEDUP,
+                           is_outbound=True):
 
     replay_speed = running_speed * replay_speedup
-    n_samples = int(0.5 * sampling_frequency *
-                    2 * track_height / replay_speed)
+    n_samples = int(2 * sampling_frequency * track_height / replay_speed)
     replay_time = simulate_time(n_samples, sampling_frequency)
     true_replay_position = simulate_linear_distance(
         replay_time, track_height, replay_speed)
+
+    # Make inbound or outbound
+    replay_time = replay_time[:n_samples // 2]
+    if is_outbound:
+        true_replay_position = true_replay_position[:n_samples // 2]
+    else:
+        true_replay_position = true_replay_position[n_samples // 2:]
 
     min_times_ind = np.argmin(
         np.abs(true_replay_position[:, np.newaxis] - place_field_means),
