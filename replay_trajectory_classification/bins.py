@@ -310,10 +310,15 @@ def get_track_grid(track_graph, edge_order, edge_spacing, place_bin_size):
         track_graph, track_graph_with_bin_centers_edges, edge_order,
         edge_spacing)
 
+    # Dataframe with nodes from track graph only
     original_nodes = list(track_graph.nodes)
     original_nodes_df = nodes_df.loc[original_nodes].reset_index()
+
+    # Dataframe with only added edge nodes
     place_bin_edges_nodes_df = nodes_df.loc[~nodes_df.index.isin(
         original_nodes) & nodes_df.is_bin_edge].reset_index()
+
+    # Dataframe with only added center nodes
     place_bin_centers_nodes_df = (nodes_df
                                   .loc[~nodes_df.is_bin_edge]
                                   .reset_index())
@@ -334,11 +339,11 @@ def get_track_grid(track_graph, edge_order, edge_spacing, place_bin_size):
         nx.all_pairs_dijkstra_path_length(
             track_graph_with_bin_centers_edges, weight="distance"))
 
+    # Figure out which points are on the track and not just gaps
     change_edge_ind = np.nonzero(np.diff(
-        place_bin_edges_nodes_df.drop_duplicates("linear_position").edge_id
+        no_duplicate_place_bin_edges_nodes_df.edge_id
     ))[0]
 
-    # Figure out which points are on the track and not just gaps
     if isinstance(edge_spacing, int) | isinstance(edge_spacing, float):
         n_edges = len(edge_order)
         edge_spacing = [edge_spacing, ] * (n_edges - 1)
@@ -349,13 +354,14 @@ def get_track_grid(track_graph, edge_order, edge_spacing, place_bin_size):
 
     # Add information about bin centers not on track
     place_bin_centers_nodes_df = (
-        pd.concat((place_bin_centers_nodes_df,
-                   pd.DataFrame({
-                       "linear_position": place_bin_centers[~is_track_interior],
-                       "node_id": -1,
-                       "edge_id": -1,
-                       "is_bin_edge": False,
-                   })))
+        pd.concat(
+            (place_bin_centers_nodes_df,
+             pd.DataFrame({
+                 "linear_position": place_bin_centers[~is_track_interior],
+                 "node_id": -1,
+                 "edge_id": -1,
+                 "is_bin_edge": False,
+             })))
         .sort_values(by=['linear_position'], axis='rows')
     ).reset_index(drop=True)
 
