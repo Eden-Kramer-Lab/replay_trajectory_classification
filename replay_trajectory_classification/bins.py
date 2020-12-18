@@ -318,8 +318,15 @@ def get_track_grid(track_graph, edge_order, edge_spacing, place_bin_size):
                                   .loc[~nodes_df.is_bin_edge]
                                   .reset_index())
 
-    place_bin_edges = np.asarray(place_bin_edges_nodes_df.drop_duplicates(
-        "linear_position").linear_position)
+    # Determine place bin edges and centers.
+    # Make sure to remove duplicate nodes from bins with no gaps
+    is_duplicate_edge = np.isclose(
+        np.diff(np.asarray(place_bin_edges_nodes_df.linear_position)), 0.0)
+    is_duplicate_edge = np.append(is_duplicate_edge, False)
+    no_duplicate_place_bin_edges_nodes_df = (
+        place_bin_edges_nodes_df.iloc[~is_duplicate_edge])
+    place_bin_edges = np.asarray(
+        no_duplicate_place_bin_edges_nodes_df.linear_position)
     place_bin_centers = get_centers(place_bin_edges)
 
     # Compute distance between nodes
