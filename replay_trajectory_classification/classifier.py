@@ -6,19 +6,22 @@ import numpy as np
 import pandas as pd
 import sklearn
 import xarray as xr
-from replay_trajectory_classification.core import scaled_likelihood
+from replay_trajectory_classification.bins import (atleast_2d, get_centers,
+                                                   get_grid, get_track_grid,
+                                                   get_track_interior)
+from replay_trajectory_classification.core import (_acausal_classify,
+                                                   _causal_classify, mask,
+                                                   scaled_likelihood)
+from replay_trajectory_classification.initial_conditions import \
+    uniform_on_track
+from replay_trajectory_classification.misc import NumbaKDE
+from replay_trajectory_classification.multiunit_likelihood import (
+    estimate_multiunit_likelihood, fit_multiunit_likelihood)
+from replay_trajectory_classification.spiking_likelihood import (
+    estimate_place_fields, estimate_spiking_likelihood)
+from replay_trajectory_classification.state_transition import (
+    CONTINUOUS_TRANSITIONS, DISCRETE_TRANSITIONS)
 from sklearn.base import BaseEstimator
-
-from .bins import (atleast_2d, get_centers, get_grid, get_track_grid,
-                   get_track_interior)
-from .core import _acausal_classify, _causal_classify, mask
-from .initial_conditions import uniform_on_track
-from .misc import NumbaKDE
-from .multiunit_likelihood import (estimate_multiunit_likelihood,
-                                   fit_multiunit_likelihood)
-from .spiking_likelihood import (estimate_place_fields,
-                                 estimate_spiking_likelihood)
-from .state_transition import CONTINUOUS_TRANSITIONS, DISCRETE_TRANSITIONS
 
 logger = getLogger(__name__)
 
