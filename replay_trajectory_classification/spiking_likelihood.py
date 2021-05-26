@@ -11,12 +11,12 @@ from replay_trajectory_classification.bins import get_n_bins
 from statsmodels.api import families
 
 
-def make_spline_design_matrix(position, bin_size=10):
+def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
     inner_knots = []
-    for pos in position.T:
-        n_points = get_n_bins(pos, bin_size=bin_size)
+    for edges in place_bin_edges.T:
+        n_points = get_n_bins(edges, bin_size=knot_spacing)
         inner_knots.append(np.linspace(
-            pos.min(), pos.max(), n_points)[1:-1])
+            edges.min(), edges.max(), n_points)[1:-1])
 
     inner_knots = np.meshgrid(*inner_knots)
 
@@ -130,7 +130,11 @@ def estimate_spiking_likelihood(spikes, conditional_intensity,
     return log_likelihood * mask
 
 
-def estimate_place_fields(position, spikes, place_bin_centers, penalty=1E-1,
+def estimate_place_fields(position,
+                          spikes,
+                          place_bin_centers,
+                          place_bin_edges,
+                          penalty=1E-1,
                           knot_spacing=10):
     '''Gives the conditional intensity of the neurons' spiking with respect to
     position.
@@ -140,6 +144,7 @@ def estimate_place_fields(position, spikes, place_bin_centers, penalty=1E-1,
     position : ndarray, shape (n_time, n_position_dims)
     spikes : ndarray, shape (n_time, n_neurons)
     place_bin_centers : ndarray, shape (n_bins, n_position_dims)
+    place_bin_edges : ndarray, shape (n_bins + 1, n_position_dims)
     penalty : float, optional
     knot_spacing : int, optional
 
@@ -148,9 +153,10 @@ def estimate_place_fields(position, spikes, place_bin_centers, penalty=1E-1,
     conditional_intensity : ndarray, shape (n_bins, n_neurons)
 
     '''
-    if np.any(np.ptp(position, axis=0) <= knot_spacing):
+    if np.any(np.ptp(place_bin_edges, axis=0) <= knot_spacing):
         logging.warning("Range of position is smaller than knot spacing.")
-    design_matrix = make_spline_design_matrix(position, knot_spacing)
+    design_matrix = make_spline_design_matrix(
+        position, place_bin_edges, knot_spacing)
     design_info = design_matrix.design_info
     try:
         client = get_client()

@@ -295,6 +295,7 @@ class SortedSpikesClassifier(_ClassifierBase):
                 spikes=spikes[is_training & (
                     encoding_group_labels == encoding_group)],
                 place_bin_centers=self.place_bin_centers_,
+                place_bin_edges=self.place_bin_edges_,
                 penalty=self.spike_model_penalty,
                 knot_spacing=self.knot_spacing))
         self.place_fields_ = xr.concat(
