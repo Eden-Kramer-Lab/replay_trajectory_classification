@@ -13,10 +13,11 @@ from statsmodels.api import families
 
 def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
     inner_knots = []
-    for edges in place_bin_edges.T:
+    for pos, edges in zip(position.T, place_bin_edges.T):
         n_points = get_n_bins(edges, bin_size=knot_spacing)
-        inner_knots.append(np.linspace(
-            edges.min(), edges.max(), n_points)[1:-1])
+        knots = np.linspace(edges.min(), edges.max(), n_points)[1:-1]
+        knots = knots[(knots > pos.min()) & (knots < pos.min())]
+        inner_knots.append(knots)
 
     inner_knots = np.meshgrid(*inner_knots)
 
