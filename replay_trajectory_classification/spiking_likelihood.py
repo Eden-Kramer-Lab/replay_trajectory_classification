@@ -16,7 +16,7 @@ def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
     for pos, edges in zip(position.T, place_bin_edges.T):
         n_points = get_n_bins(edges, bin_size=knot_spacing)
         knots = np.linspace(edges.min(), edges.max(), n_points)[1:-1]
-        knots = knots[(knots > pos.min()) & (knots < pos.min())]
+        knots = knots[(knots > pos.min()) & (knots < pos.max())]
         inner_knots.append(knots)
 
     inner_knots = np.meshgrid(*inner_knots)
