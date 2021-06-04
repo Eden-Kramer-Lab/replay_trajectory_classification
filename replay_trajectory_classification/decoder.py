@@ -207,8 +207,11 @@ class SortedSpikesDecoder(_DecoderBase):
             is_training = np.ones((position.shape[0],), dtype=np.bool)
         is_training = np.asarray(is_training).squeeze()
         self.place_fields_ = estimate_place_fields(
-            position[is_training], spikes[is_training],
-            self.place_bin_centers_, penalty=self.spike_model_penalty,
+            position[is_training],
+            spikes[is_training],
+            self.place_bin_centers_,
+            self.place_bin_edges_,
+            penalty=self.spike_model_penalty,
             knot_spacing=self.knot_spacing)
 
     def plot_place_fields(self, sampling_frequency=1, col_wrap=5):
