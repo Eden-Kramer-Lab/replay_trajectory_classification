@@ -267,7 +267,6 @@ def estimate_multiunit_likelihood(multiunits,
                 max_mark_value=max_mark_value,
                 set_diag_zero=set_diag_zero) + np.spacing(1))
 
-    mask = np.ones_like(is_track_interior, dtype=np.float)
-    mask[~is_track_interior] = np.nan
+    log_likelihood[:, ~is_track_interior] = np.nan
 
-    return log_likelihood * mask
+    return log_likelihood
