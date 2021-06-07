@@ -112,7 +112,7 @@ def estimate_joint_mark_intensity(decoding_marks,
 
     if set_diag_zero:
         diag_ind = np.diag_indices_from(mark_distance)
-        mark_distance[diag_ind] = 0
+        mark_distance[diag_ind] = 0.0
 
     n_encoding_spikes = encoding_marks.shape[0]
 
