@@ -125,22 +125,6 @@ def estimate_joint_mark_intensity(decoding_marks,
         mean_rate)
 
 
-def estimate_mean_rate(multiunit):
-    '''
-
-    Parameters
-    ----------
-    multiunit : ndarray, shape (n_time, n_features)
-
-    Returns
-    -------
-    mean_rate : float
-
-    '''
-    is_spike = np.any(~np.isnan(multiunit), axis=1)
-    return is_spike.mean()
-
-
 def fit_multiunit_likelihood(position,
                              multiunits,
                              place_bin_centers,
@@ -184,10 +168,10 @@ def fit_multiunit_likelihood(position,
     encoding_positions = []
 
     for multiunit in np.moveaxis(multiunits, -1, 0):
-        mean_rates.append(estimate_mean_rate(multiunit))
 
         # ground process intensity
         is_spike = np.any(~np.isnan(multiunit), axis=1)
+        mean_rates.append(is_spike.mean())
         marginal_density = np.zeros((place_bin_centers.shape[0],))
 
         if is_spike.sum() > 0:
