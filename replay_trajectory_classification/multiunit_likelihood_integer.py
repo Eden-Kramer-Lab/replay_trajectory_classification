@@ -141,27 +141,6 @@ def estimate_mean_rate(multiunit):
     return is_spike.mean()
 
 
-def poisson_mark_log_likelihood(joint_mark_intensity,
-                                ground_process_intensity,
-                                time_bin_size=1):
-    '''Probability of parameters given spiking indicator at a particular
-    time and associated marks.
-
-    Parameters
-    ----------
-    joint_mark_intensity : ndarray, shape (n_time, n_bins)
-    ground_process_intensity : ndarray, shape (1, n_bins)
-    time_bin_size : int, optional
-
-    Returns
-    -------
-    poisson_mark_log_likelihood : ndarray, shape (n_time, n_bins)
-
-    '''
-    return np.log(joint_mark_intensity + np.spacing(1)) - (
-        (ground_process_intensity + np.spacing(1)) * time_bin_size)
-
-
 def fit_multiunit_likelihood(position,
                              multiunits,
                              place_bin_centers,
@@ -217,13 +196,18 @@ def fit_multiunit_likelihood(position,
                 position[is_spike & not_nan_position], position_std)
 
         ground_process_intensities.append(
-            estimate_intensity(marginal_density, occupancy, mean_rates[-1]))
+            estimate_intensity(marginal_density, occupancy, mean_rates[-1])
+            + np.spacing(1))
 
         encoding_marks.append(
             multiunit[is_spike & not_nan_position].astype(int))
         encoding_positions.append(position[is_spike & not_nan_position])
 
-    return (encoding_marks, encoding_positions, ground_process_intensities,
+    summed_ground_process_intensity = np.sum(
+        np.stack(ground_process_intensities, axis=0), axis=0, keepdims=True)
+
+    return (encoding_marks, encoding_positions,
+            summed_ground_process_intensity,
             occupancy, mean_rates)
 
 
@@ -235,10 +219,11 @@ def estimate_multiunit_likelihood(multiunits,
                                   position_std,
                                   occupancy,
                                   mean_rates,
-                                  ground_process_intensities,
+                                  summed_ground_process_intensity,
                                   max_mark_value=3000,
                                   set_diag_zero=False,
-                                  is_track_interior=None):
+                                  is_track_interior=None,
+                                  time_bin_size=1):
     '''
 
     Parameters
@@ -260,29 +245,27 @@ def estimate_multiunit_likelihood(multiunits,
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
 
-    n_bin = place_bin_centers.shape[0]
     n_time = multiunits.shape[0]
-    log_likelihood = np.zeros((n_time, n_bin))
+    log_likelihood = (-time_bin_size * summed_ground_process_intensity *
+                      np.ones((n_time, 1)))
 
     zipped = zip(np.moveaxis(multiunits, -1, 0), encoding_marks,
-                 encoding_positions, mean_rates, ground_process_intensities)
-    for multiunit, marks, pos, mean_rate, ground_process_intensity in zipped:
+                 encoding_positions, mean_rates)
+    for multiunit, marks, pos, mean_rate in zipped:
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         decoding_marks = multiunit[is_spike].astype(int)
-        joint_mark_intensity = np.ones((n_time, n_bin))
-        joint_mark_intensity[is_spike][:, is_track_interior] = estimate_joint_mark_intensity(
-            decoding_marks,
-            marks,
-            mark_std,
-            place_bin_centers[is_track_interior],
-            pos,
-            position_std,
-            occupancy,
-            mean_rate,
-            max_mark_value=max_mark_value,
-            set_diag_zero=set_diag_zero)
-        log_likelihood += poisson_mark_log_likelihood(
-            joint_mark_intensity, np.atleast_2d(ground_process_intensity))
+        log_likelihood[is_spike][:, is_track_interior] += np.log(
+            estimate_joint_mark_intensity(
+                decoding_marks,
+                marks,
+                mark_std,
+                place_bin_centers[is_track_interior],
+                pos,
+                position_std,
+                occupancy,
+                mean_rate,
+                max_mark_value=max_mark_value,
+                set_diag_zero=set_diag_zero) + np.spacing(1))
 
     mask = np.ones_like(is_track_interior, dtype=np.float)
     mask[~is_track_interior] = np.nan
