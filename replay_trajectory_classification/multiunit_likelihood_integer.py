@@ -235,13 +235,13 @@ def estimate_multiunit_likelihood(multiunits,
 
     zipped = zip(np.moveaxis(multiunits, -1, 0), encoding_marks,
                  encoding_positions, mean_rates)
-    for multiunit, marks, pos, mean_rate in zipped:
+    for multiunit, enc_marks, pos, mean_rate in zipped:
         is_spike = np.any(~np.isnan(multiunit), axis=1)
-        decoding_marks = multiunit[is_spike].astype(int)
+
         log_likelihood[is_spike][:, is_track_interior] += np.log(
             estimate_joint_mark_intensity(
-                decoding_marks,
-                marks,
+                multiunit[is_spike].astype(np.int),
+                enc_marks,
                 mark_std,
                 place_bin_centers[is_track_interior],
                 pos,
