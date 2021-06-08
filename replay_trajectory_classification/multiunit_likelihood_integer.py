@@ -1,5 +1,7 @@
 import math as math
 
+import dask
+import dask.array as da
 import numba
 import numpy as np
 from replay_trajectory_classification.bins import atleast_2d
@@ -207,7 +209,8 @@ def estimate_multiunit_likelihood(multiunits,
                                   max_mark_value=3000,
                                   set_diag_zero=False,
                                   is_track_interior=None,
-                                  time_bin_size=1):
+                                  time_bin_size=1,
+                                  chunks="auto"):
     '''
 
     Parameters
@@ -233,23 +236,34 @@ def estimate_multiunit_likelihood(multiunits,
     log_likelihood = (-time_bin_size * summed_ground_process_intensity *
                       np.ones((n_time, 1)))
 
-    zipped = zip(np.moveaxis(multiunits, -1, 0), encoding_marks,
-                 encoding_positions, mean_rates)
-    for multiunit, enc_marks, pos, mean_rate in zipped:
-        is_spike = np.any(~np.isnan(multiunit), axis=1)
+    multiunits = np.moveaxis(multiunits, -1, 0)
+    joint_mark_intensities = []
 
-        log_likelihood[is_spike][:, is_track_interior] += np.log(
-            estimate_joint_mark_intensity(
-                multiunit[is_spike].astype(np.int),
+    for multiunit, enc_marks, enc_pos, mean_rate in zip(
+            multiunits, encoding_marks, encoding_positions, mean_rates):
+        is_spike = np.any(~np.isnan(multiunit), axis=1)
+        decoding_spikes = da.from_array(
+            multiunit[is_spike].astype(np.int))
+        joint_mark_intensities.append(
+            decoding_spikes.map_blocks(
+                estimate_joint_mark_intensity,
                 enc_marks,
                 mark_std,
                 place_bin_centers[is_track_interior],
-                pos,
+                enc_pos,
                 position_std,
                 occupancy,
                 mean_rate,
                 max_mark_value=max_mark_value,
-                set_diag_zero=set_diag_zero) + np.spacing(1))
+                set_diag_zero=set_diag_zero,
+                chunks=chunks
+            ))
+
+    for joint_mark_intensity, multiunit in zip(
+            dask.compute(*joint_mark_intensities), multiunits):
+        is_spike = np.any(~np.isnan(multiunit), axis=1)
+        log_likelihood[is_spike][:, is_track_interior] += np.log(
+            joint_mark_intensity + np.spacing(1))
 
     log_likelihood[:, ~is_track_interior] = np.nan
 
