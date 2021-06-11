@@ -158,11 +158,15 @@ def fit_multiunit_likelihood(position,
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
     position = atleast_2d(position)
+    place_bin_centers = atleast_2d(place_bin_centers)
+
     not_nan_position = np.all(~np.isnan(position), axis=1)
 
     occupancy = np.zeros((place_bin_centers.shape[0],))
     occupancy[is_track_interior] = estimate_position_density(
-        place_bin_centers[is_track_interior], position, position_std)
+        place_bin_centers[is_track_interior],
+        position[not_nan_position],
+        position_std)
 
     mean_rates = []
     ground_process_intensities = []
