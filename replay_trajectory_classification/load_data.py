@@ -3,7 +3,7 @@ from logging import getLogger
 
 import numpy as np
 import pandas as pd
-from loren_frank_data_processing import (get_all_multiunit_indicators,
+from loren_frank_data_processing import (Animal, get_all_multiunit_indicators,
                                          get_all_spike_indicators, get_LFPs,
                                          get_trial_time, make_epochs_dataframe,
                                          make_neuron_dataframe,
@@ -20,13 +20,28 @@ from ripple_detection.core import gaussian_smooth, get_envelope
 from scipy.io import loadmat
 from scipy.stats import zscore
 from spectral_connectivity import Connectivity, Multitaper
-from src.parameters import (ANIMALS, LINEAR_EDGE_ORDER, LINEAR_EDGE_SPACING,
-                            SAMPLING_FREQUENCY, WTRACK_EDGE_ORDER,
-                            WTRACK_EDGE_SPACING)
 from track_linearization import get_linearized_position
 from track_linearization import make_track_graph as _make_track_graph
 
 logger = getLogger(__name__)
+
+# LFP sampling frequency
+SAMPLING_FREQUENCY = 500
+
+ANIMALS = {
+    'Jaq': Animal(directory='/stelmo/abhilasha/animals/Jaq/filterframework',
+                  short_name='Jaq'),
+    'Roqui': Animal(directory='/stelmo/abhilasha/animals/Roqui/filterframework',
+                    short_name='Roqui'),
+    'Peanut': Animal(directory='/stelmo/abhilasha/animals/Peanut/filterframework',
+                     short_name='Peanut'),
+}
+
+WTRACK_EDGE_ORDER = [(0, 1), (1, 2), (2, 3), (1, 4), (4, 5)]
+WTRACK_EDGE_SPACING = [15, 0, 15, 0]
+
+LINEAR_EDGE_ORDER = [(0, 1)]
+LINEAR_EDGE_SPACING = 0
 
 
 def get_track_segments(epoch_key, animals):
