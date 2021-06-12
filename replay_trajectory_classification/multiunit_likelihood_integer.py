@@ -28,8 +28,10 @@ def estimate_position_distance(place_bin_centers, positions, position_std):
 
 
 def estimate_position_density(place_bin_centers, positions, position_std):
+    n_dim = positions.shape[1]
     return np.mean(estimate_position_distance(
-        place_bin_centers, positions, position_std), axis=0)
+        place_bin_centers, positions, position_std), axis=0
+    ) / (position_std**n_dim)
 
 
 def estimate_intensity(density, occupancy, mean_rate):
@@ -116,13 +118,16 @@ def estimate_joint_mark_intensity(decoding_marks,
         diag_ind = np.diag_indices_from(mark_distance)
         mark_distance[diag_ind] = 0.0
 
-    n_encoding_spikes = encoding_marks.shape[0]
+    n_encoding_spikes, n_mark_dim = encoding_marks.shape
+    n_position_dims = place_bin_centers.shape[1]
 
     return estimate_intensity(
         (mark_distance @
          estimate_position_distance(place_bin_centers, encoding_positions,
                                     position_std) /
-         n_encoding_spikes),
+         (n_encoding_spikes *
+          mark_std ** n_mark_dim *
+          position_std ** n_position_dims)),
         occupancy,
         mean_rate)
 
