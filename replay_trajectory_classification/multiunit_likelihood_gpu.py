@@ -50,8 +50,7 @@ def numba_kde_cuda(eval_points, samples, bandwidths, out):
         for bandwidth_ind in range(bandwidths.shape[0]):
             product_kernel *= (gaussian_pdf(eval_points[0, bandwidth_ind],
                                             samples[sample_ind, bandwidth_ind],
-                                            bandwidths[bandwidth_ind])
-                               / bandwidths[bandwidth_ind])
+                                            bandwidths[bandwidth_ind]))
         product_kernel /= n_samples
         cuda.atomic.add(out, 0, product_kernel)
 
@@ -79,8 +78,7 @@ def numba_kde_cuda2(eval_points, samples, bandwidths, out):
                 product_kernel *= (
                     gaussian_pdf(eval_points[eval_ind, bandwidth_ind],
                                  samples[sample_ind, bandwidth_ind],
-                                 bandwidths[bandwidth_ind])
-                    / bandwidths[bandwidth_ind])
+                                 bandwidths[bandwidth_ind]))
             product_kernel /= n_samples
             cuda.atomic.add(out, eval_ind, product_kernel)
 
@@ -114,15 +112,13 @@ def numba_kde_cuda3(covariate_bins, marks, samples, bandwidths, out):
                     product_kernel *= (
                         gaussian_pdf(covariate_bins[bin_ind, cov_ind],
                                      samples[sample_ind, cov_ind],
-                                     bandwidths[cov_ind])
-                        / bandwidths[cov_ind])
+                                     bandwidths[cov_ind]))
 
                 for feature_ind in range(n_features):
                     product_kernel *= (
                         gaussian_pdf(marks[test_ind, feature_ind],
                                      samples[sample_ind, n_cov + feature_ind],
-                                     bandwidths[n_cov + feature_ind])
-                        / bandwidths[n_cov + feature_ind])
+                                     bandwidths[n_cov + feature_ind]))
 
                 product_kernel /= n_samples
 
@@ -141,8 +137,7 @@ def numba_kde_cuda2a(eval_points, samples, bandwidths, out):
             product_kernel *= (
                 gaussian_pdf(eval_points[thread_id, bandwidth_ind],
                              samples[sample_ind, bandwidth_ind],
-                             bandwidths[bandwidth_ind])
-                / bandwidths[bandwidth_ind])
+                             bandwidths[bandwidth_ind]))
         sum_kernel += product_kernel
 
     out[thread_id] = sum_kernel / n_samples
@@ -187,8 +182,7 @@ def numba_kde_cuda2b(eval_points, samples, bandwidths, out):
                         product_kernel *= (
                             gaussian_pdf(eval_points[thread_id, bandwidth_ind],
                                          samples_tile[i, bandwidth_ind],
-                                         bandwidths[bandwidth_ind])
-                            / bandwidths[bandwidth_ind])
+                                         bandwidths[bandwidth_ind]))
                     sum_kernel += product_kernel
 
             cuda.syncthreads()

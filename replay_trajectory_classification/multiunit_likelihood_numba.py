@@ -33,8 +33,7 @@ def product_kde2(eval_points, samples, bandwidths):
                 product_kde *= (
                     np.exp(-0.5 *
                            ((eval_point[bandwidth_ind] - sample[bandwidth_ind])
-                            / bandwidth)**2) / (bandwidth * SQRT_2PI)
-                    / bandwidth)
+                            / bandwidth)**2) / (bandwidth * SQRT_2PI))
             results[eval_ind] += product_kde
         results[eval_ind] /= n_samples
 
@@ -51,7 +50,7 @@ def product_kde(eval_points, samples, bandwidths):
             gaussian_pdf(eval_points, samples[sample_ind], bandwidths)
         )
 
-    return result / (n_samples * np.prod(bandwidths))
+    return result / n_samples
 
 
 @numba.njit(parallel=True, nogil=True)
@@ -70,10 +69,10 @@ def kde(test_mark, test_position, train_marks, train_position,
     for sample_ind in range(n_samples):
         product_kde = 1.0
         for x, mean in zip(test_mark, train_marks[sample_ind]):
-            product_kde *= gauss(x, mean, mark_bandwidth) / mark_bandwidth
+            product_kde *= gauss(x, mean, mark_bandwidth)
 
         for x, mean in zip(test_position, train_position[sample_ind]):
-            product_kde *= gauss(x, mean, mark_bandwidth) / mark_bandwidth
+            product_kde *= gauss(x, mean, mark_bandwidth)
         joint_density += product_kde
 
     return joint_density / n_samples
