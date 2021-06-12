@@ -77,7 +77,7 @@ def numba_kde(eval_points, samples, bandwidths):
                 sample = samples[j, k]
                 product_kernel *= (np.exp(
                     -0.5 * ((eval_point - sample) / bandwidth)**2) /
-                    (bandwidth * SQRT_2PI)) / bandwidth
+                    (bandwidth * SQRT_2PI))
             result[i] += product_kernel
         result[i] /= n_samples
 
