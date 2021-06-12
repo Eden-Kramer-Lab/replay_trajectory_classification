@@ -266,7 +266,7 @@ def estimate_multiunit_likelihood(multiunits,
     for joint_mark_intensity, multiunit in zip(
             dask.compute(*joint_mark_intensities), multiunits):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
-        log_likelihood[is_spike][:, is_track_interior] += np.log(
+        log_likelihood[np.ix_(is_spike, is_track_interior)] += np.log(
             joint_mark_intensity + np.spacing(1))
 
     log_likelihood[:, ~is_track_interior] = np.nan
