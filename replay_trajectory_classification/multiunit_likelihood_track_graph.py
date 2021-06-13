@@ -86,4 +86,4 @@ def get_distance_to_bin_centers(linear_position, decoder, npartitions=100):
 
 def gaussian_kernel(distance, bandwidth):
     return (np.exp(-0.5 * (distance / bandwidth)**2) /
-            (bandwidth * np.sqrt(2.0 * np.pi))) / bandwidth
+            (bandwidth * np.sqrt(2.0 * np.pi)))
