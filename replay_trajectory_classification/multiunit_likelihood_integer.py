@@ -101,7 +101,7 @@ def estimate_joint_mark_intensity(decoding_marks,
     joint_mark_intensity : ndarray, shape (n_decoding_spikes, n_position_bins)
 
     """
-
+    # mark_distance: ndarray, shape (n_decoding_spikes, n_encoding_spikes)
     mark_distance = np.prod(
         normal_pdf_integer_lookup(
             np.expand_dims(decoding_marks, axis=1),
@@ -246,10 +246,10 @@ def estimate_multiunit_likelihood(multiunits,
     for multiunit, enc_marks, enc_pos, mean_rate in zip(
             multiunits, encoding_marks, encoding_positions, mean_rates):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
-        decoding_spikes = da.from_array(
+        decoding_marks = da.from_array(
             multiunit[is_spike].astype(np.int))
         joint_mark_intensities.append(
-            decoding_spikes.map_blocks(
+            decoding_marks.map_blocks(
                 estimate_joint_mark_intensity,
                 enc_marks,
                 mark_std,
