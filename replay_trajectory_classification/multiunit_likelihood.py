@@ -173,8 +173,8 @@ def estimate_joint_mark_intensity(
     multiunit = np.atleast_2d(multiunit)
     n_bins = place_bin_centers.shape[0]
     n_time = multiunit.shape[0]
-    is_nan = np.any(np.isnan(multiunit), axis=1)
-    n_spikes = np.sum(~is_nan)
+    is_spike = np.any(~np.isnan(multiunit), axis=1)
+    n_spikes = np.sum(is_spike)
     joint_mark_intensity = np.ones((n_time, n_bins))
     interior_bin_inds = np.nonzero(is_track_interior)[0]
 
@@ -182,9 +182,9 @@ def estimate_joint_mark_intensity(
         zipped = zip(interior_bin_inds, place_bin_centers[interior_bin_inds],
                      occupancy[interior_bin_inds])
         for bin_ind, bin, bin_occupancy in zipped:
-            joint_mark_intensity[~is_nan, bin_ind] = estimate_intensity(
+            joint_mark_intensity[is_spike, bin_ind] = estimate_intensity(
                 np.exp(joint_model.score_samples(
-                    np.concatenate((multiunit[~is_nan],
+                    np.concatenate((multiunit[is_spike],
                                     bin * np.ones((n_spikes, 1))), axis=1))),
                 bin_occupancy, mean_rate)
 
