@@ -74,7 +74,7 @@ def get_distance_to_bin_centers(linear_position, decoder, npartitions=100):
         nodes_df
         .loc[~nodes_df.is_bin_edge]
         .reset_index()
-        .node_ids
+        .node_id
         .values)
     (left_node, right_node, distance_left_node,
      distance_right_node) = _find_adjacent_nodes(nodes_df, linear_position)
