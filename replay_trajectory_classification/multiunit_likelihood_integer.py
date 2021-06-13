@@ -32,6 +32,10 @@ def estimate_position_density(place_bin_centers, positions, position_std):
         place_bin_centers, positions, position_std), axis=0)
 
 
+def estimate_log_intensity(density, occupancy, mean_rate):
+    return np.log(mean_rate) + np.log(density) - np.log(occupancy)
+
+
 def estimate_intensity(density, occupancy, mean_rate):
     '''
 
@@ -46,7 +50,7 @@ def estimate_intensity(density, occupancy, mean_rate):
     intensity : ndarray, shape (n_bins,)
 
     '''
-    return np.exp(np.log(mean_rate) + np.log(density) - np.log(occupancy))
+    return np.exp(estimate_log_intensity(density, occupancy, mean_rate))
 
 
 def normal_pdf_integer_lookup(x, mean, std=20, max_value=3000):
@@ -70,17 +74,17 @@ def normal_pdf_integer_lookup(x, mean, std=20, max_value=3000):
     return normal_density[(x - mean) + max_value]
 
 
-def estimate_joint_mark_intensity(decoding_marks,
-                                  encoding_marks,
-                                  mark_std,
-                                  place_bin_centers,
-                                  encoding_positions,
-                                  position_std,
-                                  occupancy,
-                                  mean_rate,
-                                  max_mark_value=3000,
-                                  set_diag_zero=False,
-                                  position_distance=None):
+def estimate_log_joint_mark_intensity(decoding_marks,
+                                      encoding_marks,
+                                      mark_std,
+                                      place_bin_centers,
+                                      encoding_positions,
+                                      position_std,
+                                      occupancy,
+                                      mean_rate,
+                                      max_mark_value=3000,
+                                      set_diag_zero=False,
+                                      position_distance=None):
     """
 
     Parameters
@@ -99,7 +103,7 @@ def estimate_joint_mark_intensity(decoding_marks,
 
     Returns
     -------
-    joint_mark_intensity : ndarray, shape (n_decoding_spikes, n_position_bins)
+    log_joint_mark_intensity : ndarray, shape (n_decoding_spikes, n_position_bins)
 
     """
     # mark_distance: ndarray, shape (n_decoding_spikes, n_encoding_spikes)
@@ -123,7 +127,7 @@ def estimate_joint_mark_intensity(decoding_marks,
         position_distance = estimate_position_distance(
             place_bin_centers, encoding_positions, position_std)
 
-    return estimate_intensity(
+    return estimate_log_intensity(
         mark_distance @ position_distance / n_encoding_spikes,
         occupancy,
         mean_rate)
@@ -243,16 +247,16 @@ def estimate_multiunit_likelihood(multiunits,
                       np.ones((n_time, 1)))
 
     multiunits = np.moveaxis(multiunits, -1, 0)
-    joint_mark_intensities = []
+    log_joint_mark_intensities = []
 
     for multiunit, enc_marks, enc_pos, mean_rate in zip(
             multiunits, encoding_marks, encoding_positions, mean_rates):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         decoding_marks = da.from_array(
             multiunit[is_spike].astype(np.int))
-        joint_mark_intensities.append(
+        log_joint_mark_intensities.append(
             decoding_marks.map_blocks(
-                estimate_joint_mark_intensity,
+                estimate_log_joint_mark_intensity,
                 enc_marks,
                 mark_std,
                 place_bin_centers[is_track_interior],
@@ -265,11 +269,11 @@ def estimate_multiunit_likelihood(multiunits,
                 chunks=chunks
             ))
 
-    for joint_mark_intensity, multiunit in zip(
-            dask.compute(*joint_mark_intensities), multiunits):
+    for log_joint_mark_intensity, multiunit in zip(
+            dask.compute(*log_joint_mark_intensities), multiunits):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
-        log_likelihood[np.ix_(is_spike, is_track_interior)] += np.log(
-            joint_mark_intensity + np.spacing(1))
+        log_likelihood[np.ix_(is_spike, is_track_interior)] += (
+            log_joint_mark_intensity + np.spacing(1))
 
     log_likelihood[:, ~is_track_interior] = np.nan
 
