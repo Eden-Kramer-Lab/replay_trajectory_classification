@@ -69,7 +69,7 @@ def _find_adjacent_nodes(nodes_df, linear_position):
 def get_distance_to_bin_centers(linear_position, decoder, npartitions=100):
     copy_graph = copy.deepcopy(decoder.track_graph_with_bin_centers_edges_)
     linear_position = linear_position.squeeze()
-    nodes_df = decoder.nodes_df_.set_index("node_ids")
+    nodes_df = decoder.nodes_df_.set_index("node_id")
     place_bin_center_node_ids = (
         nodes_df
         .loc[~nodes_df.is_bin_edge]
