@@ -55,8 +55,8 @@ def _find_adjacent_nodes(nodes_df, linear_position):
     left_bin_ind[not_same_edge] = left_bin_ind[not_same_edge] - 1
 
     # Get adjacent node names and distance
-    left_node = nodes_df.reset_index().node_ids.values[left_bin_ind]
-    right_node = nodes_df.reset_index().node_ids.values[right_bin_ind]
+    left_node = nodes_df.reset_index().node_id.values[left_bin_ind]
+    right_node = nodes_df.reset_index().node_id.values[right_bin_ind]
 
     distance_left_node = np.abs(
         nodes_df.loc[left_node].linear_position.values - linear_position)
@@ -69,12 +69,12 @@ def _find_adjacent_nodes(nodes_df, linear_position):
 def get_distance_to_bin_centers(linear_position, decoder, npartitions=100):
     copy_graph = copy.deepcopy(decoder.track_graph_with_bin_centers_edges_)
     linear_position = linear_position.squeeze()
-    nodes_df = decoder.nodes_df_.set_index("node_ids")
+    nodes_df = decoder.nodes_df_.set_index("node_id")
     place_bin_center_node_ids = (
         nodes_df
         .loc[~nodes_df.is_bin_edge]
         .reset_index()
-        .node_ids
+        .node_id
         .values)
     (left_node, right_node, distance_left_node,
      distance_right_node) = _find_adjacent_nodes(nodes_df, linear_position)
