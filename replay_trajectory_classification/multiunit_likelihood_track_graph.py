@@ -1,8 +1,20 @@
 import copy
+import math
 
 import dask.bag as db
 import networkx as nx
+import numba
 import numpy as np
+
+SQRT_2PI = np.sqrt(2.0 * np.pi)
+
+
+@numba.vectorize(['float64(float64, float64)'], nopython=True,
+                 cache=True)
+def gaussian_kernel(distance, sigma):
+    '''Compute the value of a Gaussian probability density function at x with
+    given mean and sigma.'''
+    return math.exp(-0.5 * (distance / sigma)**2) / (sigma * SQRT_2PI)
 
 
 def _distance_to_bin_centers(left_node, right_node, distance_left_node,
@@ -82,8 +94,3 @@ def get_distance_to_bin_centers(linear_position, decoder, npartitions=100):
         _distance_to_bin_centers, right_node, distance_left_node,
         distance_right_node, time_ind, copy_graph,
         place_bin_center_node_ids).compute())
-
-
-def gaussian_kernel(distance, bandwidth):
-    return (np.exp(-0.5 * (distance / bandwidth)**2) /
-            (bandwidth * np.sqrt(2.0 * np.pi)))
