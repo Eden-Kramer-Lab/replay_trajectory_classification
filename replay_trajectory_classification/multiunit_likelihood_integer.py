@@ -79,7 +79,8 @@ def estimate_joint_mark_intensity(decoding_marks,
                                   occupancy,
                                   mean_rate,
                                   max_mark_value=3000,
-                                  set_diag_zero=False):
+                                  set_diag_zero=False,
+                                  position_distance=None):
     """
 
     Parameters
@@ -118,11 +119,12 @@ def estimate_joint_mark_intensity(decoding_marks,
 
     n_encoding_spikes = encoding_marks.shape[0]
 
+    if position_distance is None:
+        position_distance = estimate_position_distance(
+            place_bin_centers, encoding_positions, position_std)
+
     return estimate_intensity(
-        (mark_distance @
-         estimate_position_distance(place_bin_centers, encoding_positions,
-                                    position_std) /
-         n_encoding_spikes),
+        mark_distance @ position_distance / n_encoding_spikes,
         occupancy,
         mean_rate)
 
