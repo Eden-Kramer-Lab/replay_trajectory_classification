@@ -262,7 +262,8 @@ def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
             train_joint_model(multiunit, position, model, model_kwargs))
 
     summed_ground_process_intensity = np.sum(
-        np.stack(ground_process_intensities, axis=0), axis=0, keepdims=True)
+        np.concatenate(ground_process_intensities, axis=0), axis=0,
+        keepdims=True)
 
     return (joint_pdf_models, summed_ground_process_intensity, occupancy,
             mean_rates)
