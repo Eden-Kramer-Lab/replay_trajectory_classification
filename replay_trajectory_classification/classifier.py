@@ -522,7 +522,7 @@ class ClusterlessClassifier(_ClassifierBase):
         is_training = np.asarray(is_training).squeeze()
 
         self.joint_pdf_models_ = {}
-        self.ground_process_intensities_ = {}
+        self.summed_ground_process_intensity_ = {}
         self.occupancy_ = {}
         self.mean_rates_ = {}
 
@@ -530,7 +530,7 @@ class ClusterlessClassifier(_ClassifierBase):
             is_group = is_training & (
                 encoding_group == encoding_group_labels)
             (self.joint_pdf_models_[encoding_group],
-             self.ground_process_intensities_[encoding_group],
+             self.summed_ground_process_intensity_[encoding_group],
              self.occupancy_[encoding_group],
              self.mean_rates_[encoding_group]
              ) = fit_multiunit_likelihood(
@@ -615,7 +615,7 @@ class ClusterlessClassifier(_ClassifierBase):
                 multiunits,
                 self.place_bin_centers_,
                 self.joint_pdf_models_[encoding_group],
-                self.ground_process_intensities_[encoding_group],
+                self.summed_ground_process_intensity_[encoding_group],
                 self.occupancy_[encoding_group],
                 self.mean_rates_[encoding_group],
                 self.is_track_interior_.ravel(order='F'))

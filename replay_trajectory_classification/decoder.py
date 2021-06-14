@@ -370,7 +370,7 @@ class ClusterlessDecoder(_DecoderBase):
             is_training = np.ones((position.shape[0],), dtype=np.bool)
         is_training = np.asarray(is_training).squeeze()
 
-        (self.joint_pdf_models_, self.ground_process_intensities_,
+        (self.joint_pdf_models_, self.summed_ground_process_intensity_,
          self.occupancy_, self.mean_rates_) = fit_multiunit_likelihood(
             position[is_training], multiunits[is_training],
             self.place_bin_centers_, self.model, self.model_kwargs,
@@ -431,7 +431,7 @@ class ClusterlessDecoder(_DecoderBase):
         results['likelihood'] = scaled_likelihood(
             estimate_multiunit_likelihood(
                 multiunits, self.place_bin_centers_,
-                self.joint_pdf_models_, self.ground_process_intensities_,
+                self.joint_pdf_models_, self.summed_ground_process_intensity_,
                 self.occupancy_, self.mean_rates_,
                 self.is_track_interior_.ravel(order='F')))
         results['causal_posterior'] = _causal_decode(
