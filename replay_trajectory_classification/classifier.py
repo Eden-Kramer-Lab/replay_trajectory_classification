@@ -524,12 +524,12 @@ class ClusterlessClassifier(_ClassifierBase):
 
         is_training = np.asarray(is_training).squeeze()
 
-        self.fitted_ = {}
+        self.encoding_model_ = {}
 
         for encoding_group in np.unique(encoding_group_labels[is_training]):
             is_group = is_training & (
                 encoding_group == encoding_group_labels)
-            self.fitted_[encoding_group] = _ClUSTERLESS_ALGORITHMS[
+            self.encoding_model_[encoding_group] = _ClUSTERLESS_ALGORITHMS[
                 self.clusterless_algorithm][0](
                     position=position[is_group],
                     multiunits=multiunits[is_group],
@@ -605,7 +605,7 @@ class ClusterlessClassifier(_ClassifierBase):
         results = {}
 
         likelihood = {}
-        for encoding_group, encoding_params in self.fitted_.items():
+        for encoding_group, encoding_params in self.encoding_model_.items():
             likelihood[encoding_group] = _ClUSTERLESS_ALGORITHMS[
                 self.clusterless_algorithm][1](
                     multiunits=multiunits,
