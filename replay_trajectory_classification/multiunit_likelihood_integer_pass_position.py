@@ -280,7 +280,7 @@ def estimate_multiunit_likelihood_integer_pass_position(multiunits,
                 position_std,
                 occupancy[is_track_interior],
                 mean_rate,
-                position_distance=pos_at_spike_dist,
+                position_distance=da.from_array(pos_at_spike_dist),
                 max_mark_value=max_mark_value,
                 set_diag_zero=set_diag_zero,
                 chunks=chunks
