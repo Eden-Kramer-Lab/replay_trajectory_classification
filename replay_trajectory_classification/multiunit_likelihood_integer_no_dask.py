@@ -225,8 +225,7 @@ def estimate_multiunit_likelihood_integer_no_dask(multiunits,
                                                   max_mark_value=3000,
                                                   set_diag_zero=False,
                                                   is_track_interior=None,
-                                                  time_bin_size=1,
-                                                  chunks=None):
+                                                  time_bin_size=1):
     '''
 
     Parameters
@@ -268,7 +267,6 @@ def estimate_multiunit_likelihood_integer_no_dask(multiunits,
             mean_rate,
             max_mark_value=max_mark_value,
             set_diag_zero=set_diag_zero,
-            chunks=chunks
         )
         log_likelihood[np.ix_(is_spike, is_track_interior)] += (
             log_joint_mark_intensity + np.spacing(1))
