@@ -14,9 +14,10 @@ from replay_trajectory_classification.core import (_acausal_classify,
                                                    scaled_likelihood)
 from replay_trajectory_classification.initial_conditions import \
     uniform_on_track
-from replay_trajectory_classification.misc import NumbaKDE
 from replay_trajectory_classification.multiunit_likelihood import (
     estimate_multiunit_likelihood, fit_multiunit_likelihood)
+from replay_trajectory_classification.multiunit_likelihood_integer import (
+    estimate_multiunit_likelihood_integer, fit_multiunit_likelihood_integer)
 from replay_trajectory_classification.spiking_likelihood import (
     estimate_place_fields, estimate_spiking_likelihood)
 from replay_trajectory_classification.state_transition import (
@@ -27,8 +28,15 @@ logger = getLogger(__name__)
 
 sklearn.set_config(print_changed_only=False)
 
-_DEFAULT_CLUSTERLESS_MODEL_KWARGS = dict(
-    bandwidth=np.array([24.0, 24.0, 24.0, 24.0, 6.0, 6.0]))
+_ClUSTERLESS_ALGORITHMS = {
+    'multiunit_likelihood': (
+        fit_multiunit_likelihood,
+        estimate_multiunit_likelihood),
+    'multiunit_likelihood_integer': (
+        fit_multiunit_likelihood_integer,
+        estimate_multiunit_likelihood_integer),
+}
+
 _DEFAULT_CONTINUOUS_TRANSITIONS = (
     [['random_walk', 'uniform', 'identity'],
      ['uniform',   'uniform', 'uniform'],
@@ -472,24 +480,15 @@ class ClusterlessClassifier(_ClassifierBase):
                  initial_conditions_type='uniform_on_track',
                  discrete_transition_diag=_DISCRETE_DIAG,
                  infer_track_interior=True,
-                 model=NumbaKDE,
-                 model_kwargs=_DEFAULT_CLUSTERLESS_MODEL_KWARGS,
-                 occupancy_model=None,
-                 occupancy_kwargs=None):
+                 clusterless_algorithm='multiunit_likelihood',
+                 clusterless_algorithm_params=None):
         super().__init__(place_bin_size, replay_speed, movement_var,
                          position_range, continuous_transition_types,
                          discrete_transition_type, initial_conditions_type,
                          discrete_transition_diag, infer_track_interior)
 
-        self.model = model
-        self.model_kwargs = model_kwargs
-
-        if occupancy_model is None:
-            self.occupancy_model = model
-            self.occupancy_kwargs = model_kwargs
-        else:
-            self.occupancy_model = occupancy_model
-            self.occupancy_kwargs = occupancy_kwargs
+        self.clusterless_algorithm = clusterless_algorithm
+        self.clusterless_algorithm_params = clusterless_algorithm_params
 
     def fit_multiunits(self, position, multiunits, is_training=None,
                        encoding_group_labels=None,
@@ -519,29 +518,25 @@ class ClusterlessClassifier(_ClassifierBase):
         else:
             self.encoding_group_to_state_ = np.asarray(encoding_group_to_state)
 
+        kwargs = self.clusterless_algorithm_params
+        if kwargs is None:
+            kwargs = {}
+
         is_training = np.asarray(is_training).squeeze()
 
-        self.joint_pdf_models_ = {}
-        self.summed_ground_process_intensity_ = {}
-        self.occupancy_ = {}
-        self.mean_rates_ = {}
+        self.fitted_ = {}
 
         for encoding_group in np.unique(encoding_group_labels[is_training]):
             is_group = is_training & (
                 encoding_group == encoding_group_labels)
-            (self.joint_pdf_models_[encoding_group],
-             self.summed_ground_process_intensity_[encoding_group],
-             self.occupancy_[encoding_group],
-             self.mean_rates_[encoding_group]
-             ) = fit_multiunit_likelihood(
-                position[is_group],
-                multiunits[is_group],
-                self.place_bin_centers_,
-                self.model,
-                self.model_kwargs,
-                self.occupancy_model,
-                self.occupancy_kwargs,
-                self.is_track_interior_.ravel(order='F'))
+            self.fitted_[encoding_group] = _ClUSTERLESS_ALGORITHMS[
+                self.clusterless_algorithm][0](
+                    position=position[is_group],
+                    multiunits=multiunits[is_group],
+                    place_bin_centers=self.place_bin_centers_,
+                    is_track_interior=self.is_track_interior_.ravel(order='F'),
+                    **kwargs
+            )
 
     def fit(self,
             position,
@@ -610,15 +605,14 @@ class ClusterlessClassifier(_ClassifierBase):
         results = {}
 
         likelihood = {}
-        for encoding_group in self.joint_pdf_models_:
-            likelihood[encoding_group] = estimate_multiunit_likelihood(
-                multiunits,
-                self.place_bin_centers_,
-                self.joint_pdf_models_[encoding_group],
-                self.summed_ground_process_intensity_[encoding_group],
-                self.occupancy_[encoding_group],
-                self.mean_rates_[encoding_group],
-                self.is_track_interior_.ravel(order='F'))
+        for encoding_group, encoding_params in self.fitted_.items():
+            likelihood[encoding_group] = _ClUSTERLESS_ALGORITHMS[
+                self.clusterless_algorithm][1](
+                    multiunits=multiunits,
+                    place_bin_centers=self.place_bin_centers_,
+                    is_track_interior=self.is_track_interior_.ravel(order='F'),
+                    **encoding_params
+            )
 
         results['likelihood'] = np.stack(
             [likelihood[encoding_group]

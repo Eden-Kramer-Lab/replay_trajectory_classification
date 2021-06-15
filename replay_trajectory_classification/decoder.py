@@ -13,9 +13,10 @@ from replay_trajectory_classification.core import (_acausal_decode,
                                                    scaled_likelihood)
 from replay_trajectory_classification.initial_conditions import \
     uniform_on_track
-from replay_trajectory_classification.misc import NumbaKDE
 from replay_trajectory_classification.multiunit_likelihood import (
     estimate_multiunit_likelihood, fit_multiunit_likelihood)
+from replay_trajectory_classification.multiunit_likelihood_integer import (
+    estimate_multiunit_likelihood_integer, fit_multiunit_likelihood_integer)
 from replay_trajectory_classification.spiking_likelihood import (
     estimate_place_fields, estimate_spiking_likelihood)
 from replay_trajectory_classification.state_transition import \
@@ -26,9 +27,16 @@ logger = getLogger(__name__)
 
 sklearn.set_config(print_changed_only=False)
 
-_DEFAULT_CLUSTERLESS_MODEL_KWARGS = dict(
-    bandwidth=np.array([24.0, 24.0, 24.0, 24.0, 6.0, 6.0]))
 _DEFAULT_TRANSITIONS = ['random_walk', 'uniform', 'identity']
+
+_ClUSTERLESS_ALGORITHMS = {
+    'multiunit_likelihood': (
+        fit_multiunit_likelihood,
+        estimate_multiunit_likelihood),
+    'multiunit_likelihood_integer': (
+        fit_multiunit_likelihood_integer,
+        estimate_multiunit_likelihood_integer),
+}
 
 
 class _DecoderBase(BaseEstimator):
@@ -336,24 +344,21 @@ class ClusterlessDecoder(_DecoderBase):
 
     '''
 
-    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
-                 position_range=None, model=NumbaKDE,
-                 model_kwargs=_DEFAULT_CLUSTERLESS_MODEL_KWARGS,
-                 occupancy_model=None, occupancy_kwargs=None,
+    def __init__(self,
+                 place_bin_size=2.0,
+                 replay_speed=40,
+                 movement_var=0.05,
+                 position_range=None,
+                 clusterless_algorithm='multiunit_likelihood',
+                 clusterless_algorithm_params=None,
                  transition_type='random_walk',
                  initial_conditions_type='uniform_on_track',
                  infer_track_interior=True):
         super().__init__(place_bin_size, replay_speed, movement_var,
                          position_range, transition_type,
                          initial_conditions_type, infer_track_interior)
-        self.model = model
-        self.model_kwargs = model_kwargs
-        if occupancy_model is None:
-            self.occupancy_model = model
-            self.occupancy_kwargs = model_kwargs
-        else:
-            self.occupancy_model = occupancy_model
-            self.occupancy_kwargs = occupancy_kwargs
+        self.clusterless_algorithm = clusterless_algorithm
+        self.clusterless_algorithm_params = clusterless_algorithm_params
 
     def fit_multiunits(self, position, multiunits, is_training=None):
         '''
@@ -370,12 +375,17 @@ class ClusterlessDecoder(_DecoderBase):
             is_training = np.ones((position.shape[0],), dtype=np.bool)
         is_training = np.asarray(is_training).squeeze()
 
-        (self.joint_pdf_models_, self.summed_ground_process_intensity_,
-         self.occupancy_, self.mean_rates_) = fit_multiunit_likelihood(
-            position[is_training], multiunits[is_training],
-            self.place_bin_centers_, self.model, self.model_kwargs,
-            self.occupancy_model, self.occupancy_kwargs,
-            self.is_track_interior_.ravel(order='F'))
+        kwargs = self.clusterless_algorithm_params
+        if kwargs is None:
+            kwargs = {}
+
+        self.fitted_ = _ClUSTERLESS_ALGORITHMS[self.clusterless_algorithm][0](
+            position=position[is_training],
+            multiunits=multiunits[is_training],
+            place_bin_centers=self.place_bin_centers_,
+            is_track_interior=self.is_track_interior_.ravel(order='F'),
+            **kwargs
+        )
 
     def fit(self, position, multiunits, is_training=None,
             is_track_interior=None, track_graph=None,
@@ -429,11 +439,12 @@ class ClusterlessDecoder(_DecoderBase):
 
         results = {}
         results['likelihood'] = scaled_likelihood(
-            estimate_multiunit_likelihood(
-                multiunits, self.place_bin_centers_,
-                self.joint_pdf_models_, self.summed_ground_process_intensity_,
-                self.occupancy_, self.mean_rates_,
-                self.is_track_interior_.ravel(order='F')))
+            _ClUSTERLESS_ALGORITHMS[self.clusterless_algorithm][1](
+                multiunits=multiunits,
+                place_bin_centers=self.place_bin_centers_,
+                is_track_interior=self.is_track_interior_.ravel(order='F'),
+                **self.fitted_
+            ))
         results['causal_posterior'] = _causal_decode(
             self.initial_conditions_, self.state_transition_,
             results['likelihood'])
