@@ -379,12 +379,13 @@ class ClusterlessDecoder(_DecoderBase):
         if kwargs is None:
             kwargs = {}
 
-        self.fitted_ = _ClUSTERLESS_ALGORITHMS[self.clusterless_algorithm][0](
-            position=position[is_training],
-            multiunits=multiunits[is_training],
-            place_bin_centers=self.place_bin_centers_,
-            is_track_interior=self.is_track_interior_.ravel(order='F'),
-            **kwargs
+        self.encoding_model_ = _ClUSTERLESS_ALGORITHMS[
+            self.clusterless_algorithm][0](
+                position=position[is_training],
+                multiunits=multiunits[is_training],
+                place_bin_centers=self.place_bin_centers_,
+                is_track_interior=self.is_track_interior_.ravel(order='F'),
+                **kwargs
         )
 
     def fit(self, position, multiunits, is_training=None,
@@ -443,7 +444,7 @@ class ClusterlessDecoder(_DecoderBase):
                 multiunits=multiunits,
                 place_bin_centers=self.place_bin_centers_,
                 is_track_interior=self.is_track_interior_.ravel(order='F'),
-                **self.fitted_
+                **self.encoding_model_
             ))
         results['causal_posterior'] = _causal_decode(
             self.initial_conditions_, self.state_transition_,
