@@ -187,14 +187,12 @@ def fit_multiunit_likelihood_integer_pass_position(position,
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         mean_rates.append(is_spike.mean())
         marginal_density = np.zeros((place_bin_centers.shape[0],))
-        position_at_spike_distance = np.zeros((place_bin_centers.shape[0],))
+        position_at_spike_distance = estimate_position_distance(
+            place_bin_centers[is_track_interior],
+            position[is_spike & not_nan_position],
+            position_std)
 
         if is_spike.sum() > 0:
-            position_at_spike_distance[
-                is_track_interior] = estimate_position_distance(
-                    place_bin_centers[is_track_interior],
-                    position[is_spike & not_nan_position],
-                    position_std)
             marginal_density[is_track_interior] = np.mean(
                 position_at_spike_distance, axis=0)
 
