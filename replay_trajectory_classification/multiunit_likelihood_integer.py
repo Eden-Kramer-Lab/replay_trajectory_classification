@@ -220,7 +220,7 @@ def estimate_multiunit_likelihood(multiunits,
                                   set_diag_zero=False,
                                   is_track_interior=None,
                                   time_bin_size=1,
-                                  chunks="auto"):
+                                  chunks=None):
     '''
 
     Parameters
