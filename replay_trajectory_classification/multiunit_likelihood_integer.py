@@ -133,12 +133,13 @@ def estimate_log_joint_mark_intensity(decoding_marks,
         mean_rate)
 
 
-def fit_multiunit_likelihood(position,
-                             multiunits,
-                             place_bin_centers,
-                             mark_std,
-                             position_std,
-                             is_track_interior=None):
+def fit_multiunit_likelihood_integer(position,
+                                     multiunits,
+                                     place_bin_centers,
+                                     mark_std,
+                                     position_std,
+                                     is_track_interior=None,
+                                     **kwargs):
     '''
 
     Parameters
@@ -202,25 +203,32 @@ def fit_multiunit_likelihood(position,
     summed_ground_process_intensity = np.sum(
         np.stack(ground_process_intensities, axis=0), axis=0, keepdims=True)
 
-    return (encoding_marks, encoding_positions,
-            summed_ground_process_intensity,
-            occupancy, mean_rates)
+    return {
+        'encoding_marks': encoding_marks,
+        'encoding_positions': encoding_positions,
+        'summed_ground_process_intensity': summed_ground_process_intensity,
+        'occupancy': occupancy,
+        'mean_rates': mean_rates,
+        'mark_std': mark_std,
+        'position_std': position_std,
+        **kwargs,
+    }
 
 
-def estimate_multiunit_likelihood(multiunits,
-                                  encoding_marks,
-                                  mark_std,
-                                  place_bin_centers,
-                                  encoding_positions,
-                                  position_std,
-                                  occupancy,
-                                  mean_rates,
-                                  summed_ground_process_intensity,
-                                  max_mark_value=3000,
-                                  set_diag_zero=False,
-                                  is_track_interior=None,
-                                  time_bin_size=1,
-                                  chunks=None):
+def estimate_multiunit_likelihood_integer(multiunits,
+                                          encoding_marks,
+                                          mark_std,
+                                          place_bin_centers,
+                                          encoding_positions,
+                                          position_std,
+                                          occupancy,
+                                          mean_rates,
+                                          summed_ground_process_intensity,
+                                          max_mark_value=3000,
+                                          set_diag_zero=False,
+                                          is_track_interior=None,
+                                          time_bin_size=1,
+                                          chunks=None):
     '''
 
     Parameters

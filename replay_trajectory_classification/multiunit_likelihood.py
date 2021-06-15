@@ -219,8 +219,8 @@ def estimate_log_joint_mark_intensity(
 
 
 def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
-                             model, model_kwargs, occupancy_model,
-                             occupancy_kwargs, is_track_interior=None):
+                             model, model_kwargs, occupancy_model=None,
+                             occupancy_kwargs=None, is_track_interior=None):
     '''
 
     Parameters
@@ -246,6 +246,10 @@ def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
     if is_track_interior is None:
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
+    if occupancy_model is None:
+        occupancy_model = model
+    if occupancy_kwargs is None:
+        occupancy_kwargs = model_kwargs
     occupancy, _ = fit_occupancy(position, place_bin_centers, occupancy_model,
                                  occupancy_kwargs, is_track_interior)
     mean_rates = []
@@ -265,8 +269,12 @@ def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
         np.concatenate(ground_process_intensities, axis=0), axis=0,
         keepdims=True)
 
-    return (joint_pdf_models, summed_ground_process_intensity, occupancy,
-            mean_rates)
+    return {
+        'joint_pdf_models': joint_pdf_models,
+        'summed_ground_process_intensity': summed_ground_process_intensity,
+        'occupancy': occupancy,
+        'mean_rates': mean_rates,
+    }
 
 
 def estimate_multiunit_likelihood(multiunits, place_bin_centers,
