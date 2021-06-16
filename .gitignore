@@ -59,3 +59,5 @@ coverage.xml
 *.lock
 *.dirlock
 *.nc
+
+!fra_11_04_0001.gif
