@@ -2,9 +2,21 @@
 [![DOI](https://zenodo.org/badge/177004334.svg)](https://zenodo.org/badge/latestdoi/177004334)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Eden-Kramer-Lab/replay_trajectory_classification/master)
 
+`replay_trajectory_classification` is a python package for decoding spatial position represented by neural activity and categorizing the type of trajectory. It has several advantages over decoders typically used to characterize hippocampal replay:
+1. It allows for momement-by-moment estimation of position using small temporal time bins which allow for rapid movement of neural position and makes fewer assumptions about what downstream cells can integrate.
+2. The decoded trajectories can change direction and are not restricted to constant velocity trajectories.
+3. The decoder can use spikes from spike-sorted cells or use clusterless spikes and their associated waveform features to decode .
+4. The decoder can categorize the type of neural trajectory and give an estimate of the confidence of the model in the type of trajectory.
+5. Proper handling of complex 1D linearized environments
+6. Ability to decode 2D position
+7. Easily installable, documented code with tutorials on how to use the code (see below)
+
+For further details, please see our BioRxiv preprint:
+> Denovellis, E.L., Gillespie, A.K., Coulter, M.E., Sosa, M., Chung, J.E., Eden, U.T., and Frank, L.M. (2020). Hippocampal replay of experience at real-world speeds. BioRxiv 2020.10.20.347708.
+
 ### Installation ###
 
-`replay_trajectory_classification` can be installed through pypi or conda. Conda is the best way to ensure that everything is installed properly.
+`replay_trajectory_classification` can be installed through pypi or conda. Conda is the best way to ensure that all the dependencies are installed properly.
 
 ```bash
 pip install replay_trajectory_classification
