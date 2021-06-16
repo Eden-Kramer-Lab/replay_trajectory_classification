@@ -11,6 +11,8 @@
 6. Ability to decode 2D position
 7. Easily installable, documented code with tutorials on how to use the code (see below)
 
+![](fra_11_04_0001.gif)
+
 For further details, please see our BioRxiv preprint:
 > Denovellis, E.L., Gillespie, A.K., Coulter, M.E., Sosa, M., Chung, J.E., Eden, U.T., and Frank, L.M. (2020). Hippocampal replay of experience at real-world speeds. BioRxiv 2020.10.20.347708.
 
