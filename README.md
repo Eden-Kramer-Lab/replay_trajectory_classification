@@ -5,7 +5,7 @@
 `replay_trajectory_classification` is a python package for decoding spatial position represented by neural activity and categorizing the type of trajectory.
 
 <p align="center">
-  <img src="fra_11_04_0001.gif" height="250"></img>
+  <img src="fra_11_04_0001.gif" height="400"></img>
 </p>
 
 It has several advantages over decoders typically used to characterize hippocampal replay:
