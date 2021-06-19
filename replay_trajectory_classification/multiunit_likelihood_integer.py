@@ -53,7 +53,7 @@ def estimate_intensity(density, occupancy, mean_rate):
     return np.exp(estimate_log_intensity(density, occupancy, mean_rate))
 
 
-def normal_pdf_integer_lookup(x, mean, std=20, max_value=3000):
+def normal_pdf_integer_lookup(x, mean, std=20.0, max_value=3000):
     """Fast density evaluation for integers by precomputing a hash table of
     values.
 
@@ -69,7 +69,7 @@ def normal_pdf_integer_lookup(x, mean, std=20, max_value=3000):
     probability_density : int
 
     """
-    normal_density = gaussian_pdf(np.arange(-max_value, max_value), 0, std)
+    normal_density = gaussian_pdf(np.arange(-max_value, max_value), 0.0, std)
 
     return normal_density[(x - mean) + max_value]
 
