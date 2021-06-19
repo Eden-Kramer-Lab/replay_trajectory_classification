@@ -80,7 +80,7 @@ def estimate_log_joint_mark_intensity(decoding_marks,
                                       position_std,
                                       occupancy,
                                       mean_rate,
-                                      max_mark_value=3000,
+                                      max_mark_value=6000,
                                       set_diag_zero=False,
                                       position_distance=None):
     """
@@ -222,7 +222,7 @@ def estimate_multiunit_likelihood_integer_no_dask(multiunits,
                                                   occupancy,
                                                   mean_rates,
                                                   summed_ground_process_intensity,
-                                                  max_mark_value=3000,
+                                                  max_mark_value=6000,
                                                   set_diag_zero=False,
                                                   is_track_interior=None,
                                                   time_bin_size=1):
