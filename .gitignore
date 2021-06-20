@@ -59,3 +59,4 @@ coverage.xml
 *.lock
 *.dirlock
 *.nc
+*.prof
