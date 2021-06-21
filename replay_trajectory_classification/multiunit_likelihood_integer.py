@@ -107,7 +107,7 @@ def estimate_log_joint_mark_intensity(decoding_marks,
 
     """
     # mark_distance: ndarray, shape (n_decoding_spikes, n_encoding_spikes)
-    mark_distance = np.prod(
+    mark_distance = da.prod(
         normal_pdf_integer_lookup(
             np.expand_dims(decoding_marks, axis=1),
             np.expand_dims(encoding_marks, axis=0),
@@ -197,7 +197,7 @@ def fit_multiunit_likelihood_integer(position,
             + np.spacing(1))
 
         encoding_marks.append(
-            multiunit[is_spike & not_nan_position].astype(int))
+            multiunit[is_spike & not_nan_position].astype(np.int64))
         encoding_positions.append(position[is_spike & not_nan_position])
 
     summed_ground_process_intensity = np.sum(
@@ -228,7 +228,7 @@ def estimate_multiunit_likelihood_integer(multiunits,
                                           set_diag_zero=False,
                                           is_track_interior=None,
                                           time_bin_size=1,
-                                          chunks=None):
+                                          chunks='auto'):
     '''
 
     Parameters
@@ -261,7 +261,7 @@ def estimate_multiunit_likelihood_integer(multiunits,
             multiunits, encoding_marks, encoding_positions, mean_rates):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         decoding_marks = da.from_array(
-            multiunit[is_spike].astype(np.int))
+            multiunit[is_spike].astype(np.int64), chunks=chunks)
         log_joint_mark_intensities.append(
             decoding_marks.map_blocks(
                 estimate_log_joint_mark_intensity,
@@ -274,14 +274,13 @@ def estimate_multiunit_likelihood_integer(multiunits,
                 mean_rate,
                 max_mark_value=max_mark_value,
                 set_diag_zero=set_diag_zero,
-                chunks=chunks
             ))
 
     for log_joint_mark_intensity, multiunit in zip(
             dask.compute(*log_joint_mark_intensities), multiunits):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         log_likelihood[np.ix_(is_spike, is_track_interior)] += (
-            log_joint_mark_intensity + np.spacing(1))
+            np.asarray(log_joint_mark_intensity) + np.spacing(1))
 
     log_likelihood[:, ~is_track_interior] = np.nan
 

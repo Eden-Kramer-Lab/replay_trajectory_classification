@@ -400,6 +400,13 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         '''
         spikes = np.asarray(spikes)
+        is_track_interior = self.is_track_interior_.ravel(order='F')
+        n_time = spikes.shape[0]
+        n_position_bins = is_track_interior.shape[0]
+        n_states = self.discrete_state_transition_.shape[0]
+        is_states = np.ones((n_states,), dtype=bool)
+        st_interior_ind = np.ix_(
+            is_states, is_states, is_track_interior, is_track_interior)
 
         results = {}
 
@@ -409,7 +416,7 @@ class SortedSpikesClassifier(_ClassifierBase):
                 spikes,
                 np.asarray(self.place_fields_.sel(
                     encoding_group=encoding_group)),
-                self.is_track_interior_)
+                is_track_interior)
 
         results['likelihood'] = np.stack(
             [likelihood[encoding_group]
@@ -418,13 +425,20 @@ class SortedSpikesClassifier(_ClassifierBase):
         results['likelihood'] = scaled_likelihood(
             results['likelihood'], axis=(1, 2))[..., np.newaxis]
 
-        results['causal_posterior'] = _causal_classify(
-            self.initial_conditions_, self.continuous_state_transition_,
-            self.discrete_state_transition_, results['likelihood'])
+        results['causal_posterior'] = np.full(
+            (n_time, n_states, n_position_bins, 1), np.nan)
+        results['causal_posterior'][:, :, is_track_interior] = _causal_classify(
+            self.initial_conditions_[:, is_track_interior],
+            self.continuous_state_transition_[st_interior_ind],
+            self.discrete_state_transition_,
+            results['likelihood'][:, :, is_track_interior])
 
         if is_compute_acausal:
-            results['acausal_posterior'] = _acausal_classify(
-                results['causal_posterior'], self.continuous_state_transition_,
+            results['acausal_posterior'] = np.full(
+                (n_time, n_states, n_position_bins, 1), np.nan)
+            results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify(
+                results['causal_posterior'][:, :, is_track_interior],
+                self.continuous_state_transition_[st_interior_ind],
                 self.discrete_state_transition_)
 
         n_time = spikes.shape[0]
@@ -601,6 +615,13 @@ class ClusterlessClassifier(_ClassifierBase):
 
         '''
         multiunits = np.asarray(multiunits)
+        is_track_interior = self.is_track_interior_.ravel(order='F')
+        n_time = multiunits.shape[0]
+        n_position_bins = is_track_interior.shape[0]
+        n_states = self.discrete_state_transition_.shape[0]
+        is_states = np.ones((n_states,), dtype=bool)
+        st_interior_ind = np.ix_(
+            is_states, is_states, is_track_interior, is_track_interior)
 
         results = {}
 
@@ -610,7 +631,7 @@ class ClusterlessClassifier(_ClassifierBase):
                 self.clusterless_algorithm][1](
                     multiunits=multiunits,
                     place_bin_centers=self.place_bin_centers_,
-                    is_track_interior=self.is_track_interior_.ravel(order='F'),
+                    is_track_interior=is_track_interior,
                     **encoding_params
             )
 
@@ -621,16 +642,21 @@ class ClusterlessClassifier(_ClassifierBase):
         results['likelihood'] = scaled_likelihood(
             results['likelihood'], axis=(1, 2))[..., np.newaxis]
 
-        results['causal_posterior'] = _causal_classify(
-            self.initial_conditions_, self.continuous_state_transition_,
-            self.discrete_state_transition_, results['likelihood'])
+        results['causal_posterior'] = np.full(
+            (n_time, n_states, n_position_bins, 1), np.nan)
+        results['causal_posterior'][:, :, is_track_interior] = _causal_classify(
+            self.initial_conditions_[:, is_track_interior],
+            self.continuous_state_transition_[st_interior_ind],
+            self.discrete_state_transition_,
+            results['likelihood'][:, :, is_track_interior])
 
         if is_compute_acausal:
-            results['acausal_posterior'] = _acausal_classify(
-                results['causal_posterior'], self.continuous_state_transition_,
+            results['acausal_posterior'] = np.full(
+                (n_time, n_states, n_position_bins, 1), np.nan)
+            results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify(
+                results['causal_posterior'][:, :, is_track_interior],
+                self.continuous_state_transition_[st_interior_ind],
                 self.discrete_state_transition_)
-
-        n_time = multiunits.shape[0]
 
         if time is None:
             time = np.arange(n_time)
