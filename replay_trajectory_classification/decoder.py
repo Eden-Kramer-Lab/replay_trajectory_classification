@@ -306,21 +306,31 @@ class SortedSpikesDecoder(_DecoderBase):
 
         '''
         spikes = np.asarray(spikes)
+        is_track_interior = self.is_track_interior_.ravel(order='F')
+        n_time = spikes.shape[0]
+        n_position_bins = is_track_interior.shape[0]
+        st_interior_ind = np.ix_(is_track_interior, is_track_interior)
 
         results = {}
         results['likelihood'] = scaled_likelihood(
             estimate_spiking_likelihood(
                 spikes, np.asarray(self.place_fields_)))
-        results['causal_posterior'] = _causal_decode(
-            self.initial_conditions_, self.state_transition_,
-            results['likelihood'])
+        results['causal_posterior'] = np.full(
+            (n_time, n_position_bins), np.nan)
+        results['causal_posterior'][:, is_track_interior] = _causal_decode(
+            self.initial_conditions_[is_track_interior],
+            self.state_transition_[st_interior_ind],
+            results['likelihood'][:, is_track_interior])
 
         if is_compute_acausal:
-            results['acausal_posterior'] = (
-                _acausal_decode(results['causal_posterior'][..., np.newaxis],
-                                self.state_transition_))
+            results['acausal_posterior'] = np.full(
+                (n_time, n_position_bins, 1), np.nan)
+            results['acausal_posterior'][:, is_track_interior] = (
+                _acausal_decode(
+                    results['causal_posterior'][
+                        :, is_track_interior, np.newaxis],
+                    self.state_transition_[st_interior_ind]))
 
-        n_time = spikes.shape[0]
         if time is None:
             time = np.arange(n_time)
 
@@ -449,25 +459,36 @@ class ClusterlessDecoder(_DecoderBase):
 
         '''
         multiunits = np.asarray(multiunits)
+        is_track_interior = self.is_track_interior_.ravel(order='F')
+        n_time = multiunits.shape[0]
+        n_position_bins = is_track_interior.shape[0]
+        st_interior_ind = np.ix_(is_track_interior, is_track_interior)
 
         results = {}
+
         results['likelihood'] = scaled_likelihood(
             _ClUSTERLESS_ALGORITHMS[self.clusterless_algorithm][1](
                 multiunits=multiunits,
                 place_bin_centers=self.place_bin_centers_,
-                is_track_interior=self.is_track_interior_.ravel(order='F'),
+                is_track_interior=is_track_interior,
                 **self.encoding_model_
             ))
-        results['causal_posterior'] = _causal_decode(
-            self.initial_conditions_, self.state_transition_,
-            results['likelihood'])
+        results['causal_posterior'] = np.full(
+            (n_time, n_position_bins), np.nan)
+        results['causal_posterior'][:, is_track_interior] = _causal_decode(
+            self.initial_conditions_[is_track_interior],
+            self.state_transition_[st_interior_ind],
+            results['likelihood'][:, is_track_interior])
 
         if is_compute_acausal:
-            results['acausal_posterior'] = (
-                _acausal_decode(results['causal_posterior'][..., np.newaxis],
-                                self.state_transition_))
+            results['acausal_posterior'] = np.full(
+                (n_time, n_position_bins, 1), np.nan)
+            results['acausal_posterior'][:, is_track_interior] = (
+                _acausal_decode(
+                    results['causal_posterior'][
+                        :, is_track_interior, np.newaxis],
+                    self.state_transition_[st_interior_ind]))
 
-        n_time = multiunits.shape[0]
         if time is None:
             time = np.arange(n_time)
 
