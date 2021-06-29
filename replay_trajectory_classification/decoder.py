@@ -16,6 +16,14 @@ from replay_trajectory_classification.initial_conditions import \
 from replay_trajectory_classification.misc import NumbaKDE
 from replay_trajectory_classification.multiunit_likelihood import (
     estimate_multiunit_likelihood, fit_multiunit_likelihood)
+from replay_trajectory_classification.multiunit_likelihood_integer import (
+    estimate_multiunit_likelihood_integer, fit_multiunit_likelihood_integer)
+from replay_trajectory_classification.multiunit_likelihood_integer_no_dask import (
+    estimate_multiunit_likelihood_integer_no_dask,
+    fit_multiunit_likelihood_integer_no_dask)
+from replay_trajectory_classification.multiunit_likelihood_integer_pass_position import (
+    estimate_multiunit_likelihood_integer_pass_position,
+    fit_multiunit_likelihood_integer_pass_position)
 from replay_trajectory_classification.spiking_likelihood import (
     estimate_place_fields, estimate_spiking_likelihood)
 from replay_trajectory_classification.state_transition import \
@@ -26,13 +34,33 @@ logger = getLogger(__name__)
 
 sklearn.set_config(print_changed_only=False)
 
-_DEFAULT_CLUSTERLESS_MODEL_KWARGS = dict(
-    bandwidth=np.array([24.0, 24.0, 24.0, 24.0, 6.0, 6.0]))
 _DEFAULT_TRANSITIONS = ['random_walk', 'uniform', 'identity']
+
+_DEFAULT_CLUSTERLESS_MODEL_KWARGS = {
+    'model': NumbaKDE,
+    'model_kwargs': {
+        'bandwidth': np.array([24.0, 24.0, 24.0, 24.0, 6.0, 6.0])
+    }
+}
+
+_ClUSTERLESS_ALGORITHMS = {
+    'multiunit_likelihood': (
+        fit_multiunit_likelihood,
+        estimate_multiunit_likelihood),
+    'multiunit_likelihood_integer': (
+        fit_multiunit_likelihood_integer,
+        estimate_multiunit_likelihood_integer),
+    'multiunit_likelihood_integer_no_dask': (
+        fit_multiunit_likelihood_integer_no_dask,
+        estimate_multiunit_likelihood_integer_no_dask),
+    'multiunit_likelihood_integer_pass_position': (
+        fit_multiunit_likelihood_integer_pass_position,
+        estimate_multiunit_likelihood_integer_pass_position),
+}
 
 
 class _DecoderBase(BaseEstimator):
-    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
+    def __init__(self, place_bin_size=2.0, replay_speed=1, movement_var=6.0,
                  position_range=None, transition_type='random_walk',
                  initial_conditions_type='uniform_on_track',
                  infer_track_interior=True):
@@ -163,7 +191,7 @@ class _DecoderBase(BaseEstimator):
 
 
 class SortedSpikesDecoder(_DecoderBase):
-    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
+    def __init__(self, place_bin_size=2.0, replay_speed=1, movement_var=6.0,
                  position_range=None, knot_spacing=10,
                  spike_model_penalty=1E1,
                  transition_type='random_walk',
@@ -286,21 +314,31 @@ class SortedSpikesDecoder(_DecoderBase):
 
         '''
         spikes = np.asarray(spikes)
+        is_track_interior = self.is_track_interior_.ravel(order='F')
+        n_time = spikes.shape[0]
+        n_position_bins = is_track_interior.shape[0]
+        st_interior_ind = np.ix_(is_track_interior, is_track_interior)
 
         results = {}
         results['likelihood'] = scaled_likelihood(
             estimate_spiking_likelihood(
                 spikes, np.asarray(self.place_fields_)))
-        results['causal_posterior'] = _causal_decode(
-            self.initial_conditions_, self.state_transition_,
-            results['likelihood'])
+        results['causal_posterior'] = np.full(
+            (n_time, n_position_bins), np.nan)
+        results['causal_posterior'][:, is_track_interior] = _causal_decode(
+            self.initial_conditions_[is_track_interior],
+            self.state_transition_[st_interior_ind],
+            results['likelihood'][:, is_track_interior])
 
         if is_compute_acausal:
-            results['acausal_posterior'] = (
-                _acausal_decode(results['causal_posterior'][..., np.newaxis],
-                                self.state_transition_))
+            results['acausal_posterior'] = np.full(
+                (n_time, n_position_bins, 1), np.nan)
+            results['acausal_posterior'][:, is_track_interior] = (
+                _acausal_decode(
+                    results['causal_posterior'][
+                        :, is_track_interior, np.newaxis],
+                    self.state_transition_[st_interior_ind]))
 
-        n_time = spikes.shape[0]
         if time is None:
             time = np.arange(n_time)
 
@@ -336,24 +374,21 @@ class ClusterlessDecoder(_DecoderBase):
 
     '''
 
-    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
-                 position_range=None, model=NumbaKDE,
-                 model_kwargs=_DEFAULT_CLUSTERLESS_MODEL_KWARGS,
-                 occupancy_model=None, occupancy_kwargs=None,
+    def __init__(self,
+                 place_bin_size=2.0,
+                 replay_speed=1,
+                 movement_var=6.0,
+                 position_range=None,
+                 clusterless_algorithm='multiunit_likelihood',
+                 clusterless_algorithm_params=_DEFAULT_CLUSTERLESS_MODEL_KWARGS,
                  transition_type='random_walk',
                  initial_conditions_type='uniform_on_track',
                  infer_track_interior=True):
         super().__init__(place_bin_size, replay_speed, movement_var,
                          position_range, transition_type,
                          initial_conditions_type, infer_track_interior)
-        self.model = model
-        self.model_kwargs = model_kwargs
-        if occupancy_model is None:
-            self.occupancy_model = model
-            self.occupancy_kwargs = model_kwargs
-        else:
-            self.occupancy_model = occupancy_model
-            self.occupancy_kwargs = occupancy_kwargs
+        self.clusterless_algorithm = clusterless_algorithm
+        self.clusterless_algorithm_params = clusterless_algorithm_params
 
     def fit_multiunits(self, position, multiunits, is_training=None):
         '''
@@ -370,12 +405,18 @@ class ClusterlessDecoder(_DecoderBase):
             is_training = np.ones((position.shape[0],), dtype=np.bool)
         is_training = np.asarray(is_training).squeeze()
 
-        (self.joint_pdf_models_, self.ground_process_intensities_,
-         self.occupancy_, self.mean_rates_) = fit_multiunit_likelihood(
-            position[is_training], multiunits[is_training],
-            self.place_bin_centers_, self.model, self.model_kwargs,
-            self.occupancy_model, self.occupancy_kwargs,
-            self.is_track_interior_.ravel(order='F'))
+        kwargs = self.clusterless_algorithm_params
+        if kwargs is None:
+            kwargs = {}
+
+        self.encoding_model_ = _ClUSTERLESS_ALGORITHMS[
+            self.clusterless_algorithm][0](
+                position=position[is_training],
+                multiunits=multiunits[is_training],
+                place_bin_centers=self.place_bin_centers_,
+                is_track_interior=self.is_track_interior_.ravel(order='F'),
+                **kwargs
+        )
 
     def fit(self, position, multiunits, is_training=None,
             is_track_interior=None, track_graph=None,
@@ -426,24 +467,36 @@ class ClusterlessDecoder(_DecoderBase):
 
         '''
         multiunits = np.asarray(multiunits)
+        is_track_interior = self.is_track_interior_.ravel(order='F')
+        n_time = multiunits.shape[0]
+        n_position_bins = is_track_interior.shape[0]
+        st_interior_ind = np.ix_(is_track_interior, is_track_interior)
 
         results = {}
+
         results['likelihood'] = scaled_likelihood(
-            estimate_multiunit_likelihood(
-                multiunits, self.place_bin_centers_,
-                self.joint_pdf_models_, self.ground_process_intensities_,
-                self.occupancy_, self.mean_rates_,
-                self.is_track_interior_.ravel(order='F')))
-        results['causal_posterior'] = _causal_decode(
-            self.initial_conditions_, self.state_transition_,
-            results['likelihood'])
+            _ClUSTERLESS_ALGORITHMS[self.clusterless_algorithm][1](
+                multiunits=multiunits,
+                place_bin_centers=self.place_bin_centers_,
+                is_track_interior=is_track_interior,
+                **self.encoding_model_
+            ))
+        results['causal_posterior'] = np.full(
+            (n_time, n_position_bins), np.nan)
+        results['causal_posterior'][:, is_track_interior] = _causal_decode(
+            self.initial_conditions_[is_track_interior],
+            self.state_transition_[st_interior_ind],
+            results['likelihood'][:, is_track_interior])
 
         if is_compute_acausal:
-            results['acausal_posterior'] = (
-                _acausal_decode(results['causal_posterior'][..., np.newaxis],
-                                self.state_transition_))
+            results['acausal_posterior'] = np.full(
+                (n_time, n_position_bins, 1), np.nan)
+            results['acausal_posterior'][:, is_track_interior] = (
+                _acausal_decode(
+                    results['causal_posterior'][
+                        :, is_track_interior, np.newaxis],
+                    self.state_transition_[st_interior_ind]))
 
-        n_time = multiunits.shape[0]
         if time is None:
             time = np.arange(n_time)
 

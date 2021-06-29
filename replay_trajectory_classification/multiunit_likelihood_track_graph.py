@@ -1,8 +1,20 @@
 import copy
+import math
 
 import dask.bag as db
 import networkx as nx
+import numba
 import numpy as np
+
+SQRT_2PI = np.sqrt(2.0 * np.pi)
+
+
+@numba.vectorize(['float64(float64, float64)'], nopython=True,
+                 cache=True)
+def gaussian_kernel(distance, sigma):
+    '''Compute the value of a Gaussian probability density function at x with
+    given mean and sigma.'''
+    return math.exp(-0.5 * (distance / sigma)**2) / (sigma * SQRT_2PI)
 
 
 def _distance_to_bin_centers(left_node, right_node, distance_left_node,
@@ -43,8 +55,8 @@ def _find_adjacent_nodes(nodes_df, linear_position):
     left_bin_ind[not_same_edge] = left_bin_ind[not_same_edge] - 1
 
     # Get adjacent node names and distance
-    left_node = nodes_df.reset_index().node_ids.values[left_bin_ind]
-    right_node = nodes_df.reset_index().node_ids.values[right_bin_ind]
+    left_node = nodes_df.reset_index().node_id.values[left_bin_ind]
+    right_node = nodes_df.reset_index().node_id.values[right_bin_ind]
 
     distance_left_node = np.abs(
         nodes_df.loc[left_node].linear_position.values - linear_position)
@@ -55,14 +67,14 @@ def _find_adjacent_nodes(nodes_df, linear_position):
 
 
 def get_distance_to_bin_centers(linear_position, decoder, npartitions=100):
-    copy_graph = copy.deepcopy(decoder.track_graph_)
+    copy_graph = copy.deepcopy(decoder.track_graph_with_bin_centers_edges_)
     linear_position = linear_position.squeeze()
-    nodes_df = decoder._nodes_df.set_index("node_ids")
+    nodes_df = decoder.nodes_df_.set_index("node_id")
     place_bin_center_node_ids = (
         nodes_df
         .loc[~nodes_df.is_bin_edge]
         .reset_index()
-        .node_ids
+        .node_id
         .values)
     (left_node, right_node, distance_left_node,
      distance_right_node) = _find_adjacent_nodes(nodes_df, linear_position)
@@ -82,8 +94,3 @@ def get_distance_to_bin_centers(linear_position, decoder, npartitions=100):
         _distance_to_bin_centers, right_node, distance_left_node,
         distance_right_node, time_ind, copy_graph,
         place_bin_center_node_ids).compute())
-
-
-def gaussian_kernel(distance, bandwidth):
-    return (np.exp(-0.5 * (distance / bandwidth)**2) /
-            (bandwidth * np.sqrt(2.0 * np.pi))) / bandwidth

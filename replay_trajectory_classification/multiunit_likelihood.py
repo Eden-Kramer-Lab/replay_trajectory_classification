@@ -103,6 +103,40 @@ def estimate_mean_rate(multiunit):
     return is_spike.mean()
 
 
+def estimate_log_intensity(density, occupancy, mean_rate):
+    '''
+
+    Parameters
+    ----------
+    density : ndarray, shape (n_bins,)
+    occupancy : ndarray, shape (n_bins,)
+    mean_rate : float
+
+    Returns
+    -------
+    intensity : ndarray, shape (n_bins,)
+
+    '''
+    return np.log(mean_rate) + np.log(density) - np.log(occupancy)
+
+
+def estimate_log_intensity2(log_density, occupancy, mean_rate):
+    '''
+
+    Parameters
+    ----------
+    density : ndarray, shape (n_bins,)
+    occupancy : ndarray, shape (n_bins,)
+    mean_rate : float
+
+    Returns
+    -------
+    intensity : ndarray, shape (n_bins,)
+
+    '''
+    return np.log(mean_rate) + log_density - np.log(occupancy)
+
+
 def estimate_intensity(density, occupancy, mean_rate):
     '''
 
@@ -117,7 +151,7 @@ def estimate_intensity(density, occupancy, mean_rate):
     intensity : ndarray, shape (n_bins,)
 
     '''
-    return np.exp(np.log(mean_rate) + np.log(density) - np.log(occupancy))
+    return np.exp(estimate_log_intensity(density, occupancy, mean_rate))
 
 
 def estimate_ground_process_intensity(multiunit, position, place_bin_centers,
@@ -151,70 +185,42 @@ def estimate_ground_process_intensity(multiunit, position, place_bin_centers,
     return ground_process_intensity
 
 
-def estimate_joint_mark_intensity(
-        multiunit, place_bin_centers, occupancy, joint_model, mean_rate,
-        is_track_interior):
+def estimate_log_joint_mark_intensity(
+        multiunit, place_bin_centers, occupancy, joint_model, mean_rate):
     '''
 
     Parameters
     ----------
-    multiunit : ndarray, shape (n_time, n_marks)
+    multiunit : ndarray, shape (n_decoding_spikes, n_marks)
     place_bin_centers : ndarray, (n_bins, n_position_dims)
     occupancy : ndarray, (n_bins, n_position_dims)
     joint_model : sklearn model
     mean_rate : float
-    is_track_interior : ndarray, shape (n_bins,)
 
     Returns
     -------
-    joint_mark_intensity : ndarray, shape (n_time, n_bins)
+    joint_mark_intensity : ndarray, shape (n_decoding_spikes, n_bins)
 
     '''
     multiunit = np.atleast_2d(multiunit)
     n_bins = place_bin_centers.shape[0]
-    n_time = multiunit.shape[0]
-    is_nan = np.any(np.isnan(multiunit), axis=1)
-    n_spikes = np.sum(~is_nan)
-    joint_mark_intensity = np.ones((n_time, n_bins))
-    interior_bin_inds = np.nonzero(is_track_interior)[0]
+    n_decoding_spikes = multiunit.shape[0]
+    joint_mark_intensity = np.ones((n_decoding_spikes, n_bins))
+    spike_size = np.ones((n_decoding_spikes, 1))
 
-    if n_spikes > 0:
-        zipped = zip(interior_bin_inds, place_bin_centers[interior_bin_inds],
-                     occupancy[interior_bin_inds])
-        for bin_ind, bin, bin_occupancy in zipped:
-            joint_mark_intensity[~is_nan, bin_ind] = estimate_intensity(
-                np.exp(joint_model.score_samples(
-                    np.concatenate((multiunit[~is_nan],
-                                    bin * np.ones((n_spikes, 1))), axis=1))),
-                bin_occupancy, mean_rate)
+    for bin_ind, (bin, bin_occupancy) in enumerate(
+            zip(place_bin_centers, occupancy)):
+        joint_mark_intensity[:, bin_ind] = estimate_log_intensity2(
+            joint_model.score_samples(
+                np.concatenate((multiunit, bin * spike_size), axis=1)),
+            bin_occupancy, mean_rate)
 
     return joint_mark_intensity
 
 
-def poisson_mark_log_likelihood(joint_mark_intensity,
-                                ground_process_intensity,
-                                time_bin_size=1):
-    '''Probability of parameters given spiking indicator at a particular
-    time and associated marks.
-
-    Parameters
-    ----------
-    joint_mark_intensity : ndarray, shape (n_time, n_bins)
-    ground_process_intensity : ndarray, shape (1, n_bins)
-    time_bin_size : int, optional
-
-    Returns
-    -------
-    poisson_mark_log_likelihood : ndarray, shape (n_time, n_bins)
-
-    '''
-    return np.log(joint_mark_intensity + np.spacing(1)) - (
-        (ground_process_intensity + np.spacing(1)) * time_bin_size)
-
-
 def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
-                             model, model_kwargs, occupancy_model,
-                             occupancy_kwargs, is_track_interior=None):
+                             model, model_kwargs, occupancy_model=None,
+                             occupancy_kwargs=None, is_track_interior=None):
     '''
 
     Parameters
@@ -231,7 +237,7 @@ def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
     Returns
     -------
     joint_pdf_models : list of sklearn models, shape (n_electrodes,)
-    ground_process_intensities : list of ndarray, shape (n_electrodes,)
+    summed_ground_process_intensity : (1, n_bins)
     occupancy : ndarray, (n_bins, n_position_dims)
     mean_rates : ndarray, (n_electrodes,)
 
@@ -240,6 +246,10 @@ def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
     if is_track_interior is None:
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
+    if occupancy_model is None:
+        occupancy_model = model
+    if occupancy_kwargs is None:
+        occupancy_kwargs = model_kwargs
     occupancy, _ = fit_occupancy(position, place_bin_centers, occupancy_model,
                                  occupancy_kwargs, is_track_interior)
     mean_rates = []
@@ -255,13 +265,23 @@ def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
         joint_pdf_models.append(
             train_joint_model(multiunit, position, model, model_kwargs))
 
-    return joint_pdf_models, ground_process_intensities, occupancy, mean_rates
+    summed_ground_process_intensity = np.sum(
+        np.concatenate(ground_process_intensities, axis=0), axis=0,
+        keepdims=True)
+
+    return {
+        'joint_pdf_models': joint_pdf_models,
+        'summed_ground_process_intensity': summed_ground_process_intensity,
+        'occupancy': occupancy,
+        'mean_rates': mean_rates,
+    }
 
 
 def estimate_multiunit_likelihood(multiunits, place_bin_centers,
                                   joint_pdf_models,
-                                  ground_process_intensities, occupancy,
-                                  mean_rates, is_track_interior=None):
+                                  summed_ground_process_intensity, occupancy,
+                                  mean_rates, is_track_interior=None,
+                                  time_bin_size=1):
     '''
 
     Parameters
@@ -269,7 +289,7 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
     multiunits : ndarray, shape (n_time, n_marks, n_electrodes)
     place_bin_centers : ndarray, (n_bins, n_position_dims)
     joint_pdf_models : list of sklearn models, shape (n_electrodes,)
-    ground_process_intensities : list of ndarray, shape (n_electrodes,)
+    summed_ground_process_intensity : (1, n_bins)
     occupancy : ndarray, (n_bins, n_position_dims)
     mean_rates : ndarray, (n_electrodes,)
 
@@ -282,20 +302,22 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
 
-    n_bin = place_bin_centers.shape[0]
     n_time = multiunits.shape[0]
-    log_likelihood = np.zeros((n_time, n_bin))
+    log_likelihood = (-time_bin_size * summed_ground_process_intensity *
+                      np.ones((n_time, 1)))
 
-    zipped = zip(np.moveaxis(multiunits, -1, 0), joint_pdf_models,
-                 mean_rates, ground_process_intensities)
-    for multiunit, joint_model, mean_rate, ground_process_intensity in zipped:
-        joint_mark_intensity = estimate_joint_mark_intensity(
-            multiunit, place_bin_centers, occupancy, joint_model, mean_rate,
-            is_track_interior)
-        log_likelihood += poisson_mark_log_likelihood(
-            joint_mark_intensity, np.atleast_2d(ground_process_intensity))
+    for multiunit, joint_model, mean_rate in zip(
+            np.moveaxis(multiunits, -1, 0), joint_pdf_models, mean_rates):
+        is_spike = np.any(~np.isnan(multiunit), axis=1)
+        log_joint_mark_intensity = estimate_log_joint_mark_intensity(
+            multiunit[is_spike],
+            place_bin_centers[is_track_interior],
+            occupancy[is_track_interior],
+            joint_model,
+            mean_rate)
+        log_likelihood[np.ix_(is_spike, is_track_interior)] += (
+            log_joint_mark_intensity + np.spacing(1))
 
-    mask = np.ones_like(is_track_interior, dtype=np.float)
-    mask[~is_track_interior] = np.nan
+    log_likelihood[:, ~is_track_interior] = np.nan
 
-    return log_likelihood * mask
+    return log_likelihood
