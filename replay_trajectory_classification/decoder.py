@@ -60,7 +60,7 @@ _ClUSTERLESS_ALGORITHMS = {
 
 
 class _DecoderBase(BaseEstimator):
-    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
+    def __init__(self, place_bin_size=2.0, replay_speed=1, movement_var=0.05,
                  position_range=None, transition_type='random_walk',
                  initial_conditions_type='uniform_on_track',
                  infer_track_interior=True):
@@ -191,7 +191,7 @@ class _DecoderBase(BaseEstimator):
 
 
 class SortedSpikesDecoder(_DecoderBase):
-    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
+    def __init__(self, place_bin_size=2.0, replay_speed=1, movement_var=0.05,
                  position_range=None, knot_spacing=10,
                  spike_model_penalty=1E1,
                  transition_type='random_walk',
@@ -376,7 +376,7 @@ class ClusterlessDecoder(_DecoderBase):
 
     def __init__(self,
                  place_bin_size=2.0,
-                 replay_speed=40,
+                 replay_speed=1,
                  movement_var=0.05,
                  position_range=None,
                  clusterless_algorithm='multiunit_likelihood',
