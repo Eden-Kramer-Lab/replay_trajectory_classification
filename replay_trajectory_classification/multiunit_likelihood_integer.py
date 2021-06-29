@@ -275,6 +275,7 @@ def estimate_multiunit_likelihood_integer(multiunits,
     for log_joint_mark_intensity, multiunit in zip(
             dask.compute(*log_joint_mark_intensities), multiunits):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
+        # TODO: combine spikes in the same timebin using np.bincount
         log_likelihood[np.ix_(is_spike, is_track_interior)] += (
             np.asarray(log_joint_mark_intensity) + np.spacing(1))
 
