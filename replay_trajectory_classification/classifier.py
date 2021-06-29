@@ -14,10 +14,17 @@ from replay_trajectory_classification.core import (_acausal_classify,
                                                    scaled_likelihood)
 from replay_trajectory_classification.initial_conditions import \
     uniform_on_track
+from replay_trajectory_classification.misc import NumbaKDE
 from replay_trajectory_classification.multiunit_likelihood import (
     estimate_multiunit_likelihood, fit_multiunit_likelihood)
 from replay_trajectory_classification.multiunit_likelihood_integer import (
     estimate_multiunit_likelihood_integer, fit_multiunit_likelihood_integer)
+from replay_trajectory_classification.multiunit_likelihood_integer_no_dask import (
+    estimate_multiunit_likelihood_integer_no_dask,
+    fit_multiunit_likelihood_integer_no_dask)
+from replay_trajectory_classification.multiunit_likelihood_integer_pass_position import (
+    estimate_multiunit_likelihood_integer_pass_position,
+    fit_multiunit_likelihood_integer_pass_position)
 from replay_trajectory_classification.spiking_likelihood import (
     estimate_place_fields, estimate_spiking_likelihood)
 from replay_trajectory_classification.state_transition import (
@@ -28,6 +35,13 @@ logger = getLogger(__name__)
 
 sklearn.set_config(print_changed_only=False)
 
+_DEFAULT_CLUSTERLESS_MODEL_KWARGS = {
+    'model': NumbaKDE,
+    'model_kwargs': {
+        'bandwidth': np.array([24.0, 24.0, 24.0, 24.0, 6.0, 6.0])
+    }
+}
+
 _ClUSTERLESS_ALGORITHMS = {
     'multiunit_likelihood': (
         fit_multiunit_likelihood,
@@ -35,6 +49,12 @@ _ClUSTERLESS_ALGORITHMS = {
     'multiunit_likelihood_integer': (
         fit_multiunit_likelihood_integer,
         estimate_multiunit_likelihood_integer),
+    'multiunit_likelihood_integer_no_dask': (
+        fit_multiunit_likelihood_integer_no_dask,
+        estimate_multiunit_likelihood_integer_no_dask),
+    'multiunit_likelihood_integer_pass_position': (
+        fit_multiunit_likelihood_integer_pass_position,
+        estimate_multiunit_likelihood_integer_pass_position),
 }
 
 _DEFAULT_CONTINUOUS_TRANSITIONS = (
@@ -495,7 +515,8 @@ class ClusterlessClassifier(_ClassifierBase):
                  discrete_transition_diag=_DISCRETE_DIAG,
                  infer_track_interior=True,
                  clusterless_algorithm='multiunit_likelihood',
-                 clusterless_algorithm_params=None):
+                 clusterless_algorithm_params=_DEFAULT_CLUSTERLESS_MODEL_KWARGS
+                 ):
         super().__init__(place_bin_size, replay_speed, movement_var,
                          position_range, continuous_transition_types,
                          discrete_transition_type, initial_conditions_type,
