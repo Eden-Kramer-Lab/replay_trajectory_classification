@@ -138,6 +138,7 @@ def fit_multiunit_likelihood_integer(position,
                                      mark_std,
                                      position_std,
                                      is_track_interior=None,
+                                     dtype=np.int64,
                                      **kwargs):
     '''
 
@@ -199,7 +200,7 @@ def fit_multiunit_likelihood_integer(position,
         not_nan_marks = np.all(~np.isnan(multiunit), axis=0)
         multiunit = multiunit[:, not_nan_marks]
 
-        encoding_marks.append(multiunit.astype(np.int32))
+        encoding_marks.append(multiunit.astype(dtype))
         encoding_positions.append(position[is_spike & not_nan_position])
 
     summed_ground_process_intensity = np.sum(
@@ -229,7 +230,8 @@ def estimate_multiunit_likelihood_integer(multiunits,
                                           max_mark_value=6000,
                                           is_track_interior=None,
                                           time_bin_size=1,
-                                          chunks='auto'):
+                                          chunks='auto',
+                                          dtype=np.int64):
     '''
 
     Parameters
@@ -266,7 +268,7 @@ def estimate_multiunit_likelihood_integer(multiunits,
         multiunit = multiunit[:, not_nan_marks]
 
         decoding_marks = da.from_array(
-            multiunit.astype(np.int32), chunks=chunks)
+            multiunit.astype(dtype), chunks=chunks)
         log_joint_mark_intensities.append(
             decoding_marks.map_blocks(
                 estimate_log_joint_mark_intensity,
