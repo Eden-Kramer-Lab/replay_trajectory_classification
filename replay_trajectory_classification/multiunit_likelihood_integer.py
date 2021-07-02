@@ -69,7 +69,8 @@ def normal_pdf_integer_lookup(x, mean, std=20.0, max_value=3000):
     probability_density : int
 
     """
-    normal_density = gaussian_pdf(np.arange(-max_value, max_value), 0.0, std)
+    normal_density = da.asarray(
+        gaussian_pdf(np.arange(-max_value, max_value), 0.0, std))
 
     return normal_density[(x - mean) + max_value]
 
