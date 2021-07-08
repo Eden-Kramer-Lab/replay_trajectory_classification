@@ -13,6 +13,7 @@ from replay_trajectory_classification.core import (_acausal_decode,
                                                    scaled_likelihood)
 from replay_trajectory_classification.initial_conditions import \
     uniform_on_track
+from replay_trajectory_classification.misc import NumbaKDE
 from replay_trajectory_classification.multiunit_likelihood import (
     estimate_multiunit_likelihood, fit_multiunit_likelihood)
 from replay_trajectory_classification.multiunit_likelihood_integer import (
@@ -35,6 +36,13 @@ sklearn.set_config(print_changed_only=False)
 
 _DEFAULT_TRANSITIONS = ['random_walk', 'uniform', 'identity']
 
+_DEFAULT_CLUSTERLESS_MODEL_KWARGS = {
+    'model': NumbaKDE,
+    'model_kwargs': {
+        'bandwidth': np.array([24.0, 24.0, 24.0, 24.0, 6.0, 6.0])
+    }
+}
+
 _ClUSTERLESS_ALGORITHMS = {
     'multiunit_likelihood': (
         fit_multiunit_likelihood,
@@ -52,7 +60,7 @@ _ClUSTERLESS_ALGORITHMS = {
 
 
 class _DecoderBase(BaseEstimator):
-    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
+    def __init__(self, place_bin_size=2.0, replay_speed=1, movement_var=6.0,
                  position_range=None, transition_type='random_walk',
                  initial_conditions_type='uniform_on_track',
                  infer_track_interior=True):
@@ -183,7 +191,7 @@ class _DecoderBase(BaseEstimator):
 
 
 class SortedSpikesDecoder(_DecoderBase):
-    def __init__(self, place_bin_size=2.0, replay_speed=40, movement_var=0.05,
+    def __init__(self, place_bin_size=2.0, replay_speed=1, movement_var=6.0,
                  position_range=None, knot_spacing=10,
                  spike_model_penalty=1E1,
                  transition_type='random_walk',
@@ -368,11 +376,11 @@ class ClusterlessDecoder(_DecoderBase):
 
     def __init__(self,
                  place_bin_size=2.0,
-                 replay_speed=40,
-                 movement_var=0.05,
+                 replay_speed=1,
+                 movement_var=6.0,
                  position_range=None,
                  clusterless_algorithm='multiunit_likelihood',
-                 clusterless_algorithm_params=None,
+                 clusterless_algorithm_params=_DEFAULT_CLUSTERLESS_MODEL_KWARGS,
                  transition_type='random_walk',
                  initial_conditions_type='uniform_on_track',
                  infer_track_interior=True):
