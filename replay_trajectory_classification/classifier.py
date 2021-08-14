@@ -255,7 +255,12 @@ class SortedSpikesClassifier(_ClassifierBase):
     place_bin_size : float, optional
         Approximate size of the position bins.
     replay_speed : int, optional
-        How many times faster the replay movement is than normal movement.
+        How many times faster the replay movement is than normal movement. It​ is
+        only used with the empirical transition matrix---a transition matrix
+        trained on the animal's actual movement. It can be used to make the
+        empirical transition matrix "faster", means allowing for all the same
+        transitions made by the animal but sped up by replay_speed​ times.
+        So replay_speed​=20 means 20x faster than the animal's movement.
     movement_var : float, optional
         How far the animal is can move in one time bin during normal
         movement.
@@ -477,7 +482,12 @@ class ClusterlessClassifier(_ClassifierBase):
     place_bin_size : float, optional
         Approximate size of the position bins.
     replay_speed : int, optional
-        How many times faster the replay movement is than normal movement.
+        How many times faster the replay movement is than normal movement. It​ is
+        only used with the empirical transition matrix---a transition matrix
+        trained on the animal's actual movement. It can be used to make the
+        empirical transition matrix "faster", means allowing for all the same
+        transitions made by the animal but sped up by replay_speed​ times.
+        So replay_speed​=20 means 20x faster than the animal's movement.
     movement_var : float, optional
         How far the animal is can move in one time bin during normal
         movement.
