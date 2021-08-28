@@ -104,22 +104,21 @@ def estimate_log_joint_mark_intensity(decoding_marks,
     log_joint_mark_intensity : ndarray, shape (n_decoding_spikes, n_position_bins)
 
     """
-    # mark_distance: ndarray, shape (n_decoding_spikes, n_encoding_spikes)
-    mark_distance = np.prod(
-        normal_pdf_integer_lookup(
-            np.expand_dims(decoding_marks, axis=1),
-            np.expand_dims(encoding_marks, axis=0),
+    n_encoding_spikes, n_marks = encoding_marks.shape
+    n_decoding_spikes = decoding_marks.shape[0]
+    mark_distance = np.ones((n_decoding_spikes, n_encoding_spikes))
+
+    for mark_ind in n_marks:
+        mark_distance *= normal_pdf_integer_lookup(
+            np.expand_dims(decoding_marks[:, mark_ind], axis=1),
+            np.expand_dims(encoding_marks[:, mark_ind], axis=0),
             std=mark_std,
             max_value=max_mark_value
-        ),
-        axis=-1
-    )
+        )
 
     if set_diag_zero:
         diag_ind = np.diag_indices_from(mark_distance)
         mark_distance[diag_ind] = 0.0
-
-    n_encoding_spikes = encoding_marks.shape[0]
 
     if position_distance is None:
         position_distance = estimate_position_distance(
