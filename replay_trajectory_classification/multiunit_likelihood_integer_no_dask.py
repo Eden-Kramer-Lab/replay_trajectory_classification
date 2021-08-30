@@ -108,7 +108,7 @@ def estimate_log_joint_mark_intensity(decoding_marks,
     n_decoding_spikes = decoding_marks.shape[0]
     mark_distance = np.ones((n_decoding_spikes, n_encoding_spikes))
 
-    for mark_ind in n_marks:
+    for mark_ind in range(n_marks):
         mark_distance *= normal_pdf_integer_lookup(
             np.expand_dims(decoding_marks[:, mark_ind], axis=1),
             np.expand_dims(encoding_marks[:, mark_ind], axis=0),
