@@ -1,5 +1,17 @@
 import numpy as np
 from numba import njit
+from replay_trajectory_classification.multiunit_likelihood import (
+    estimate_multiunit_likelihood, fit_multiunit_likelihood)
+from replay_trajectory_classification.multiunit_likelihood_gpu import (
+    estimate_multiunit_likelihood_gpu, fit_multiunit_likelihood_gpu)
+from replay_trajectory_classification.multiunit_likelihood_integer import (
+    estimate_multiunit_likelihood_integer, fit_multiunit_likelihood_integer)
+from replay_trajectory_classification.multiunit_likelihood_integer_no_dask import (
+    estimate_multiunit_likelihood_integer_no_dask,
+    fit_multiunit_likelihood_integer_no_dask)
+from replay_trajectory_classification.multiunit_likelihood_integer_pass_position import (
+    estimate_multiunit_likelihood_integer_pass_position,
+    fit_multiunit_likelihood_integer_pass_position)
 
 
 @njit(nogil=True, fastmath=True)
@@ -193,3 +205,22 @@ def mask(value, is_track_interior):
     except IndexError:
         value[..., ~is_track_interior, :] = np.nan
     return value
+
+
+_ClUSTERLESS_ALGORITHMS = {
+    'multiunit_likelihood': (
+        fit_multiunit_likelihood,
+        estimate_multiunit_likelihood),
+    'multiunit_likelihood_integer': (
+        fit_multiunit_likelihood_integer,
+        estimate_multiunit_likelihood_integer),
+    'multiunit_likelihood_integer_no_dask': (
+        fit_multiunit_likelihood_integer_no_dask,
+        estimate_multiunit_likelihood_integer_no_dask),
+    'multiunit_likelihood_integer_pass_position': (
+        fit_multiunit_likelihood_integer_pass_position,
+        estimate_multiunit_likelihood_integer_pass_position),
+    'multiunit_likelihood_gpu': (
+        fit_multiunit_likelihood_gpu,
+        estimate_multiunit_likelihood_gpu),
+}
