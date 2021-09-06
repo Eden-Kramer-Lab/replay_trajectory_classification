@@ -272,7 +272,7 @@ def fit_multiunit_likelihood_gpu(position,
 
     Returns
     -------
-    out : dict
+    encoding_model : dict
 
     '''
     if is_track_interior is None:
