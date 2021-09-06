@@ -102,10 +102,10 @@ def estimate_log_joint_mark_intensity(
     place_bin_centers : ndarray, shape (n_bins, n_position_dims)
     encoding_positions : ndarray, shape (n_encoding_spikes, n_position_dims)
     position_std : float
-    occupancy : ndarray, shape (n_bins, n_position_dims)
+    occupancy : ndarray, shape (n_bins,)
     mean_rate : float
     threads_per_block : int
-        block size
+        Block size on the GPU
 
     Returns
     -------
@@ -167,11 +167,14 @@ def estimate_multiunit_likelihood_gpu(multiunits,
     Parameters
     ----------
     multiunits : ndarray, shape (n_time, n_marks, n_electrodes)
-    place_bin_centers : ndarray, (n_bins, n_position_dims)
-    joint_pdf_models : list of sklearn models, shape (n_electrodes,)
-    ground_process_intensities : list of ndarray, shape (n_electrodes,)
-    occupancy : ndarray, (n_bins, n_position_dims)
+    encoding_marks : ndarray, shape (n_encoding_spikes, n_marks)
+    mark_std : float
+    place_bin_centers : ndarray, shape (n_bins, n_position_dims)
+    encoding_positions : ndarray, shape (n_encoding_spikes, n_position_dims)
+    position_std : float
+    occupancy : ndarray, (n_bins,)
     mean_rates : ndarray, (n_electrodes,)
+    summed_ground_process_intensity : ndarray, shape (n_bins,)
 
     Returns
     -------
@@ -263,18 +266,13 @@ def fit_multiunit_likelihood_gpu(position,
     position : ndarray, shape (n_time, n_position_dims)
     multiunits : ndarray, shape (n_time, n_marks, n_electrodes)
     place_bin_centers : ndarray, shape ( n_bins, n_position_dims)
-    model : sklearn model
-    model_kwargs : dict
-    occupancy_model : sklearn model
-    occupancy_kwargs : dict
+    mark_std : float
+    position_std : float
     is_track_interior : None or ndarray, shape (n_bins,)
 
     Returns
     -------
-    joint_pdf_models : list of sklearn models, shape (n_electrodes,)
-    ground_process_intensities : list of ndarray, shape (n_electrodes,)
-    occupancy : ndarray, (n_bins, n_position_dims)
-    mean_rates : ndarray, (n_electrodes,)
+    out : dict
 
     '''
     if is_track_interior is None:
