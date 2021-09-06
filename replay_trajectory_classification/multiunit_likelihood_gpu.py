@@ -151,17 +151,17 @@ def estimate_log_joint_mark_intensity(
     return estimate_log_intensity(pdf, occupancy, mean_rate)
 
 
-def estimate_multiunit_likelihood_integer_gpu(multiunits,
-                                              encoding_marks,
-                                              mark_std,
-                                              place_bin_centers,
-                                              encoding_positions,
-                                              position_std,
-                                              occupancy,
-                                              mean_rates,
-                                              summed_ground_process_intensity,
-                                              is_track_interior=None,
-                                              time_bin_size=1):
+def estimate_multiunit_likelihood_gpu(multiunits,
+                                      encoding_marks,
+                                      mark_std,
+                                      place_bin_centers,
+                                      encoding_positions,
+                                      position_std,
+                                      occupancy,
+                                      mean_rates,
+                                      summed_ground_process_intensity,
+                                      is_track_interior=None,
+                                      time_bin_size=1):
     '''
 
     Parameters
@@ -249,13 +249,13 @@ def estimate_intensity(density, occupancy, mean_rate):
     return np.exp(estimate_log_intensity(density, occupancy, mean_rate))
 
 
-def fit_multiunit_likelihood_integer_gpu(position,
-                                         multiunits,
-                                         place_bin_centers,
-                                         mark_std,
-                                         position_std,
-                                         is_track_interior=None,
-                                         **kwargs):
+def fit_multiunit_likelihood_gpu(position,
+                                 multiunits,
+                                 place_bin_centers,
+                                 mark_std,
+                                 position_std,
+                                 is_track_interior=None,
+                                 **kwargs):
     '''
 
     Parameters
