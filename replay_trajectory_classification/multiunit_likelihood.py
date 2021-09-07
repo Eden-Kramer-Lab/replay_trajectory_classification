@@ -193,7 +193,7 @@ def estimate_log_joint_mark_intensity(
     ----------
     multiunit : ndarray, shape (n_decoding_spikes, n_marks)
     place_bin_centers : ndarray, (n_bins, n_position_dims)
-    occupancy : ndarray, (n_bins, n_position_dims)
+    occupancy : ndarray, (n_bins,)
     joint_model : sklearn model
     mean_rate : float
 
