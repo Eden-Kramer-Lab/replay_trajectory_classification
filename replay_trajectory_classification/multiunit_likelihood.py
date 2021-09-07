@@ -205,12 +205,17 @@ def estimate_log_joint_mark_intensity(
     multiunit = np.atleast_2d(multiunit)
     n_bins = place_bin_centers.shape[0]
     n_decoding_spikes = multiunit.shape[0]
-    
-    pdf = joint_model.score_samples(get_marks_by_place_bin_centers(
-        multiunit, place_bin_centers)
-    ).reshape((n_decoding_spikes, n_bins), order='C')
+    joint_mark_intensity = np.ones((n_decoding_spikes, n_bins))
+    spike_size = np.ones((n_decoding_spikes, 1))
 
-    return estimate_log_intensity2(pdf, occupancy, mean_rate)
+    for bin_ind, (bin, bin_occupancy) in enumerate(
+            zip(place_bin_centers, occupancy)):
+        joint_mark_intensity[:, bin_ind] = estimate_log_intensity2(
+            joint_model.score_samples(
+                np.concatenate((multiunit, bin * spike_size), axis=1)),
+            bin_occupancy, mean_rate)
+
+    return joint_mark_intensity
 
 
 def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
@@ -316,23 +321,3 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
     log_likelihood[:, ~is_track_interior] = np.nan
 
     return log_likelihood
-
-def get_marks_by_place_bin_centers(marks, place_bin_centers):
-    """
-
-    Parameters
-    ----------
-    marks : ndarray, shape (n_spikes, n_features)
-    place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
-
-    Returns
-    -------
-    marks_by_place_bin_centers : ndarray, shape (n_spikes * n_position_bins,
-                                                 n_features + n_position_dims)
-
-    """
-    n_spikes = marks.shape[0]
-    n_place_bin_centers = place_bin_centers.shape[0]
-    return np.concatenate(
-        (np.tile(marks, reps=(n_place_bin_centers, 1)),
-         np.tile(place_bin_centers, reps=(n_spikes, 1))), axis=1)
