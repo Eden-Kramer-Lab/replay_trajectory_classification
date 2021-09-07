@@ -65,7 +65,7 @@ def get_marks_by_place_bin_centers(marks, place_bin_centers):
     n_place_bin_centers = place_bin_centers.shape[0]
     return np.concatenate(
         (np.tile(marks, reps=(n_place_bin_centers, 1)),
-         np.tile(place_bin_centers, reps=(n_spikes, 1))), axis=1)
+         np.repeat(place_bin_centers, n_spikes, axis=0)), axis=1)
 
 
 def estimate_log_intensity(density, occupancy, mean_rate):
@@ -139,7 +139,8 @@ def estimate_log_joint_mark_intensity(
     # Copy results from GPU to CPU and reshape to (n_decoding_spikes, n_bins)
     pdf = (pdf
            .copy_to_host()
-           .reshape((decoding_marks.shape[0], place_bin_centers.shape[0])))
+           .reshape((decoding_marks.shape[0], place_bin_centers.shape[0]),
+                    order='F'))
 
     return estimate_log_intensity(pdf, occupancy, mean_rate)
 

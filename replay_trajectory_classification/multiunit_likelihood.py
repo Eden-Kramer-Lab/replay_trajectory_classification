@@ -205,10 +205,10 @@ def estimate_log_joint_mark_intensity(
     multiunit = np.atleast_2d(multiunit)
     n_bins = place_bin_centers.shape[0]
     n_decoding_spikes = multiunit.shape[0]
-    
+
     pdf = joint_model.score_samples(get_marks_by_place_bin_centers(
         multiunit, place_bin_centers)
-    ).reshape((n_decoding_spikes, n_bins), order='C')
+    ).reshape((n_decoding_spikes, n_bins), order='F')
 
     return estimate_log_intensity2(pdf, occupancy, mean_rate)
 
@@ -317,6 +317,7 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
 
     return log_likelihood
 
+
 def get_marks_by_place_bin_centers(marks, place_bin_centers):
     """
 
@@ -335,4 +336,4 @@ def get_marks_by_place_bin_centers(marks, place_bin_centers):
     n_place_bin_centers = place_bin_centers.shape[0]
     return np.concatenate(
         (np.tile(marks, reps=(n_place_bin_centers, 1)),
-         np.tile(place_bin_centers, reps=(n_spikes, 1))), axis=1)
+         np.repeat(place_bin_centers, n_spikes, axis=0)), axis=1)
