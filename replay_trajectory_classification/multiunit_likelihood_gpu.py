@@ -90,7 +90,7 @@ def estimate_log_intensity(density, occupancy, mean_rate):
 def estimate_log_joint_mark_intensity(
     decoding_marks, encoding_marks, mark_std,
     place_bin_centers, encoding_positions, position_std, occupancy,
-    mean_rate, threads_per_block=32,
+    mean_rate,
 ):
     '''
 
@@ -104,8 +104,6 @@ def estimate_log_joint_mark_intensity(
     position_std : float
     occupancy : ndarray, shape (n_bins,)
     mean_rate : float
-    threads_per_block : int
-        Block size on the GPU
 
     Returns
     -------
@@ -137,10 +135,7 @@ def estimate_log_joint_mark_intensity(
     pdf = cuda.device_array((len(eval_points),), dtype=np.float32)
 
     # Run KDE
-    blocks_per_grid = (len(eval_points) + (threads_per_block - 1)
-                       ) // threads_per_block  # grid size
-
-    kde1[blocks_per_grid, threads_per_block](
+    kde1.forall(len(eval_points))(
         eval_points, encoding_samples, bandwidths, pdf)
 
     # Copy results from GPU to CPU and reshape to (n_decoding_spikes, n_bins)
@@ -213,8 +208,7 @@ def estimate_multiunit_likelihood_gpu(multiunits,
     return log_likelihood
 
 
-def estimate_position_density(place_bin_centers, positions, position_std,
-                              threads_per_block=32):
+def estimate_position_density(place_bin_centers, positions, position_std):
     # Copy the arrays to the device
     eval_points = cuda.to_device(place_bin_centers.astype(np.float32))
     samples = cuda.to_device(positions.astype(np.float32))
@@ -226,10 +220,7 @@ def estimate_position_density(place_bin_centers, positions, position_std,
     n_eval_points = len(eval_points)
     out = cuda.device_array((n_eval_points,), dtype=np.float32)
 
-    blocks_per_grid = (len(eval_points) + (threads_per_block - 1)
-                       ) // threads_per_block  # grid size
-
-    kde1[blocks_per_grid, threads_per_block](
+    kde1.forall(n_eval_points)(
         eval_points, samples, bandwidths, out)
 
     return out.copy_to_host()
