@@ -28,14 +28,12 @@ def kde1(eval_points, samples, bandwidths, out):
     out : ndarray, shape (n_eval_points,)
 
     """
-    thread_id = cuda.grid(1)
-
-    sum_kernel = float32(0.0)
     n_bandwidths = len(bandwidths)
     n_samples = len(samples)
     n_eval_points = len(eval_points)
 
-    if thread_id < n_eval_points:
+    for thread_id in range(cuda.grid(1), n_eval_points, cuda.gridsize(1)):
+        sum_kernel = float32(0.0)
         for sample_ind in range(n_samples):
             product_kernel = float32(1.0)
             for bandwidth_ind in range(n_bandwidths):
