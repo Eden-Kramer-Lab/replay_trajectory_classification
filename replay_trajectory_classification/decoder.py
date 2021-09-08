@@ -293,6 +293,7 @@ class SortedSpikesDecoder(_DecoderBase):
         time : ndarray or None, shape (n_time,), optional
         is_compute_acausal : bool, optional
         use_gpu : bool, optional
+            Use GPU for the state space part of the model, not the likelihood.
 
         Returns
         -------
@@ -466,6 +467,7 @@ class ClusterlessDecoder(_DecoderBase):
         is_compute_acausal : bool, optional
             Use future information to compute the posterior.
         use_gpu : bool, optional
+            Use GPU for the state space part of the model, not the likelihood.
 
         Returns
         -------

@@ -397,6 +397,7 @@ class SortedSpikesClassifier(_ClassifierBase):
         time : ndarray or None, shape (n_time,), optional
         is_compute_acausal : bool, optional
         use_gpu : bool, optional
+            Use GPU for the state space part of the model, not the likelihood.
         state_names : None or array_like, shape (n_states,)
 
         Returns
@@ -633,6 +634,7 @@ class ClusterlessClassifier(_ClassifierBase):
         is_compute_acausal : bool, optional
             Use future information to compute the posterior.
         use_gpu : bool, optional
+            Use GPU for the state space part of the model, not the likelihood.
         state_names : None or array_like, shape (n_states,)
 
         Returns
