@@ -231,8 +231,8 @@ def _causal_decode_gpu(initial_conditions, state_transition, likelihood):
 
     '''
 
-    initial_conditions = cp.asarraay(initial_conditions, dtype=cp.float32)
-    state_transition = cp.asarraay(state_transition, dtype=cp.float32)
+    initial_conditions = cp.asarray(initial_conditions, dtype=cp.float32)
+    state_transition = cp.asarray(state_transition, dtype=cp.float32)
     likelihood = cp.asarray(likelihood, dtype=cp.float32)
 
     n_time = likelihood.shape[0]
