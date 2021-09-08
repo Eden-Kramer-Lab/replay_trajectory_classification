@@ -10,7 +10,9 @@ from replay_trajectory_classification.bins import (atleast_2d, get_centers,
                                                    get_grid, get_track_grid,
                                                    get_track_interior)
 from replay_trajectory_classification.core import (_acausal_classify,
+                                                   _acausal_classify_gpu,
                                                    _causal_classify,
+                                                   _causal_classify_gpu,
                                                    _ClUSTERLESS_ALGORITHMS,
                                                    mask, scaled_likelihood)
 from replay_trajectory_classification.initial_conditions import \
@@ -385,6 +387,7 @@ class SortedSpikesClassifier(_ClassifierBase):
         return self
 
     def predict(self, spikes, time=None, is_compute_acausal=True,
+                use_gpu=False,
                 state_names=None):
         '''
 
@@ -393,6 +396,7 @@ class SortedSpikesClassifier(_ClassifierBase):
         spikes : ndarray, shape (n_time, n_neurons)
         time : ndarray or None, shape (n_time,), optional
         is_compute_acausal : bool, optional
+        use_gpu : bool, optional
         state_names : None or array_like, shape (n_states,)
 
         Returns
@@ -428,19 +432,33 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         results['causal_posterior'] = np.full(
             (n_time, n_states, n_position_bins, 1), np.nan)
-        results['causal_posterior'][:, :, is_track_interior] = _causal_classify(
-            self.initial_conditions_[:, is_track_interior],
-            self.continuous_state_transition_[st_interior_ind],
-            self.discrete_state_transition_,
-            results['likelihood'][:, :, is_track_interior])
+        if not use_gpu:
+            results['causal_posterior'][:, :, is_track_interior] = _causal_classify(
+                self.initial_conditions_[:, is_track_interior],
+                self.continuous_state_transition_[st_interior_ind],
+                self.discrete_state_transition_,
+                results['likelihood'][:, :, is_track_interior])
+        else:
+            results['causal_posterior'][:, :, is_track_interior] = _causal_classify_gpu(
+                self.initial_conditions_[:, is_track_interior],
+                self.continuous_state_transition_[st_interior_ind],
+                self.discrete_state_transition_,
+                results['likelihood'][:, :, is_track_interior])
 
         if is_compute_acausal:
             results['acausal_posterior'] = np.full(
                 (n_time, n_states, n_position_bins, 1), np.nan)
-            results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify(
-                results['causal_posterior'][:, :, is_track_interior],
-                self.continuous_state_transition_[st_interior_ind],
-                self.discrete_state_transition_)
+
+            if not use_gpu:
+                results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify(
+                    results['causal_posterior'][:, :, is_track_interior],
+                    self.continuous_state_transition_[st_interior_ind],
+                    self.discrete_state_transition_)
+            else:
+                results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify_gpu(
+                    results['causal_posterior'][:, :, is_track_interior],
+                    self.continuous_state_transition_[st_interior_ind],
+                    self.discrete_state_transition_)
 
         n_time = spikes.shape[0]
 
@@ -605,7 +623,7 @@ class ClusterlessClassifier(_ClassifierBase):
         return self
 
     def predict(self, multiunits, time=None, is_compute_acausal=True,
-                state_names=None):
+                use_gpu=False, state_names=None):
         '''
 
         Parameters
@@ -614,6 +632,7 @@ class ClusterlessClassifier(_ClassifierBase):
         time : None or ndarray, shape (n_time,)
         is_compute_acausal : bool, optional
             Use future information to compute the posterior.
+        use_gpu : bool, optional
         state_names : None or array_like, shape (n_states,)
 
         Returns
@@ -651,19 +670,33 @@ class ClusterlessClassifier(_ClassifierBase):
 
         results['causal_posterior'] = np.full(
             (n_time, n_states, n_position_bins, 1), np.nan)
-        results['causal_posterior'][:, :, is_track_interior] = _causal_classify(
-            self.initial_conditions_[:, is_track_interior],
-            self.continuous_state_transition_[st_interior_ind],
-            self.discrete_state_transition_,
-            results['likelihood'][:, :, is_track_interior])
+        if not use_gpu:
+            results['causal_posterior'][:, :, is_track_interior] = _causal_classify(
+                self.initial_conditions_[:, is_track_interior],
+                self.continuous_state_transition_[st_interior_ind],
+                self.discrete_state_transition_,
+                results['likelihood'][:, :, is_track_interior])
+        else:
+            results['causal_posterior'][:, :, is_track_interior] = _causal_classify_gpu(
+                self.initial_conditions_[:, is_track_interior],
+                self.continuous_state_transition_[st_interior_ind],
+                self.discrete_state_transition_,
+                results['likelihood'][:, :, is_track_interior])
 
         if is_compute_acausal:
             results['acausal_posterior'] = np.full(
                 (n_time, n_states, n_position_bins, 1), np.nan)
-            results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify(
-                results['causal_posterior'][:, :, is_track_interior],
-                self.continuous_state_transition_[st_interior_ind],
-                self.discrete_state_transition_)
+
+            if not use_gpu:
+                results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify(
+                    results['causal_posterior'][:, :, is_track_interior],
+                    self.continuous_state_transition_[st_interior_ind],
+                    self.discrete_state_transition_)
+            else:
+                results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify_gpu(
+                    results['causal_posterior'][:, :, is_track_interior],
+                    self.continuous_state_transition_[st_interior_ind],
+                    self.discrete_state_transition_)
 
         if time is None:
             time = np.arange(n_time)

@@ -9,7 +9,9 @@ from replay_trajectory_classification.bins import (atleast_2d, get_centers,
                                                    get_grid, get_track_grid,
                                                    get_track_interior)
 from replay_trajectory_classification.core import (_acausal_decode,
+                                                   _acausal_decode_gpu,
                                                    _causal_decode,
+                                                   _causal_decode_gpu,
                                                    _ClUSTERLESS_ALGORITHMS,
                                                    mask, scaled_likelihood)
 from replay_trajectory_classification.initial_conditions import \
@@ -281,7 +283,8 @@ class SortedSpikesDecoder(_DecoderBase):
 
         return self
 
-    def predict(self, spikes, time=None, is_compute_acausal=True):
+    def predict(self, spikes, time=None, is_compute_acausal=True,
+                use_gpu=False):
         '''
 
         Parameters
@@ -289,6 +292,7 @@ class SortedSpikesDecoder(_DecoderBase):
         spikes : ndarray, shape (n_time, n_neurons)
         time : ndarray or None, shape (n_time,), optional
         is_compute_acausal : bool, optional
+        use_gpu : bool, optional
 
         Returns
         -------
@@ -307,19 +311,32 @@ class SortedSpikesDecoder(_DecoderBase):
                 spikes, np.asarray(self.place_fields_)))
         results['causal_posterior'] = np.full(
             (n_time, n_position_bins), np.nan)
-        results['causal_posterior'][:, is_track_interior] = _causal_decode(
-            self.initial_conditions_[is_track_interior],
-            self.state_transition_[st_interior_ind],
-            results['likelihood'][:, is_track_interior])
+        if not use_gpu:
+            results['causal_posterior'][:, is_track_interior] = _causal_decode(
+                self.initial_conditions_[is_track_interior],
+                self.state_transition_[st_interior_ind],
+                results['likelihood'][:, is_track_interior])
+        else:
+            results['causal_posterior'][:, is_track_interior] = _causal_decode_gpu(
+                self.initial_conditions_[is_track_interior],
+                self.state_transition_[st_interior_ind],
+                results['likelihood'][:, is_track_interior])
 
         if is_compute_acausal:
             results['acausal_posterior'] = np.full(
                 (n_time, n_position_bins, 1), np.nan)
-            results['acausal_posterior'][:, is_track_interior] = (
-                _acausal_decode(
-                    results['causal_posterior'][
-                        :, is_track_interior, np.newaxis],
-                    self.state_transition_[st_interior_ind]))
+            if not use_gpu:
+                results['acausal_posterior'][:, is_track_interior] = (
+                    _acausal_decode(
+                        results['causal_posterior'][
+                            :, is_track_interior, np.newaxis],
+                        self.state_transition_[st_interior_ind]))
+            else:
+                results['acausal_posterior'][:, is_track_interior] = (
+                    _acausal_decode_gpu(
+                        results['causal_posterior'][
+                            :, is_track_interior, np.newaxis],
+                        self.state_transition_[st_interior_ind]))
 
         if time is None:
             time = np.arange(n_time)
@@ -438,7 +455,8 @@ class ClusterlessDecoder(_DecoderBase):
 
         return self
 
-    def predict(self, multiunits, time=None, is_compute_acausal=True):
+    def predict(self, multiunits, time=None, is_compute_acausal=True,
+                use_gpu=False):
         '''
 
         Parameters
@@ -447,6 +465,7 @@ class ClusterlessDecoder(_DecoderBase):
         time : None or ndarray, shape (n_time,)
         is_compute_acausal : bool, optional
             Use future information to compute the posterior.
+        use_gpu : bool, optional
 
         Returns
         -------
@@ -470,19 +489,32 @@ class ClusterlessDecoder(_DecoderBase):
             ))
         results['causal_posterior'] = np.full(
             (n_time, n_position_bins), np.nan)
-        results['causal_posterior'][:, is_track_interior] = _causal_decode(
-            self.initial_conditions_[is_track_interior],
-            self.state_transition_[st_interior_ind],
-            results['likelihood'][:, is_track_interior])
+        if not use_gpu:
+            results['causal_posterior'][:, is_track_interior] = _causal_decode(
+                self.initial_conditions_[is_track_interior],
+                self.state_transition_[st_interior_ind],
+                results['likelihood'][:, is_track_interior])
+        else:
+            results['causal_posterior'][:, is_track_interior] = _causal_decode_gpu(
+                self.initial_conditions_[is_track_interior],
+                self.state_transition_[st_interior_ind],
+                results['likelihood'][:, is_track_interior])
 
         if is_compute_acausal:
             results['acausal_posterior'] = np.full(
                 (n_time, n_position_bins, 1), np.nan)
-            results['acausal_posterior'][:, is_track_interior] = (
-                _acausal_decode(
-                    results['causal_posterior'][
-                        :, is_track_interior, np.newaxis],
-                    self.state_transition_[st_interior_ind]))
+            if not use_gpu:
+                results['acausal_posterior'][:, is_track_interior] = (
+                    _acausal_decode(
+                        results['causal_posterior'][
+                            :, is_track_interior, np.newaxis],
+                        self.state_transition_[st_interior_ind]))
+            else:
+                results['acausal_posterior'][:, is_track_interior] = (
+                    _acausal_decode_gpu(
+                        results['causal_posterior'][
+                            :, is_track_interior, np.newaxis],
+                        self.state_transition_[st_interior_ind]))
 
         if time is None:
             time = np.arange(n_time)
