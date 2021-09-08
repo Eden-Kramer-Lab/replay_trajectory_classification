@@ -274,7 +274,7 @@ def _acausal_decode_gpu(causal_posterior, state_transition):
         acausal_prior = (
             state_transition.T @ causal_posterior[time_ind])
         log_ratio = (
-            cp.log(acausal_posterior[time_ind + 1, ..., 0] + cp.spacing(1)) -
+            cp.log(acausal_posterior[time_ind + 1, ..., 0] + np.spacing(1)) -
             cp.log(acausal_prior[..., 0] + np.spacing(1)))
         weights[..., 0] = cp.exp(log_ratio) @ state_transition
 
@@ -367,8 +367,8 @@ def _acausal_classify_gpu(causal_posterior, continuous_state_transition,
         # Backwards Update
         weights = cp.zeros((n_states, n_bins, 1))
         ratio = cp.exp(
-            cp.log(acausal_posterior[k + 1] + cp.spacing(1)) -
-            cp.log(prior + cp.spacing(1)))
+            cp.log(acausal_posterior[k + 1] + np.spacing(1)) -
+            cp.log(prior + np.spacing(1)))
         for state_k in np.arange(n_states):
             for state_k_1 in np.arange(n_states):
                 weights[state_k] += (
