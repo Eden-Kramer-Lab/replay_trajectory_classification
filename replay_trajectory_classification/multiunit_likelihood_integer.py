@@ -1,39 +1,34 @@
-import math as math
-
 import dask
 import dask.array as da
-import numba
 import numpy as np
 from replay_trajectory_classification.bins import atleast_2d
 
 SQRT_2PI = np.sqrt(2.0 * np.pi)
 
 
-@numba.vectorize(['float64(float64, float64, float64)'], nopython=True,
-                 cache=True)
 def gaussian_pdf(x, mean, sigma):
     '''Compute the value of a Gaussian probability density function at x with
     given mean and sigma.'''
-    return math.exp(-0.5 * ((x - mean) / sigma)**2) / (sigma * SQRT_2PI)
+    return np.exp(-0.5 * ((x - mean) / sigma)**2) / (sigma * SQRT_2PI)
 
 
 def estimate_position_distance(place_bin_centers, positions, position_std):
-    return np.prod(
+    return da.prod(
         gaussian_pdf(
-            np.expand_dims(place_bin_centers, axis=0),
-            np.expand_dims(positions, axis=1),
+            place_bin_centers[np.newaxis],
+            positions[:, np.newaxis],
             position_std),
         axis=-1
     )
 
 
 def estimate_position_density(place_bin_centers, positions, position_std):
-    return np.mean(estimate_position_distance(
+    return da.mean(estimate_position_distance(
         place_bin_centers, positions, position_std), axis=0)
 
 
 def estimate_log_intensity(density, occupancy, mean_rate):
-    return np.log(mean_rate) + np.log(density) - np.log(occupancy)
+    return da.log(mean_rate) + da.log(density) - da.log(occupancy)
 
 
 def estimate_intensity(density, occupancy, mean_rate):
@@ -50,7 +45,7 @@ def estimate_intensity(density, occupancy, mean_rate):
     intensity : ndarray, shape (n_bins,)
 
     '''
-    return np.exp(estimate_log_intensity(density, occupancy, mean_rate))
+    return da.exp(estimate_log_intensity(density, occupancy, mean_rate))
 
 
 def normal_pdf_integer_lookup(x, mean, std=20.0, max_value=3000):
@@ -69,9 +64,12 @@ def normal_pdf_integer_lookup(x, mean, std=20.0, max_value=3000):
     probability_density : int
 
     """
-    normal_density = gaussian_pdf(np.arange(-max_value, max_value), 0.0, std)
-
-    return normal_density[(x - mean) + max_value]
+    normal_density = da.from_array(
+        gaussian_pdf(np.arange(-max_value, max_value), 0.0, std))
+    diff = (x - mean) + max_value
+    # Look up each diff value, flatten and reshape because
+    # dask doesn't allow integer indexing in more than one dimension
+    return normal_density[diff.reshape(-1)].reshape(diff.shape)
 
 
 def estimate_log_joint_mark_intensity(decoding_marks,
@@ -106,15 +104,12 @@ def estimate_log_joint_mark_intensity(decoding_marks,
 
     """
     # mark_distance: ndarray, shape (n_decoding_spikes, n_encoding_spikes)
-    mark_distance = da.prod(
-        normal_pdf_integer_lookup(
-            np.expand_dims(decoding_marks, axis=1),
-            np.expand_dims(encoding_marks, axis=0),
-            std=mark_std,
-            max_value=max_mark_value
-        ),
-        axis=-1
-    )
+    pdf = normal_pdf_integer_lookup(
+        decoding_marks[:, np.newaxis],
+        encoding_marks[np.newaxis],
+        std=mark_std,
+        max_value=max_mark_value)
+    mark_distance = da.prod(pdf, axis=-1)
 
     if decoding_marks is encoding_marks:
         np.fill_diagonal(mark_distance, 0.0)
@@ -229,7 +224,7 @@ def estimate_multiunit_likelihood_integer(multiunits,
                                           max_mark_value=6000,
                                           is_track_interior=None,
                                           time_bin_size=1,
-                                          chunks='auto',
+                                          chunks=1000,
                                           dtype=np.int64):
     '''
 
@@ -266,17 +261,15 @@ def estimate_multiunit_likelihood_integer(multiunits,
         not_nan_marks = np.all(~np.isnan(multiunit), axis=0)
         multiunit = multiunit[:, not_nan_marks]
 
-        decoding_marks = da.from_array(
-            multiunit.astype(dtype), chunks=chunks)
         log_joint_mark_intensities.append(
-            decoding_marks.map_blocks(
-                estimate_log_joint_mark_intensity,
-                enc_marks,
+            estimate_log_joint_mark_intensity(
+                da.from_array(multiunit.astype(dtype), chunks=chunks),
+                da.from_array(enc_marks.astype(dtype), chunks=chunks),
                 mark_std,
-                place_bin_centers[is_track_interior],
-                enc_pos,
+                da.from_array(place_bin_centers[is_track_interior]),
+                da.from_array(enc_pos),
                 position_std,
-                occupancy[is_track_interior],
+                da.from_array(occupancy[is_track_interior]),
                 mean_rate,
                 max_mark_value=max_mark_value,
             ))
