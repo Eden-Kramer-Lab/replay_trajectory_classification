@@ -29,3 +29,9 @@ dependencies:
 - ripple_detection
 - loren_frank_data_processing
 - track_linearization
+- snakeviz
+- line_profiler
+- memory_profiler
+- dask-labextension
+- python-graphviz
+- nodejs
