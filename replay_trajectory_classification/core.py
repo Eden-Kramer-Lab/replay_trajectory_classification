@@ -1,4 +1,12 @@
-import cupy as cp
+from logging import getLogger
+
+try:
+    import cupy as cp
+except ImportError:
+    logger = getLogger(__name__)
+    logger.warn('Cupy is not installed. Required if using gpu state space.')
+    import numpy as cp
+
 import numpy as np
 from numba import njit
 from replay_trajectory_classification.multiunit_likelihood import (
