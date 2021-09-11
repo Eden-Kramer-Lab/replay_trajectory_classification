@@ -10,6 +10,7 @@ dependencies:
 - scipy
 - pandas
 - numba
+- cupy
 - statsmodels
 - scikit-learn
 - joblib
