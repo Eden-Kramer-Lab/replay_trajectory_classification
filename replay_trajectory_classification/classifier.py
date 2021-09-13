@@ -416,6 +416,7 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         results = {}
 
+        logger.info('Estimating likelihood...')
         likelihood = {}
         for encoding_group in np.asarray(self.place_fields_.encoding_group):
             likelihood[encoding_group] = estimate_spiking_likelihood(
@@ -431,6 +432,7 @@ class SortedSpikesClassifier(_ClassifierBase):
         results['likelihood'] = scaled_likelihood(
             results['likelihood'], axis=(1, 2))[..., np.newaxis]
 
+        logger.info('Estimating causal posterior...')
         results['causal_posterior'] = np.full(
             (n_time, n_states, n_position_bins, 1), np.nan)
         if not use_gpu:
@@ -447,6 +449,7 @@ class SortedSpikesClassifier(_ClassifierBase):
                 results['likelihood'][:, :, is_track_interior])
 
         if is_compute_acausal:
+            logger.info('Estimating acausal posterior...')
             results['acausal_posterior'] = np.full(
                 (n_time, n_states, n_position_bins, 1), np.nan)
 
@@ -653,6 +656,7 @@ class ClusterlessClassifier(_ClassifierBase):
 
         results = {}
 
+        logger.info('Estimating likelihood...')
         likelihood = {}
         for encoding_group, encoding_params in self.encoding_model_.items():
             likelihood[encoding_group] = _ClUSTERLESS_ALGORITHMS[
@@ -670,6 +674,7 @@ class ClusterlessClassifier(_ClassifierBase):
         results['likelihood'] = scaled_likelihood(
             results['likelihood'], axis=(1, 2))[..., np.newaxis]
 
+        logger.info('Estimating causal posterior...')
         results['causal_posterior'] = np.full(
             (n_time, n_states, n_position_bins, 1), np.nan)
         if not use_gpu:
@@ -686,6 +691,7 @@ class ClusterlessClassifier(_ClassifierBase):
                 results['likelihood'][:, :, is_track_interior])
 
         if is_compute_acausal:
+            logger.info('Estimating acausal posterior...')
             results['acausal_posterior'] = np.full(
                 (n_time, n_states, n_position_bins, 1), np.nan)
 

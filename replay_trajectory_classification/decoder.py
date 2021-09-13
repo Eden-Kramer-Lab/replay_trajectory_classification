@@ -307,9 +307,12 @@ class SortedSpikesDecoder(_DecoderBase):
         st_interior_ind = np.ix_(is_track_interior, is_track_interior)
 
         results = {}
+        logger.info('Estimating likelihood...')
         results['likelihood'] = scaled_likelihood(
             estimate_spiking_likelihood(
                 spikes, np.asarray(self.place_fields_)))
+
+        logger.info('Estimating causal posterior...')
         results['causal_posterior'] = np.full(
             (n_time, n_position_bins), np.nan)
         if not use_gpu:
@@ -324,6 +327,7 @@ class SortedSpikesDecoder(_DecoderBase):
                 results['likelihood'][:, is_track_interior])
 
         if is_compute_acausal:
+            logger.info('Estimating acausal posterior...')
             results['acausal_posterior'] = np.full(
                 (n_time, n_position_bins, 1), np.nan)
             if not use_gpu:
@@ -481,7 +485,7 @@ class ClusterlessDecoder(_DecoderBase):
         st_interior_ind = np.ix_(is_track_interior, is_track_interior)
 
         results = {}
-
+        logger.info('Estimating likelihood...')
         results['likelihood'] = scaled_likelihood(
             _ClUSTERLESS_ALGORITHMS[self.clusterless_algorithm][1](
                 multiunits=multiunits,
@@ -489,6 +493,7 @@ class ClusterlessDecoder(_DecoderBase):
                 is_track_interior=is_track_interior,
                 **self.encoding_model_
             ))
+        logger.info('Estimating causal posterior...')
         results['causal_posterior'] = np.full(
             (n_time, n_position_bins), np.nan)
         if not use_gpu:
@@ -503,6 +508,7 @@ class ClusterlessDecoder(_DecoderBase):
                 results['likelihood'][:, is_track_interior])
 
         if is_compute_acausal:
+            logger.info('Estimating acausal posterior...')
             results['acausal_posterior'] = np.full(
                 (n_time, n_position_bins, 1), np.nan)
             if not use_gpu:
