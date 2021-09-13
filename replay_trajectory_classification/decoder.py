@@ -494,14 +494,16 @@ class ClusterlessDecoder(_DecoderBase):
                 **self.encoding_model_
             ))
         logger.info('Estimating causal posterior...')
-        results['causal_posterior'] = np.full(
-            (n_time, n_position_bins), np.nan)
         if not use_gpu:
+            results['causal_posterior'] = np.full(
+                (n_time, n_position_bins), np.nan, dtype=np.float64)
             results['causal_posterior'][:, is_track_interior] = _causal_decode(
                 self.initial_conditions_[is_track_interior],
                 self.state_transition_[st_interior_ind],
                 results['likelihood'][:, is_track_interior])
         else:
+            results['causal_posterior'] = np.full(
+                (n_time, n_position_bins), np.nan, dtype=np.float32)
             results['causal_posterior'][:, is_track_interior] = _causal_decode_gpu(
                 self.initial_conditions_[is_track_interior],
                 self.state_transition_[st_interior_ind],
@@ -509,15 +511,17 @@ class ClusterlessDecoder(_DecoderBase):
 
         if is_compute_acausal:
             logger.info('Estimating acausal posterior...')
-            results['acausal_posterior'] = np.full(
-                (n_time, n_position_bins, 1), np.nan)
             if not use_gpu:
+                results['acausal_posterior'] = np.full(
+                    (n_time, n_position_bins, 1), np.nan, dtype=np.float64)
                 results['acausal_posterior'][:, is_track_interior] = (
                     _acausal_decode(
                         results['causal_posterior'][
                             :, is_track_interior, np.newaxis],
                         self.state_transition_[st_interior_ind]))
             else:
+                results['acausal_posterior'] = np.full(
+                    (n_time, n_position_bins, 1), np.nan, dtype=np.float32)
                 results['acausal_posterior'][:, is_track_interior] = (
                     _acausal_decode_gpu(
                         results['causal_posterior'][

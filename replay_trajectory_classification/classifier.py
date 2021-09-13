@@ -433,15 +433,19 @@ class SortedSpikesClassifier(_ClassifierBase):
             results['likelihood'], axis=(1, 2))[..., np.newaxis]
 
         logger.info('Estimating causal posterior...')
-        results['causal_posterior'] = np.full(
-            (n_time, n_states, n_position_bins, 1), np.nan)
         if not use_gpu:
+            results['causal_posterior'] = np.full(
+                (n_time, n_states, n_position_bins, 1), np.nan,
+                dtype=np.float64)
             results['causal_posterior'][:, :, is_track_interior] = _causal_classify(
                 self.initial_conditions_[:, is_track_interior],
                 self.continuous_state_transition_[st_interior_ind],
                 self.discrete_state_transition_,
                 results['likelihood'][:, :, is_track_interior])
         else:
+            results['causal_posterior'] = np.full(
+                (n_time, n_states, n_position_bins, 1), np.nan,
+                dtype=np.float32)
             results['causal_posterior'][:, :, is_track_interior] = _causal_classify_gpu(
                 self.initial_conditions_[:, is_track_interior],
                 self.continuous_state_transition_[st_interior_ind],
@@ -450,15 +454,18 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         if is_compute_acausal:
             logger.info('Estimating acausal posterior...')
-            results['acausal_posterior'] = np.full(
-                (n_time, n_states, n_position_bins, 1), np.nan)
-
             if not use_gpu:
+                results['acausal_posterior'] = np.full(
+                    (n_time, n_states, n_position_bins, 1), np.nan,
+                    dtype=np.float64)
                 results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify(
                     results['causal_posterior'][:, :, is_track_interior],
                     self.continuous_state_transition_[st_interior_ind],
                     self.discrete_state_transition_)
             else:
+                results['acausal_posterior'] = np.full(
+                    (n_time, n_states, n_position_bins, 1), np.nan,
+                    dtype=np.float32)
                 results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify_gpu(
                     results['causal_posterior'][:, :, is_track_interior],
                     self.continuous_state_transition_[st_interior_ind],
