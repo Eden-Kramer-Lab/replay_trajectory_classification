@@ -88,7 +88,7 @@ def estimate_log_intensity(density, occupancy, mean_rate):
 def estimate_log_joint_mark_intensity(
     decoding_marks, encoding_marks, mark_std,
     place_bin_centers, encoding_positions, position_std, occupancy,
-    mean_rate,
+    mean_rate, stream=0
 ):
     '''
 
@@ -101,7 +101,8 @@ def estimate_log_joint_mark_intensity(
     encoding_positions : ndarray, shape (n_encoding_spikes, n_position_dims)
     position_std : float
     occupancy : ndarray, shape (n_bins,)
-    mean_rate : float
+    mean_rate : float,
+    stream : numba.cuda.stream, optional
 
     Returns
     -------
@@ -114,11 +115,11 @@ def estimate_log_joint_mark_intensity(
     eval_points = cuda.to_device(
         get_marks_by_place_bin_centers(
             decoding_marks, place_bin_centers)
-        .astype(np.float32)
+        .astype(np.float32), stream=stream
     )
     encoding_samples = cuda.to_device(
         np.concatenate((encoding_marks, encoding_positions), axis=1)
-        .astype(np.float32))
+        .astype(np.float32), stream=stream)
 
     n_marks = decoding_marks.shape[1]
     n_position_dims = place_bin_centers.shape[1]
@@ -127,18 +128,19 @@ def estimate_log_joint_mark_intensity(
             ([mark_std] * n_marks,
              [position_std] * n_position_dims,
              )
-        ).astype(np.float32))
-
+        ).astype(np.float32), stream=stream)
+    n_eval_points = len(eval_points)
     # Allocate memory on the GPU for the result
-    pdf = cuda.device_array((len(eval_points),), dtype=np.float32)
+    pdf = cuda.device_array(
+        shape=(n_eval_points,), dtype=np.float32, stream=stream)
 
     # Run KDE
-    kde1.forall(len(eval_points))(
+    kde1.forall(n_eval_points, stream=stream)(
         eval_points, encoding_samples, bandwidths, pdf)
 
     # Copy results from GPU to CPU and reshape to (n_decoding_spikes, n_bins)
     pdf = (pdf
-           .copy_to_host()
+           .copy_to_host(stream=stream)
            .reshape((decoding_marks.shape[0], place_bin_centers.shape[0]),
                     order='F'))
 
@@ -189,16 +191,19 @@ def estimate_multiunit_likelihood_gpu(multiunits,
     for multiunit, enc_marks, enc_pos, mean_rate in zip(
             multiunits, encoding_marks, encoding_positions, mean_rates):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
-        log_joint_mark_intensity = estimate_log_joint_mark_intensity(
-            multiunit[is_spike],
-            enc_marks,
-            mark_std,
-            place_bin_centers[is_track_interior],
-            enc_pos,
-            position_std,
-            occupancy[is_track_interior],
-            mean_rate,
-        )
+        stream = cuda.stream()
+        with stream.auto_synchronize():
+            log_joint_mark_intensity = estimate_log_joint_mark_intensity(
+                multiunit[is_spike],
+                enc_marks,
+                mark_std,
+                place_bin_centers[is_track_interior],
+                enc_pos,
+                position_std,
+                occupancy[is_track_interior],
+                mean_rate,
+                stream=stream
+            )
         log_likelihood[np.ix_(is_spike, is_track_interior)] += (
             log_joint_mark_intensity + np.spacing(1))
 
