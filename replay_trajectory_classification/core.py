@@ -4,7 +4,8 @@ try:
     import cupy as cp
 except ImportError:
     logger = getLogger(__name__)
-    logger.warn('Cupy is not installed. Required if using gpu state space.')
+    logger.warn('Cupy is not installed or GPU is not detected.'
+                'Ignore this message if not using GPU')
     import numpy as cp
 
 import numpy as np
