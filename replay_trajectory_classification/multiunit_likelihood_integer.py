@@ -1,3 +1,6 @@
+import itertools
+import warnings
+
 import dask
 import dask.array as da
 import numpy as np
@@ -274,13 +277,21 @@ def estimate_multiunit_likelihood_integer(multiunits,
                 max_mark_value=max_mark_value,
             ))
 
-    for log_joint_mark_intensity, multiunit in zip(
-            dask.compute(*log_joint_mark_intensities), multiunits):
-        is_spike = np.any(~np.isnan(multiunit), axis=1)
-        # TODO: combine spikes in the same timebin using np.bincount
-        log_likelihood[np.ix_(is_spike, is_track_interior)] += (
-            np.asarray(log_joint_mark_intensity) + np.spacing(1))
+    with dask.config.set(array_plugins=[warn_on_large_chunks]):
+        for log_joint_mark_intensity, multiunit in zip(
+                dask.compute(*log_joint_mark_intensities), multiunits):
+            is_spike = np.any(~np.isnan(multiunit), axis=1)
+            # TODO: combine spikes in the same timebin using np.bincount
+            log_likelihood[np.ix_(is_spike, is_track_interior)] += (
+                np.asarray(log_joint_mark_intensity) + np.spacing(1))
 
     log_likelihood[:, ~is_track_interior] = np.nan
 
     return log_likelihood
+
+
+def warn_on_large_chunks(x):
+    shapes = list(itertools.product(*x.chunks))
+    nbytes = [x.dtype.itemsize * np.prod(shape) for shape in shapes]
+    if any(nb > 1e9 for nb in nbytes):
+        warnings.warn("Array contains very large chunks")
