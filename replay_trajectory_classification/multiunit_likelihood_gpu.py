@@ -205,7 +205,7 @@ def estimate_multiunit_likelihood_gpu(multiunits,
             stream=stream
         )
         log_likelihood[np.ix_(is_spike, is_track_interior)] += (
-            log_joint_mark_intensity + np.spacing(1))
+            log_joint_mark_intensity + np.finfo(np.float32).eps)
 
     log_likelihood[:, ~is_track_interior] = np.nan
 
@@ -278,7 +278,7 @@ def fit_multiunit_likelihood_gpu(position,
 
     not_nan_position = np.all(~np.isnan(position), axis=1)
 
-    occupancy = np.zeros((place_bin_centers.shape[0],))
+    occupancy = np.zeros((place_bin_centers.shape[0],), dtype=np.float32)
     occupancy[is_track_interior] = estimate_position_density(
         place_bin_centers[is_track_interior],
         position[not_nan_position],
@@ -294,7 +294,8 @@ def fit_multiunit_likelihood_gpu(position,
         # ground process intensity
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         mean_rates.append(is_spike.mean())
-        marginal_density = np.zeros((place_bin_centers.shape[0],))
+        marginal_density = np.zeros(
+            (place_bin_centers.shape[0],), dtype=np.float32)
 
         if is_spike.sum() > 0:
             marginal_density[is_track_interior] = estimate_position_density(
@@ -303,7 +304,7 @@ def fit_multiunit_likelihood_gpu(position,
 
         ground_process_intensities.append(
             estimate_intensity(marginal_density, occupancy, mean_rates[-1])
-            + np.spacing(1))
+            + np.finfo(np.float32).eps)
 
         encoding_marks.append(
             multiunit[is_spike & not_nan_position].astype(int))
