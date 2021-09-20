@@ -111,38 +111,39 @@ def estimate_log_joint_mark_intensity(
     '''
     decoding_marks = np.atleast_2d(decoding_marks)
 
-    # Copy the arrays to the GPU
-    eval_points = cuda.to_device(
-        get_marks_by_place_bin_centers(
-            decoding_marks, place_bin_centers)
-        .astype(np.float32), stream=stream
-    )
-    encoding_samples = cuda.to_device(
-        np.concatenate((encoding_marks, encoding_positions), axis=1)
-        .astype(np.float32), stream=stream)
+    with stream.auto_synchronize():
+        # Copy the arrays to the GPU
+        eval_points = cuda.to_device(
+            get_marks_by_place_bin_centers(
+                decoding_marks, place_bin_centers)
+            .astype(np.float32), stream=stream
+        )
+        encoding_samples = cuda.to_device(
+            np.concatenate((encoding_marks, encoding_positions), axis=1)
+            .astype(np.float32), stream=stream)
 
-    n_marks = decoding_marks.shape[1]
-    n_position_dims = place_bin_centers.shape[1]
-    bandwidths = cuda.to_device(
-        np.concatenate(
-            ([mark_std] * n_marks,
-             [position_std] * n_position_dims,
-             )
-        ).astype(np.float32), stream=stream)
-    n_eval_points = len(eval_points)
-    # Allocate memory on the GPU for the result
-    pdf = cuda.device_array(
-        shape=(n_eval_points,), dtype=np.float32, stream=stream)
+        n_marks = decoding_marks.shape[1]
+        n_position_dims = place_bin_centers.shape[1]
+        bandwidths = cuda.to_device(
+            np.concatenate(
+                ([mark_std] * n_marks,
+                 [position_std] * n_position_dims,
+                 )
+            ).astype(np.float32), stream=stream)
+        n_eval_points = len(eval_points)
+        # Allocate memory on the GPU for the result
+        pdf = cuda.device_array(
+            shape=(n_eval_points,), dtype=np.float32, stream=stream)
 
-    # Run KDE
-    kde1.forall(n_eval_points, stream=stream)(
-        eval_points, encoding_samples, bandwidths, pdf)
+        # Run KDE
+        kde1.forall(n_eval_points, stream=stream)(
+            eval_points, encoding_samples, bandwidths, pdf)
 
-    # Copy results from GPU to CPU and reshape to (n_decoding_spikes, n_bins)
-    pdf = (pdf
-           .copy_to_host(stream=stream)
-           .reshape((decoding_marks.shape[0], place_bin_centers.shape[0]),
-                    order='F'))
+        # Copy results from GPU to CPU and reshape to (n_decoding_spikes, n_bins)
+        pdf = (pdf
+               .copy_to_host(stream=stream)
+               .reshape((decoding_marks.shape[0], place_bin_centers.shape[0]),
+                        order='F'))
 
     return estimate_log_intensity(pdf, occupancy, mean_rate)
 
@@ -192,18 +193,17 @@ def estimate_multiunit_likelihood_gpu(multiunits,
             multiunits, encoding_marks, encoding_positions, mean_rates):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         stream = cuda.stream()
-        with stream.auto_synchronize():
-            log_joint_mark_intensity = estimate_log_joint_mark_intensity(
-                multiunit[is_spike],
-                enc_marks,
-                mark_std,
-                place_bin_centers[is_track_interior],
-                enc_pos,
-                position_std,
-                occupancy[is_track_interior],
-                mean_rate,
-                stream=stream
-            )
+        log_joint_mark_intensity = estimate_log_joint_mark_intensity(
+            multiunit[is_spike],
+            enc_marks,
+            mark_std,
+            place_bin_centers[is_track_interior],
+            enc_pos,
+            position_std,
+            occupancy[is_track_interior],
+            mean_rate,
+            stream=stream
+        )
         log_likelihood[np.ix_(is_spike, is_track_interior)] += (
             log_joint_mark_intensity + np.spacing(1))
 
