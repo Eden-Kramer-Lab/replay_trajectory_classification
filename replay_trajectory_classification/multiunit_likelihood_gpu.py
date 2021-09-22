@@ -197,15 +197,15 @@ def estimate_multiunit_likelihood_gpu(multiunits,
                 stream=streams[elec_ind % n_streams]
             ))
 
+        n_interior_place_bins = is_track_interior.sum()
         for elec_ind, (pdf, mean_rate, is_spike) in enumerate(
                 zip(pdfs, mean_rates, is_spikes)):
             n_spikes = is_spike.sum()
             # Copy results from GPU to CPU and
-            # reshape to (n_decoding_spikes, n_bins)
+            # reshape to (n_decoding_spikes, n_interior_place_bins)
             pdf = (pdf
                    .copy_to_host(stream=streams[elec_ind % n_streams])
-                   .reshape((n_spikes, place_bin_centers.shape[0]),
-                            order='F'))
+                   .reshape((n_spikes, n_interior_place_bins), order='F'))
             log_likelihood[np.ix_(is_spike, is_track_interior)] += (
                 estimate_log_intensity(pdf, occupancy[is_track_interior],
                                        mean_rate) +
