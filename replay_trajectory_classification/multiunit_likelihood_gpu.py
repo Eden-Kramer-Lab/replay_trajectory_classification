@@ -154,18 +154,18 @@ def estimate_multiunit_likelihood_gpu(multiunits,
     Parameters
     ----------
     multiunits : ndarray, shape (n_time, n_marks, n_electrodes)
-    encoding_marks : ndarray, shape (n_encoding_spikes, n_marks)
+    encoding_marks : list of ndarrays, len (n_electrodes,)
     mark_std : float
     place_bin_centers : ndarray, shape (n_bins, n_position_dims)
-    encoding_positions : ndarray, shape (n_encoding_spikes, n_position_dims)
+    encoding_positions : list of ndarrays, len (n_electrodes,)
     position_std : float
     occupancy : ndarray, (n_bins,)
-    mean_rates : ndarray, (n_electrodes,)
+    mean_rates : list, len (n_electrodes,)
     summed_ground_process_intensity : ndarray, shape (n_bins,)
 
     Returns
     -------
-    log_likelihood : (n_time, n_bins)
+    log_likelihood : ndarray, shape (n_time, n_bins)
 
     '''
 
