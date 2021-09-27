@@ -60,3 +60,4 @@ coverage.xml
 *.dirlock
 *.nc
 *.prof
+*.qdrep
