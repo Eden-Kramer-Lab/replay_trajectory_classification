@@ -13,12 +13,14 @@ dependencies:
 - cupy
 - statsmodels
 - scikit-learn
+- scikit-image
 - joblib
 - seaborn
 - networkx
 - xarray
 - dask
 - regularized_glm
+- nvtx
 - patsy
 - jupyter
 - jupyterlab
