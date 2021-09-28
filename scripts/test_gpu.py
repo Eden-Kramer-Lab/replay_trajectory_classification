@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 
 def main():
     (time, position, sampling_frequency,
-     multiunits, multiunits_spikes) = make_simulated_run_data()
+     multiunits, multiunits_spikes) = make_simulated_run_data(n_tetrodes=10)
 
     movement_var = estimate_movement_var(position, sampling_frequency)
 
@@ -37,6 +37,7 @@ def main():
     decoder.fit(position, multiunits)
     results = decoder.predict(multiunits, time=time, use_gpu=True)
     numba.cuda.profile_stop()
+    logging.info('Done!')
 
 
 if __name__ == "__main__":
