@@ -17,7 +17,7 @@ It has several advantages over decoders typically used to characterize hippocamp
 6. Ability to decode 2D position
 7. Easily installable, documented code with tutorials on how to use the code (see below)
 
-For further details, please see our elife paper:
+For further details, please see our [eLife paper](https://doi.org/10.7554/eLife.64505):
 > Denovellis, E.L., Gillespie, A.K., Coulter, M.E., Sosa, M., Chung, J.E., Eden, U.T., and Frank, L.M. (2021). Hippocampal replay of experience at real-world speeds. ELife 10, e64505.
 
 ### Installation ###
