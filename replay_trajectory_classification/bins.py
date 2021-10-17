@@ -27,7 +27,7 @@ def get_n_bins(position, bin_size=2.5, position_range=None):
         extent = np.diff(position_range, axis=1).squeeze()
     else:
         extent = np.ptp(position, axis=0)
-    return np.ceil(extent / bin_size).astype(np.int)
+    return np.ceil(extent / bin_size).astype(np.int32)
 
 
 def get_centers(edge):
@@ -229,7 +229,7 @@ def make_track_graph_with_bin_centers_edges(track_graph, place_bin_size):
         edge_size = np.linalg.norm(
             [(node2_x_pos - node1_x_pos), (node2_y_pos - node1_y_pos)]
         )
-        n_bins = 2 * np.ceil(edge_size / place_bin_size).astype(np.int) + 1
+        n_bins = 2 * np.ceil(edge_size / place_bin_size).astype(np.int32) + 1
         if ~np.isclose(node1_x_pos, node2_x_pos):
             f = interp1d((node1_x_pos, node2_x_pos),
                          (node1_y_pos, node2_y_pos))

@@ -291,11 +291,12 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         if encoding_group_labels is None:
             n_time = position.shape[0]
-            encoding_group_labels = np.zeros((n_time,), dtype=np.int)
+            encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
 
         if encoding_group_to_state is None:
             n_states = len(self.continuous_transition_types)
-            self.encoding_group_to_state_ = np.zeros((n_states,), dtype=np.int)
+            self.encoding_group_to_state_ = np.zeros(
+                (n_states,), dtype=np.int32)
         else:
             self.encoding_group_to_state_ = np.asarray(encoding_group_to_state)
 
@@ -560,11 +561,12 @@ class ClusterlessClassifier(_ClassifierBase):
 
         if encoding_group_labels is None:
             n_time = position.shape[0]
-            encoding_group_labels = np.zeros((n_time,), dtype=np.int)
+            encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
 
         if encoding_group_to_state is None:
             n_states = len(self.continuous_transition_types)
-            self.encoding_group_to_state_ = np.zeros((n_states,), dtype=np.int)
+            self.encoding_group_to_state_ = np.zeros(
+                (n_states,), dtype=np.int32)
         else:
             self.encoding_group_to_state_ = np.asarray(encoding_group_to_state)
 
