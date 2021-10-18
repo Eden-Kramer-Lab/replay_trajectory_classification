@@ -20,6 +20,9 @@ It has several advantages over decoders typically used to characterize hippocamp
 For further details, please see our [eLife paper](https://doi.org/10.7554/eLife.64505):
 > Denovellis, E.L., Gillespie, A.K., Coulter, M.E., Sosa, M., Chung, J.E., Eden, U.T., and Frank, L.M. (2021). Hippocampal replay of experience at real-world speeds. ELife 10, e64505.
 
+or our [conference paper](https://doi.org/10.1109/IEEECONF44664.2019.9048688):
+> Denovellis, E.L., Frank, L.M., and Eden, U.T. (2019). Characterizing hippocampal replay using hybrid point process state space models. In 2019 53rd Asilomar Conference on Signals, Systems, and Computers, (Pacific Grove, CA, USA: IEEE), pp. 245–249.
+
 ### Installation ###
 
 `replay_trajectory_classification` can be installed through pypi or conda. Conda is the best way to ensure that all the dependencies are installed properly.
