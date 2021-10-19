@@ -61,9 +61,7 @@ class RandomWalk:
         transition_matrix[~is_track_interior] = 0.0
         transition_matrix[:, ~is_track_interior] = 0.0
 
-        self.state_transition_ = _normalize_row_probability(transition_matrix)
-
-        return self.state_transition_
+        return _normalize_row_probability(transition_matrix)
 
 
 @dataclass
@@ -91,9 +89,7 @@ class Uniform:
         transition_matrix[~is_track_interior1] = 0.0
         transition_matrix[:, ~is_track_interior2] = 0.0
 
-        self.state_transition_ = _normalize_row_probability(transition_matrix)
-
-        return self.state_transition_
+        return _normalize_row_probability(transition_matrix)
 
 
 @dataclass
@@ -111,14 +107,13 @@ class Identity:
         transition_matrix[~is_track_interior] = 0.0
         transition_matrix[:, ~is_track_interior] = 0.0
 
-        self.state_transition_ = _normalize_row_probability(transition_matrix)
-
-        return self.state_transition_
+        return _normalize_row_probability(transition_matrix)
 
 
 @dataclass
 class EmpiricalMovement:
     environment_name: str = None
+    encoding_group_label: str = None
     speedup: int = 20
 
     def make_state_transition(self,
@@ -141,10 +136,9 @@ class EmpiricalMovement:
         shape_2d = np.product(original_shape[:n_position_dims])
         state_transition = _normalize_row_probability(
             state_transition.reshape((shape_2d, shape_2d), order='F'))
-        self.state_transition_ = np.linalg.matrix_power(
-            state_transition, self.speedup)
 
-        return self.state_transition_
+        return np.linalg.matrix_power(
+            state_transition, self.speedup)
 
 
 @dataclass
@@ -156,9 +150,8 @@ class RandomWalkDirection1:
         self.environment = environments[self.environment_name]
         random = (RandomWalk(self.environment_name, self.movement_var)
                   .make_state_transition(environments))
-        self.state_transition_ = _normalize_row_probability(np.triu(random))
 
-        return self.state_transition_
+        return _normalize_row_probability(np.triu(random))
 
 
 @dataclass
@@ -170,6 +163,5 @@ class RandomWalkDirection2:
         self.environment = environments[self.environment_name]
         random = (RandomWalk(self.environment_name, self.movement_var)
                   .make_state_transition(environments))
-        self.state_transition_ = _normalize_row_probability(np.tril(random))
 
-        return self.state_transition_
+        return _normalize_row_probability(np.tril(random))
