@@ -148,7 +148,7 @@ def estimate_multiunit_likelihood_gpu(multiunits,
                                       summed_ground_process_intensity,
                                       is_track_interior=None,
                                       time_bin_size=1,
-                                      n_streams=16):
+                                      n_streams=2):
     '''
 
     Parameters
@@ -182,11 +182,14 @@ def estimate_multiunit_likelihood_gpu(multiunits,
     pdfs = []
     is_spikes = []
 
-    with cuda.defer_cleanup():
-        for elec_ind, (multiunit, enc_marks, enc_pos) in enumerate(zip(
-                multiunits, encoding_marks, encoding_positions)):
-            is_spike = np.any(~np.isnan(multiunit), axis=1)
-            is_spikes.append(is_spike)
+    EPS = np.finfo(np.float32).eps
+
+    for elec_ind, (multiunit, enc_marks, enc_pos) in enumerate(zip(
+            multiunits, encoding_marks, encoding_positions)):
+        is_spike = np.any(~np.isnan(multiunit), axis=1)
+        is_spikes.append(is_spike)
+        n_spikes = is_spike.sum()
+        if n_spikes > 0:
             pdfs.append(estimate_pdf(
                 multiunit[is_spike],
                 enc_marks,
@@ -196,20 +199,24 @@ def estimate_multiunit_likelihood_gpu(multiunits,
                 position_std,
                 stream=streams[elec_ind % n_streams]
             ))
+        else:
+            pdfs.append([])
 
-        n_interior_place_bins = is_track_interior.sum()
-        for elec_ind, (pdf, mean_rate, is_spike) in enumerate(
-                zip(pdfs, mean_rates, is_spikes)):
-            n_spikes = is_spike.sum()
+    n_interior_place_bins = is_track_interior.sum()
+    for elec_ind, (pdf, mean_rate, is_spike) in enumerate(
+            zip(pdfs, mean_rates, is_spikes)):
+        n_spikes = is_spike.sum()
+        if n_spikes > 0:
             # Copy results from GPU to CPU and
             # reshape to (n_decoding_spikes, n_interior_place_bins)
             pdf = (pdf
                    .copy_to_host(stream=streams[elec_ind % n_streams])
                    .reshape((n_spikes, n_interior_place_bins), order='F'))
             log_likelihood[np.ix_(is_spike, is_track_interior)] += (
-                estimate_log_intensity(pdf, occupancy[is_track_interior],
-                                       mean_rate) +
-                np.finfo(np.float32).eps)
+                estimate_log_intensity(
+                    pdf + EPS,
+                    occupancy[is_track_interior] + EPS,
+                    mean_rate))
 
     log_likelihood[:, ~is_track_interior] = np.nan
 
