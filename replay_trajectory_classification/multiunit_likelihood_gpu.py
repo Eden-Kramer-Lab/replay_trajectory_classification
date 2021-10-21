@@ -7,6 +7,7 @@ from replay_trajectory_classification.bins import atleast_2d
 
 # Precompute this constant as a float32.  Numba will inline it at compile time.
 SQRT_2PI = np.float32((2 * math.pi)**0.5)
+EPS = np.finfo(np.float32).eps
 
 
 @cuda.jit(device=True)
@@ -181,8 +182,6 @@ def estimate_multiunit_likelihood_gpu(multiunits,
     streams = [cuda.stream() for _ in range(min(n_streams, n_electrodes))]
     pdfs = []
     is_spikes = []
-
-    EPS = np.finfo(np.float32).eps
 
     for elec_ind, (multiunit, enc_marks, enc_pos) in enumerate(zip(
             multiunits, encoding_marks, encoding_positions)):
