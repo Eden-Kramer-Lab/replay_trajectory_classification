@@ -15,7 +15,7 @@ from replay_trajectory_classification.core import (_acausal_decode,
                                                    _ClUSTERLESS_ALGORITHMS,
                                                    mask, scaled_likelihood)
 from replay_trajectory_classification.initial_conditions import \
-    uniform_on_track
+    UniformInitialConditions
 from replay_trajectory_classification.misc import NumbaKDE
 from replay_trajectory_classification.spiking_likelihood import (
     estimate_place_fields, estimate_spiking_likelihood)
@@ -86,10 +86,11 @@ class _DecoderBase(BaseEstimator):
             ) = get_track_grid(track_graph, edge_order,
                                edge_spacing, self.place_bin_size)
 
-    def fit_initial_conditions(self, position=None):
+    def fit_initial_conditions(self):
         logger.info('Fitting initial conditions...')
-        self.initial_conditions_ = uniform_on_track(self.place_bin_centers_,
-                                                    self.is_track_interior_)
+        self.initial_conditions_ = (
+            self.initial_conditions_type.make_initial_conditions(
+                self.environment, self.environment))
 
     def fit_state_transition(
             self, position, is_training=None, replay_speed=None,
