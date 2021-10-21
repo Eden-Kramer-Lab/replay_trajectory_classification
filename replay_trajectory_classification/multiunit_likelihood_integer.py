@@ -106,27 +106,28 @@ def estimate_log_joint_mark_intensity(decoding_marks,
     log_joint_mark_intensity : ndarray, shape (n_decoding_spikes, n_position_bins)
 
     """
-    # mark_distance: ndarray, shape (n_decoding_spikes, n_encoding_spikes)
-    pdf = normal_pdf_integer_lookup(
-        decoding_marks[:, np.newaxis],
-        encoding_marks[np.newaxis],
-        std=mark_std,
-        max_value=max_mark_value)
-    mark_distance = da.prod(pdf, axis=-1)
+    if decoding_marks.shape[0] > 0:
+        # mark_distance: ndarray, shape (n_decoding_spikes, n_encoding_spikes)
+        pdf = normal_pdf_integer_lookup(
+            decoding_marks[:, np.newaxis],
+            encoding_marks[np.newaxis],
+            std=mark_std,
+            max_value=max_mark_value)
+        mark_distance = da.prod(pdf, axis=-1)
 
-    if decoding_marks is encoding_marks:
-        np.fill_diagonal(mark_distance, 0.0)
+        if decoding_marks is encoding_marks:
+            np.fill_diagonal(mark_distance, 0.0)
 
-    n_encoding_spikes = encoding_marks.shape[0]
+        n_encoding_spikes = encoding_marks.shape[0]
 
-    if position_distance is None:
-        position_distance = estimate_position_distance(
-            place_bin_centers, encoding_positions, position_std)
+        if position_distance is None:
+            position_distance = estimate_position_distance(
+                place_bin_centers, encoding_positions, position_std)
 
-    return estimate_log_intensity(
-        mark_distance @ position_distance / n_encoding_spikes,
-        occupancy,
-        mean_rate)
+        return estimate_log_intensity(
+            mark_distance @ position_distance / n_encoding_spikes,
+            occupancy,
+            mean_rate)
 
 
 def fit_multiunit_likelihood_integer(position,
@@ -281,9 +282,10 @@ def estimate_multiunit_likelihood_integer(multiunits,
         for log_joint_mark_intensity, multiunit in zip(
                 dask.compute(*log_joint_mark_intensities), multiunits):
             is_spike = np.any(~np.isnan(multiunit), axis=1)
-            # TODO: combine spikes in the same timebin using np.bincount
-            log_likelihood[np.ix_(is_spike, is_track_interior)] += (
-                np.asarray(log_joint_mark_intensity) + np.spacing(1))
+            if is_spike.sum() > 0:
+                # TODO: combine spikes in the same timebin using np.bincount
+                log_likelihood[np.ix_(is_spike, is_track_interior)] += (
+                    np.asarray(log_joint_mark_intensity) + np.spacing(1))
 
     log_likelihood[:, ~is_track_interior] = np.nan
 
