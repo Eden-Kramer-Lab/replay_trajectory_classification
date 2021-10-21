@@ -14,6 +14,9 @@ from replay_trajectory_classification.multiunit_likelihood import (
     estimate_multiunit_likelihood, fit_multiunit_likelihood)
 from replay_trajectory_classification.multiunit_likelihood_gpu import (
     estimate_multiunit_likelihood_gpu, fit_multiunit_likelihood_gpu)
+from replay_trajectory_classification.multiunit_likelihood_gpu_pinned_arrays import (
+    estimate_multiunit_likelihood_gpu_pinned_arrays,
+    fit_multiunit_likelihood_gpu_pinned_arrays)
 from replay_trajectory_classification.multiunit_likelihood_integer import (
     estimate_multiunit_likelihood_integer, fit_multiunit_likelihood_integer)
 from replay_trajectory_classification.multiunit_likelihood_integer_no_dask import (
@@ -407,4 +410,7 @@ _ClUSTERLESS_ALGORITHMS = {
     'multiunit_likelihood_gpu': (
         fit_multiunit_likelihood_gpu,
         estimate_multiunit_likelihood_gpu),
+    'multiunit_likelihood_gpu_pinned_arrays': (
+        fit_multiunit_likelihood_gpu_pinned_arrays,
+        estimate_multiunit_likelihood_gpu_pinned_arrays),
 }
