@@ -19,6 +19,9 @@ class Environment:
     position_range: np.ndarray = None
     infer_track_interior: bool = True
 
+    def __eq__(self, other):
+        return self.environment_name == other
+
     def fit_place_grid(self, position=None, infer_track_interior=True):
         if self.track_graph is None:
             (self.edges_,
