@@ -206,11 +206,13 @@ def estimate_log_joint_mark_intensity(
     n_bins = place_bin_centers.shape[0]
     n_decoding_spikes = multiunit.shape[0]
 
-    pdf = joint_model.score_samples(get_marks_by_place_bin_centers(
+    log_pdf = joint_model.score_samples(get_marks_by_place_bin_centers(
         multiunit, place_bin_centers)
     ).reshape((n_decoding_spikes, n_bins), order='F')
 
-    return estimate_log_intensity2(pdf, occupancy, mean_rate)
+    return estimate_log_intensity2(log_pdf,
+                                   occupancy + np.spacing(1),
+                                   mean_rate)
 
 
 def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
@@ -311,7 +313,7 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
             joint_model,
             mean_rate)
         log_likelihood[np.ix_(is_spike, is_track_interior)] += (
-            log_joint_mark_intensity + np.spacing(1))
+            log_joint_mark_intensity)
 
     log_likelihood[:, ~is_track_interior] = np.nan
 
