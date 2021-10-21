@@ -31,12 +31,13 @@ def _random_walk_on_track_graph(
 
 @dataclass
 class RandomWalk:
-    environment_name: str = None
+    environment_name: str = ''
     movement_var: float = 6.0
     movement_mean: float = 0.0
 
-    def make_state_transition(self, environments: dict):
-        self.environment = environments[self.environment_name]
+    def make_state_transition(self, environments: tuple):
+        self.environment = environments[
+            environments.index(self.environment_name)]
 
         if self.environment.track_graph is None:
             transition_matrix = np.stack(
@@ -66,11 +67,12 @@ class RandomWalk:
 
 @dataclass
 class Uniform:
-    environment_name: str
+    environment_name: str = ''
     environment2_name: str = None
 
-    def make_state_transition(self, environments: dict):
-        self.environment1 = environments[self.environment_name]
+    def make_state_transition(self, environments: tuple):
+        self.environment1 = environments[
+            environments.index(self.environment_name)]
         n_bins1 = self.environment1.place_bin_centers_.shape[0]
         is_track_interior1 = self.environment1.is_track_interior_.ravel(
             order='F')
@@ -79,7 +81,8 @@ class Uniform:
             n_bins2 = n_bins1
             is_track_interior2 = is_track_interior1.copy()
         else:
-            self.environment2 = environments[self.environment2_name]
+            self.environment2 = environments[
+                environments.index(self.environment2_name)]
             n_bins2 = self.environment2.place_bin_centers_.shape[0]
             is_track_interior2 = self.environment2.is_track_interior_.ravel(
                 order='F')
@@ -94,10 +97,11 @@ class Uniform:
 
 @dataclass
 class Identity:
-    environment_name: str = None
+    environment_name: str = ''
 
-    def make_state_transition(self, environments: dict):
-        self.environment = environments[self.environment_name]
+    def make_state_transition(self, environments: tuple):
+        self.environment = environments[
+            environments.index(self.environment_name)]
         n_bins = self.environment.place_bin_centers_.shape[0]
 
         transition_matrix = np.identity(n_bins)
@@ -112,21 +116,36 @@ class Identity:
 
 @dataclass
 class EmpiricalMovement:
-    environment_name: str = None
-    encoding_group_label: str = None
-    speedup: int = 20
+    environment_name: str = ''
+    encoding_group: str = None
+    speedup: int = 1
 
     def make_state_transition(self,
-                              environments: dict,
+                              environments: tuple,
                               position: np.ndarray,
-                              is_training: np.ndarray = None):
+                              is_training: np.ndarray = None,
+                              encoding_group_labels: np.ndarray = None,
+                              environment_labels: np.ndarray = None):
 
-        self.environment = environments[self.environment_name]
+        self.environment = environments[
+            environments.index(self.environment_name)]
 
+        n_time = position.shape[0]
         if is_training is None:
-            is_training = np.ones((position.shape[0]), dtype=np.bool)
+            is_training = np.ones((n_time,), dtype=np.bool)
 
-        position = atleast_2d(position)[is_training]
+        if encoding_group_labels is None:
+            is_encoding = np.ones((n_time,), dtype=np.bool)
+        else:
+            is_encoding = (encoding_group_labels == self.encoding_group)
+
+        if environment_labels is None:
+            is_environment = np.ones((n_time,), dtype=np.bool)
+        else:
+            is_environment = (environment_labels == self.environment_name)
+
+        position = atleast_2d(position)[
+            is_training & is_encoding & is_environment]
         state_transition, _ = np.histogramdd(
             np.concatenate((position[1:], position[:-1]), axis=1),
             bins=self.environment.edges_ * 2,
@@ -143,11 +162,12 @@ class EmpiricalMovement:
 
 @dataclass
 class RandomWalkDirection1:
-    environment_name: str = None
+    environment_name: str = ''
     movement_var: float = 6.0
 
-    def make_state_transition(self, environments: dict):
-        self.environment = environments[self.environment_name]
+    def make_state_transition(self, environments: tuple):
+        self.environment = environments[
+            environments.index(self.environment_name)]
         random = (RandomWalk(self.environment_name, self.movement_var)
                   .make_state_transition(environments))
 
@@ -156,11 +176,12 @@ class RandomWalkDirection1:
 
 @dataclass
 class RandomWalkDirection2:
-    environment_name: str = None
+    environment_name: str = ''
     movement_var: float = 6.0
 
-    def make_state_transition(self, environments: dict):
-        self.environment = environments[self.environment_name]
+    def make_state_transition(self, environments: tuple):
+        self.environment = environments[
+            environments.index(self.environment_name)]
         random = (RandomWalk(self.environment_name, self.movement_var)
                   .make_state_transition(environments))
 
