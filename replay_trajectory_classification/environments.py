@@ -10,7 +10,7 @@ from track_linearization import plot_graph_as_1D
 
 @dataclass
 class Environment:
-    environment_name: str = None
+    environment_name: str = ''
     place_bin_size: float = 2.0
     track_graph: nx.Graph = None
     edge_order: tuple = None
