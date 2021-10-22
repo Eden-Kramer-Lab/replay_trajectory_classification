@@ -221,11 +221,15 @@ def estimate_multiunit_likelihood_gpu_pinned_arrays(multiunits,
             zip(device_arrays, np.moveaxis(multiunits, -1, 0), mean_rates)):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         if is_spike.sum() > 0:
-            log_likelihood[np.ix_(is_spike, is_track_interior)] += (
+            log_intensity = (
                 estimate_log_intensity(
                     pdf.reshape((n_decoding_spikes, n_bins), order='F') + EPS,
                     occupancy[is_track_interior] + EPS,
                     mean_rate))
+            is_inf = np.all(np.isneginf(log_intensity), axis=1)
+            log_intensity[is_inf] = np.spacing(1)
+            log_likelihood[np.ix_(
+                is_spike, is_track_interior)] += log_intensity
 
     log_likelihood[:, ~is_track_interior] = np.nan
 

@@ -7,7 +7,7 @@ from replay_trajectory_classification.bins import atleast_2d
 
 # Precompute this constant as a float32.  Numba will inline it at compile time.
 SQRT_2PI = np.float32((2 * math.pi)**0.5)
-EPS = np.finfo(np.float32).eps
+EPS = np.spacing(1)
 
 
 @cuda.jit(device=True)
@@ -211,11 +211,14 @@ def estimate_multiunit_likelihood_gpu(multiunits,
             pdf = (pdf
                    .copy_to_host(stream=streams[elec_ind % n_streams])
                    .reshape((n_spikes, n_interior_place_bins), order='F'))
-            log_likelihood[np.ix_(is_spike, is_track_interior)] += (
-                estimate_log_intensity(
-                    pdf + EPS,
-                    occupancy[is_track_interior] + EPS,
-                    mean_rate))
+            log_intensity = estimate_log_intensity(
+                pdf,
+                occupancy[is_track_interior],
+                mean_rate)
+            is_inf = np.all(np.isneginf(log_intensity), axis=1)
+            log_intensity[is_inf] = np.spacing(1)
+            log_likelihood[np.ix_(
+                is_spike, is_track_interior)] += log_intensity
 
     log_likelihood[:, ~is_track_interior] = np.nan
 
@@ -314,7 +317,7 @@ def fit_multiunit_likelihood_gpu(position,
 
         ground_process_intensities.append(
             estimate_intensity(marginal_density, occupancy, mean_rates[-1])
-            + np.finfo(np.float32).eps)
+            + EPS)
 
         encoding_marks.append(
             multiunit[is_spike & not_nan_position].astype(int))
