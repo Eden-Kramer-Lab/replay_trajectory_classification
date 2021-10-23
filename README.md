@@ -9,7 +9,7 @@
 </p>
 
 It has several advantages over decoders typically used to characterize hippocampal replay:
-1. It allows for momement-by-moment estimation of position using small temporal time bins which allow for rapid movement of neural position and makes fewer assumptions about what downstream cells can integrate.
+1. It allows for moment-by-moment estimation of position using small temporal time bins which allow for rapid movement of neural position and makes fewer assumptions about what downstream cells can integrate.
 2. The decoded trajectories can change direction and are not restricted to constant velocity trajectories.
 3. The decoder can use spikes from spike-sorted cells or use clusterless spikes and their associated waveform features to decode .
 4. The decoder can categorize the type of neural trajectory and give an estimate of the confidence of the model in the type of trajectory.
@@ -19,6 +19,9 @@ It has several advantages over decoders typically used to characterize hippocamp
 
 For further details, please see our [eLife paper](https://doi.org/10.7554/eLife.64505):
 > Denovellis, E.L., Gillespie, A.K., Coulter, M.E., Sosa, M., Chung, J.E., Eden, U.T., and Frank, L.M. (2021). Hippocampal replay of experience at real-world speeds. ELife 10, e64505.
+
+or our [conference paper](https://doi.org/10.1109/IEEECONF44664.2019.9048688):
+> Denovellis, E.L., Frank, L.M., and Eden, U.T. (2019). Characterizing hippocampal replay using hybrid point process state space models. In 2019 53rd Asilomar Conference on Signals, Systems, and Computers, (Pacific Grove, CA, USA: IEEE), pp. 245–249.
 
 ### Installation ###
 
