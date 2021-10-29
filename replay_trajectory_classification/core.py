@@ -206,9 +206,15 @@ def scaled_likelihood(log_likelihood, axis=1):
 
     '''
     max_log_likelihood = np.nanmax(log_likelihood, axis=axis, keepdims=True)
-    # np.exp(posterior - logsumexp(posterior, axis=axis)) ?
+    # If maximum is infinity, set to zero
+    if max_log_likelihood.ndim > 0:
+        max_log_likelihood[~np.isfinite(max_log_likelihood)] = 0.0
+    elif not np.isfinite(max_log_likelihood):
+        max_log_likelihood = 0.0
+
+    # Maximum likelihood is always 1
     likelihood = np.exp(log_likelihood - max_log_likelihood)
-    likelihood[np.isnan(likelihood)] = 0.0
+    likelihood += np.spacing(1)  # avoid zero likelihood
     return likelihood
 
 
