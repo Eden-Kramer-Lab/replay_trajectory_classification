@@ -27,6 +27,7 @@ def get_n_bins(position, bin_size=2.5, position_range=None):
         extent = np.diff(position_range, axis=1).squeeze()
     else:
         extent = np.ptp(position, axis=0)
+
     return np.ceil(extent / bin_size).astype(np.int32)
 
 
