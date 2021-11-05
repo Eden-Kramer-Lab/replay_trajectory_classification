@@ -7,7 +7,7 @@ import sklearn
 import xarray as xr
 from replay_trajectory_classification.bins import atleast_2d, get_centers
 from replay_trajectory_classification.continuous_state_transitions import (
-    EmpiricalMovement, Identity, RandomWalk, Uniform)
+    EmpiricalMovement, RandomWalk, Uniform)
 from replay_trajectory_classification.core import (_acausal_classify,
                                                    _acausal_classify_gpu,
                                                    _causal_classify,
@@ -36,9 +36,8 @@ _DEFAULT_CLUSTERLESS_MODEL_KWARGS = {
 }
 
 _DEFAULT_CONTINUOUS_TRANSITIONS = (
-    [[RandomWalk(), Uniform(), Identity()],
-     [Uniform(),    Uniform(), Uniform()],
-     [RandomWalk(), Uniform(), Identity()]])
+    [[RandomWalk(), Uniform()],
+     [Uniform(),    Uniform()]])
 
 _DEFAULT_ENVIRONMENT = Environment(environment_name='')
 
@@ -47,11 +46,11 @@ class _ClassifierBase(BaseEstimator):
     def __init__(self,
                  environments=_DEFAULT_ENVIRONMENT,
                  continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
-                 discrete_transition_type=DiagonalDiscrete(0.98),
+                 discrete_transition_type=DiagonalDiscrete(0.968),
                  initial_conditions_type=UniformInitialConditions(),
                  infer_track_interior=True):
         if isinstance(environments, Environment):
-            environments = (environments)
+            environments = (environments,)
         self.environments = environments
         self.continuous_transition_types = continuous_transition_types
         self.discrete_transition_type = discrete_transition_type
@@ -120,7 +119,7 @@ class _ClassifierBase(BaseEstimator):
             self.discrete_transition_type.make_state_transition(n_states))
 
     def convert_results_to_xarray(self, results, time, state_names=None):
-        n_position_dims = self.place_bin_centers_.shape[1]
+        n_position_dims = self.environments[0].place_bin_centers_.shape[1]
         diag_transition_names = np.diag(
             np.asarray(self.continuous_transition_types))
         if state_names is None:
@@ -133,21 +132,23 @@ class _ClassifierBase(BaseEstimator):
                            diag_transition_names)]
         n_time = time.shape[0]
         n_states = len(state_names)
+        is_track_interior = (
+            self.environments[0].is_track_interior_.ravel(order='F'))
+        edges = self.environments[0].edges_
 
         if n_position_dims > 1:
-            new_shape = (n_time, n_states, *self.centers_shape_)
+            centers_shape = self.environments[0].centers_shape_
+            new_shape = (n_time, n_states, *centers_shape)
             dims = ['time', 'state', 'x_position', 'y_position']
             coords = dict(
                 time=time,
-                x_position=get_centers(self.edges_[0]),
-                y_position=get_centers(self.edges_[1]),
+                x_position=get_centers(edges[0]),
+                y_position=get_centers(edges[1]),
                 state=state_names,
             )
             results = xr.Dataset(
                 {key: (dims,
-                       (mask(value,
-                             self.is_track_interior_.ravel(order='F')
-                             ).squeeze(axis=-1)
+                       (mask(value, is_track_interior).squeeze(axis=-1)
                         .reshape(new_shape).swapaxes(-1, -2)))
                  for key, value in results.items()},
                 coords=coords)
@@ -155,18 +156,26 @@ class _ClassifierBase(BaseEstimator):
             dims = ['time', 'state', 'position']
             coords = dict(
                 time=time,
-                position=get_centers(self.edges_[0]),
+                position=get_centers(edges[0]),
                 state=state_names,
             )
             results = xr.Dataset(
-                {key: (dims,
-                       (mask(value,
-                             self.is_track_interior_.ravel(order='F')
-                             ).squeeze(axis=-1)))
+                {key: (dims, (mask(value, is_track_interior).squeeze(axis=-1)))
                  for key, value in results.items()},
                 coords=coords)
 
         return results
+
+    def convert_results_to_xarray_mutienvironment(self, results, time,
+                                                  state_names=None):
+        if state_names is None:
+            states = tuple(zip(self.environment_names_to_state_,
+                               self.encoding_group_to_state_))
+            state_names = [f'{env}-{grp}' for env, grp in states]
+
+        results = {key: val.squeeze(axis=-1) for key, val in results.items()}
+
+        return results, time, state_names
 
     def fit(self):
         raise NotImplementedError
@@ -259,12 +268,11 @@ class SortedSpikesClassifier(_ClassifierBase):
                          environment_names_to_state=None):
         logger.info('Fitting place fields...')
         n_states = len(self.continuous_transition_types)
+        n_time = position.shape[0]
         if is_training is None:
-            n_time = position.shape[0]
             is_training = np.ones((n_time,), dtype=np.bool)
 
         if encoding_group_labels is None:
-            n_time = position.shape[0]
             encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
 
         if encoding_group_to_state is None:
@@ -272,6 +280,10 @@ class SortedSpikesClassifier(_ClassifierBase):
                 (n_states,), dtype=np.int32)
         else:
             self.encoding_group_to_state_ = np.asarray(encoding_group_to_state)
+
+        if environment_labels is None:
+            environment_labels = np.asarray(
+                [self.environments[0].environment_name] * n_time)
 
         if environment_names_to_state is None:
             self.environment_names_to_state_ = [
@@ -395,76 +407,137 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         '''
         spikes = np.asarray(spikes)
-        is_track_interior = self.is_track_interior_.ravel(order='F')
         n_time = spikes.shape[0]
-        n_position_bins = is_track_interior.shape[0]
         n_states = self.discrete_state_transition_.shape[0]
-        is_states = np.ones((n_states,), dtype=bool)
-        st_interior_ind = np.ix_(
-            is_states, is_states, is_track_interior, is_track_interior)
+        max_pos_bins = np.max([env.place_bin_centers_.shape[0]
+                               for env in self.environments])
 
         results = {}
 
+        # initial conditions
+        initial_conditions = np.zeros((n_states, max_pos_bins, 1),
+                                      dtype=np.float64)
+        for state_ind, ic in enumerate(self.initial_conditions_):
+            initial_conditions[state_ind, :ic.shape[0]] = ic[..., np.newaxis]
+
+        # likelihood
         logger.info('Estimating likelihood...')
+        states = tuple(zip(self.environment_names_to_state_,
+                           self.encoding_group_to_state_))
+
         likelihood = {}
-        for (env_name, encoding_group), place_fields in self.place_fields_.items():
-            env_ind = self.environments.index('wtrack1')
+        for (environment_name, encoding_group), place_fields in self.place_fields_.items():
+            env_ind = self.environments.index(environment_name)
             is_track_interior = self.environments[env_ind].is_track_interior_
-            likelihood[(env_name, encoding_group)] = estimate_spiking_likelihood(
+            likelihood[(environment_name, encoding_group)] = estimate_spiking_likelihood(
                 spikes,
-                np.asarray(place_fields),
+                place_fields.values,
                 is_track_interior)
 
-        results['likelihood'] = [likelihood[s]for s in states]
-
+        results['likelihood'] = np.full(
+            (n_time, n_states, max_pos_bins, 1), np.nan)
+        for state_ind, state in enumerate(states):
+            n_bins = likelihood[state].shape[1]
+            results['likelihood'][:, state_ind,
+                                  :n_bins] = likelihood[state][..., np.newaxis]
         results['likelihood'] = scaled_likelihood(
-            results['likelihood'], axis=(1, 2))[..., np.newaxis]
+            results['likelihood'], axis=(1, 2))
+        results['likelihood'][np.isnan(results['likelihood'])] = 0.0
 
-        logger.info('Estimating causal posterior...')
-        if not use_gpu:
-            results['causal_posterior'] = np.full(
-                (n_time, n_states, n_position_bins, 1), np.nan,
-                dtype=np.float64)
-            results['causal_posterior'][:, :, is_track_interior] = _causal_classify(
-                self.initial_conditions_[:, is_track_interior],
-                self.continuous_state_transition_[st_interior_ind],
-                self.discrete_state_transition_,
-                results['likelihood'][:, :, is_track_interior])
-        else:
-            results['causal_posterior'] = np.full(
-                (n_time, n_states, n_position_bins, 1), np.nan,
-                dtype=np.float32)
-            results['causal_posterior'][:, :, is_track_interior] = _causal_classify_gpu(
-                self.initial_conditions_[:, is_track_interior],
-                self.continuous_state_transition_[st_interior_ind],
-                self.discrete_state_transition_,
-                results['likelihood'][:, :, is_track_interior])
+        # state transition
+        continuous_state_transition = np.zeros(
+            (n_states, n_states, max_pos_bins, max_pos_bins))
 
-        if is_compute_acausal:
-            logger.info('Estimating acausal posterior...')
+        for row_ind, row in enumerate(self.continuous_state_transition_):
+            for column_ind, st in enumerate(row):
+                continuous_state_transition[
+                    row_ind, column_ind, :st.shape[0], :st.shape[1]] = st
+
+        n_environments = len(self.environments)
+        if n_environments == 1:
+            logger.info('Estimating causal posterior...')
+            is_track_interior = (self.environments[0]
+                                 .is_track_interior_.ravel(order='F'))
+            n_position_bins = len(is_track_interior)
+            is_states = np.ones((n_states,), dtype=bool)
+            st_interior_ind = np.ix_(
+                is_states, is_states, is_track_interior, is_track_interior)
             if not use_gpu:
-                results['acausal_posterior'] = np.full(
+                results['causal_posterior'] = np.full(
                     (n_time, n_states, n_position_bins, 1), np.nan,
                     dtype=np.float64)
-                results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify(
-                    results['causal_posterior'][:, :, is_track_interior],
-                    self.continuous_state_transition_[st_interior_ind],
-                    self.discrete_state_transition_)
+                results['causal_posterior'][:, :, is_track_interior] = _causal_classify(
+                    initial_conditions[:, is_track_interior],
+                    continuous_state_transition[st_interior_ind],
+                    self.discrete_state_transition_,
+                    results['likelihood'][:, :, is_track_interior])
             else:
-                results['acausal_posterior'] = np.full(
+                results['causal_posterior'] = np.full(
                     (n_time, n_states, n_position_bins, 1), np.nan,
                     dtype=np.float32)
-                results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify_gpu(
-                    results['causal_posterior'][:, :, is_track_interior],
-                    self.continuous_state_transition_[st_interior_ind],
-                    self.discrete_state_transition_)
+                results['causal_posterior'][:, :, is_track_interior] = _causal_classify_gpu(
+                    initial_conditions[:, is_track_interior],
+                    continuous_state_transition[st_interior_ind],
+                    self.discrete_state_transition_,
+                    results['likelihood'][:, :, is_track_interior])
 
-        n_time = spikes.shape[0]
+            if is_compute_acausal:
+                logger.info('Estimating acausal posterior...')
+                if not use_gpu:
+                    results['acausal_posterior'] = np.full(
+                        (n_time, n_states, n_position_bins, 1), np.nan,
+                        dtype=np.float64)
+                    results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify(
+                        results['causal_posterior'][:, :, is_track_interior],
+                        continuous_state_transition[st_interior_ind],
+                        self.discrete_state_transition_)
+                else:
+                    results['acausal_posterior'] = np.full(
+                        (n_time, n_states, n_position_bins, 1), np.nan,
+                        dtype=np.float32)
+                    results['acausal_posterior'][:, :, is_track_interior] = _acausal_classify_gpu(
+                        results['causal_posterior'][:, :, is_track_interior],
+                        continuous_state_transition[st_interior_ind],
+                        self.discrete_state_transition_)
 
-        if time is None:
-            time = np.arange(n_time)
+            if time is None:
+                time = np.arange(n_time)
 
-        return self.convert_results_to_xarray(results, time, state_names)
+            return self.convert_results_to_xarray(results, time, state_names)
+
+        else:
+            logger.info('Estimating causal posterior...')
+            if not use_gpu:
+                results['causal_posterior'] = _causal_classify(
+                    initial_conditions,
+                    continuous_state_transition,
+                    self.discrete_state_transition_,
+                    results['likelihood'])
+            else:
+                results['causal_posterior'] = _causal_classify_gpu(
+                    initial_conditions,
+                    continuous_state_transition,
+                    self.discrete_state_transition_,
+                    results['likelihood'])
+
+            if is_compute_acausal:
+                logger.info('Estimating acausal posterior...')
+                if not use_gpu:
+                    results['acausal_posterior'] = _acausal_classify(
+                        results['causal_posterior'],
+                        continuous_state_transition,
+                        self.discrete_state_transition_)
+                else:
+                    results['acausal_posterior'] = _acausal_classify_gpu(
+                        results['causal_posterior'],
+                        self.continuous_state_transition_,
+                        self.discrete_state_transition_)
+
+            if time is None:
+                time = np.arange(n_time)
+
+            return self.convert_results_to_xarray_mutienvironment(
+                results, time, state_names)
 
 
 class ClusterlessClassifier(_ClassifierBase):
