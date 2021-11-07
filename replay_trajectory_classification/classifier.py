@@ -548,8 +548,7 @@ class SortedSpikesClassifier(_ClassifierBase):
                 is_track_interior)
 
         self._return_results(
-            likelihood, likelihood, n_time, time, state_names, use_gpu,
-            is_compute_acausal)
+            likelihood, n_time, time, state_names, use_gpu, is_compute_acausal)
 
 
 class ClusterlessClassifier(_ClassifierBase):
@@ -774,5 +773,4 @@ class ClusterlessClassifier(_ClassifierBase):
             )
 
         self._return_results(
-            likelihood, likelihood, n_time, time, state_names, use_gpu,
-            is_compute_acausal)
+            likelihood, n_time, time, state_names, use_gpu, is_compute_acausal)
