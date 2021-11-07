@@ -126,7 +126,7 @@ class _ClassifierBase(BaseEstimator):
         self.continuous_state_transition_ = np.zeros(
             (n_states, n_states, self.max_pos_bins_, self.max_pos_bins_))
 
-        for row_ind, row in enumerate(self.continuous_state_transition_):
+        for row_ind, row in enumerate(continuous_state_transition):
             for column_ind, st in enumerate(row):
                 self.continuous_state_transition_[
                     row_ind, column_ind, :st.shape[0], :st.shape[1]] = st
@@ -136,7 +136,7 @@ class _ClassifierBase(BaseEstimator):
         self.discrete_state_transition_ = (
             self.discrete_transition_type.make_state_transition(n_states))
 
-    def _return_results(self, likelihood, n_time, time,  state_names, use_gpu,
+    def _return_results(self, likelihood, n_time, time, state_names, use_gpu,
                         is_compute_acausal):
         n_states = self.discrete_state_transition_.shape[0]
         states = tuple(zip(self.environment_names_to_state_,
