@@ -136,8 +136,8 @@ class _ClassifierBase(BaseEstimator):
         self.discrete_state_transition_ = (
             self.discrete_transition_type.make_state_transition(n_states))
 
-    def _return_results(self, likelihood, n_time, time, state_names, use_gpu,
-                        is_compute_acausal):
+    def _get_results(self, likelihood, n_time, time, state_names, use_gpu,
+                     is_compute_acausal):
         n_states = self.discrete_state_transition_.shape[0]
         states = tuple(zip(self.environment_names_to_state_,
                            self.encoding_group_to_state_))
@@ -547,7 +547,7 @@ class SortedSpikesClassifier(_ClassifierBase):
                 place_fields.values,
                 is_track_interior)
 
-        self._return_results(
+        return self._get_results(
             likelihood, n_time, time, state_names, use_gpu, is_compute_acausal)
 
 
@@ -772,5 +772,5 @@ class ClusterlessClassifier(_ClassifierBase):
                     **encoding_params
             )
 
-        self._return_results(
+        return self._get_results(
             likelihood, n_time, time, state_names, use_gpu, is_compute_acausal)
