@@ -73,8 +73,8 @@ class _ClassifierBase(BaseEstimator):
 
     def fit_initial_conditions(self, environment_names_to_state=None):
         logger.info('Fitting initial conditions...')
+        n_states = len(self.continuous_transition_types)
         if environment_names_to_state is None:
-            n_states = len(self.continuous_transition_types)
             environment_names_to_state = [
                 self.environments[0].environment_name] * n_states
         initial_conditions = (
