@@ -185,12 +185,15 @@ def estimate_multiunit_likelihood_gpu(multiunits,
 
     for elec_ind, (multiunit, enc_marks, enc_pos) in enumerate(zip(
             multiunits, encoding_marks, encoding_positions)):
-        is_spike = np.any(~np.isnan(multiunit), axis=1)
+        nan_multiunit = np.isnan(multiunit)
+        is_spike = np.any(~nan_multiunit, axis=1)
+        nan_mark_dims = np.all(nan_multiunit, axis=0)
+
         is_spikes.append(is_spike)
         n_spikes = is_spike.sum()
         if n_spikes > 0:
             pdfs.append(estimate_pdf(
-                multiunit[is_spike],
+                multiunit[np.ix_(is_spike, ~nan_mark_dims)],
                 enc_marks,
                 mark_std,
                 place_bin_centers[is_track_interior],
@@ -305,7 +308,10 @@ def fit_multiunit_likelihood_gpu(position,
     for multiunit in np.moveaxis(multiunits, -1, 0):
 
         # ground process intensity
-        is_spike = np.any(~np.isnan(multiunit), axis=1)
+        nan_multiunit = np.isnan(multiunit)
+        is_spike = np.any(~nan_multiunit, axis=1)
+        nan_mark_dims = np.all(nan_multiunit, axis=0)
+
         mean_rates.append(is_spike.mean())
         marginal_density = np.zeros(
             (place_bin_centers.shape[0],), dtype=np.float32)
@@ -320,7 +326,8 @@ def fit_multiunit_likelihood_gpu(position,
             + EPS)
 
         encoding_marks.append(
-            multiunit[is_spike & not_nan_position].astype(int))
+            multiunit[np.ix_(is_spike & not_nan_position, ~nan_mark_dims)
+                      ].astype(np.float32))
         encoding_positions.append(position[is_spike & not_nan_position])
 
     summed_ground_process_intensity = np.sum(

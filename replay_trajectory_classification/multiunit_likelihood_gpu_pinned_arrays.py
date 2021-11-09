@@ -186,10 +186,13 @@ def estimate_multiunit_likelihood_gpu_pinned_arrays(multiunits,
     with cuda.defer_cleanup():
         for elec_ind, (multiunit, enc_marks, enc_pos, mean_rate) in enumerate(zip(
                 np.moveaxis(multiunits, -1, 0), encoding_marks, encoding_positions, mean_rates)):
-            is_spike = np.any(~np.isnan(multiunit), axis=1)
+            nan_multiunit = np.isnan(multiunit)
+            is_spike = np.any(~nan_multiunit, axis=1)
+            nan_mark_dims = np.all(nan_multiunit, axis=0)
+
             if is_spike.sum() > 0:
                 device_arrays.append(pin_arrays(
-                    multiunit[is_spike],
+                    multiunit[np.ix_(is_spike, ~nan_mark_dims)],
                     enc_marks,
                     place_bin_centers[is_track_interior],
                     enc_pos,
@@ -316,7 +319,10 @@ def fit_multiunit_likelihood_gpu_pinned_arrays(position,
     for multiunit in np.moveaxis(multiunits, -1, 0):
 
         # ground process intensity
-        is_spike = np.any(~np.isnan(multiunit), axis=1)
+        nan_multiunit = np.isnan(multiunit)
+        is_spike = np.any(~nan_multiunit, axis=1)
+        nan_mark_dims = np.all(nan_multiunit, axis=0)
+
         mean_rates.append(is_spike.mean())
         marginal_density = np.zeros(
             (place_bin_centers.shape[0],), dtype=np.float32)
@@ -331,7 +337,8 @@ def fit_multiunit_likelihood_gpu_pinned_arrays(position,
             + np.finfo(np.float32).eps)
 
         encoding_marks.append(
-            multiunit[is_spike & not_nan_position].astype(int))
+            multiunit[np.ix_(is_spike & not_nan_position, ~nan_mark_dims)
+                      ].astype(np.float32))
         encoding_positions.append(position[is_spike & not_nan_position])
 
     summed_ground_process_intensity = np.sum(

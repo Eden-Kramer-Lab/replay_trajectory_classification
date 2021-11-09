@@ -181,7 +181,10 @@ def fit_multiunit_likelihood_integer(position,
     for multiunit in np.moveaxis(multiunits, -1, 0):
 
         # ground process intensity
-        is_spike = np.any(~np.isnan(multiunit), axis=1)
+        nan_multiunit = np.isnan(multiunit)
+        is_spike = np.any(~nan_multiunit, axis=1)
+        nan_mark_dims = np.all(nan_multiunit, axis=0)
+
         mean_rates.append(is_spike.mean())
         marginal_density = np.zeros((place_bin_centers.shape[0],))
 
@@ -194,11 +197,9 @@ def fit_multiunit_likelihood_integer(position,
             estimate_intensity(marginal_density, occupancy, mean_rates[-1])
             + np.spacing(1))
 
-        multiunit = multiunit[is_spike & not_nan_position]
-        not_nan_marks = np.all(~np.isnan(multiunit), axis=0)
-        multiunit = multiunit[:, not_nan_marks]
-
-        encoding_marks.append(multiunit.astype(dtype))
+        encoding_marks.append(
+            multiunit[np.ix_(is_spike & not_nan_position, ~nan_mark_dims)
+                      ].astype(dtype))
         encoding_positions.append(position[is_spike & not_nan_position])
 
     summed_ground_process_intensity = np.sum(
@@ -260,10 +261,10 @@ def estimate_multiunit_likelihood_integer(multiunits,
 
     for multiunit, enc_marks, enc_pos, mean_rate in zip(
             multiunits, encoding_marks, encoding_positions, mean_rates):
-        is_spike = np.any(~np.isnan(multiunit), axis=1)
-        multiunit = multiunit[is_spike]
-        not_nan_marks = np.all(~np.isnan(multiunit), axis=0)
-        multiunit = multiunit[:, not_nan_marks]
+        nan_multiunit = np.isnan(multiunit)
+        is_spike = np.any(~nan_multiunit, axis=1)
+        nan_mark_dims = np.all(nan_multiunit, axis=0)
+        multiunit = multiunit[np.ix_(is_spike, ~nan_mark_dims)]
 
         log_joint_mark_intensities.append(
             estimate_log_joint_mark_intensity(
