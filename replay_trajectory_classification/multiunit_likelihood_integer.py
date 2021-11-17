@@ -129,9 +129,6 @@ def estimate_log_joint_mark_intensity(decoding_marks,
             mark_distance @ position_distance / n_encoding_spikes,
             occupancy,
             mean_rate)
-    else:
-        n_position_bins = place_bin_centers.shape[0]
-        return np.zeros((n_decoding_spikes, n_position_bins))
 
 
 def fit_multiunit_likelihood_integer(position,
@@ -287,7 +284,7 @@ def estimate_multiunit_likelihood_integer(multiunits,
         for log_joint_mark_intensity, multiunit in zip(
                 dask.compute(*log_joint_mark_intensities), multiunits):
             is_spike = np.any(~np.isnan(multiunit), axis=1)
-            if is_spike.sum() > 0:
+            if (is_spike.sum() > 0) & (log_joint_mark_intensity is not None):
                 # TODO: combine spikes in the same timebin using np.bincount
                 log_likelihood[np.ix_(is_spike, is_track_interior)] += (
                     np.asarray(log_joint_mark_intensity) + np.spacing(1))
