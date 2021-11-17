@@ -106,7 +106,10 @@ def estimate_log_joint_mark_intensity(decoding_marks,
     log_joint_mark_intensity : ndarray, shape (n_decoding_spikes, n_position_bins)
 
     """
-    if decoding_marks.shape[0] > 0:
+    n_encoding_spikes = encoding_marks.shape[0]
+    n_decoding_spikes = decoding_marks.shape[0]
+
+    if (n_decoding_spikes > 0) & (n_encoding_spikes > 0):
         # mark_distance: ndarray, shape (n_decoding_spikes, n_encoding_spikes)
         pdf = normal_pdf_integer_lookup(
             decoding_marks[:, np.newaxis],
@@ -118,8 +121,6 @@ def estimate_log_joint_mark_intensity(decoding_marks,
         if decoding_marks is encoding_marks:
             np.fill_diagonal(mark_distance, 0.0)
 
-        n_encoding_spikes = encoding_marks.shape[0]
-
         if position_distance is None:
             position_distance = estimate_position_distance(
                 place_bin_centers, encoding_positions, position_std)
@@ -128,6 +129,9 @@ def estimate_log_joint_mark_intensity(decoding_marks,
             mark_distance @ position_distance / n_encoding_spikes,
             occupancy,
             mean_rate)
+    else:
+        n_position_bins = place_bin_centers.shape[0]
+        return np.zeros((n_decoding_spikes, n_position_bins))
 
 
 def fit_multiunit_likelihood_integer(position,
