@@ -31,6 +31,17 @@ def _random_walk_on_track_graph(
 
 @dataclass
 class RandomWalk:
+    """A transition where the movement stays locally close in space
+
+    Attributes
+    ----------
+    environment_name : str, optional
+        Name of environment to fit
+    movement_var : float, optional
+        How far the animal is can move in one time bin during normal
+        movement.
+    movement_mean : float, optional
+    """
     environment_name: str = ''
     movement_var: float = 6.0
     movement_mean: float = 0.0
@@ -67,6 +78,15 @@ class RandomWalk:
 
 @dataclass
 class Uniform:
+    """
+    Attributes
+    ----------
+    environment_name : str, optional
+        Name of first environment to fit
+    environment_name2 : str, optional
+        Name of second environment to fit if going from one environment to
+        another
+    """
     environment_name: str = ''
     environment2_name: str = None
 
@@ -97,6 +117,13 @@ class Uniform:
 
 @dataclass
 class Identity:
+    """A transition where the movement stays within a place bin
+
+    Attributes
+    ----------
+    environment_name : str, optional
+        Name of environment to fit
+    """
     environment_name: str = ''
 
     def make_state_transition(self, environments: tuple):
@@ -116,6 +143,21 @@ class Identity:
 
 @dataclass
 class EmpiricalMovement:
+    """A transition matrix trained on the animal's actual movement
+
+    Attributes
+    ----------
+    environment_name : str, optional
+        Name of environment to fit
+    encoding_group : str, optional
+        Name of encoding group to fit
+    speedup : int, optional
+        Used to
+        make the empirical transition matrix "faster", means allowing for
+        all the same transitions made by the animal but sped up by
+        `speedup` times. So `speedup​=20` means 20x faster than the
+        animal's movement.
+    """
     environment_name: str = ''
     encoding_group: str = None
     speedup: int = 1
@@ -162,6 +204,16 @@ class EmpiricalMovement:
 
 @dataclass
 class RandomWalkDirection1:
+    """A Gaussian random walk in that can only go one direction
+
+    Attributes
+    ----------
+    environment_name : str, optional
+        Name of environment to fit
+    movement_var : float, optional
+        How far the animal is can move in one time bin during normal
+        movement.
+    """
     environment_name: str = ''
     movement_var: float = 6.0
 
@@ -176,6 +228,16 @@ class RandomWalkDirection1:
 
 @dataclass
 class RandomWalkDirection2:
+    """A Gaussian random walk in that can only go one direction
+
+    Attributes
+    ----------
+    environment_name : str, optional
+        Name of environment to fit
+    movement_var : float, optional
+        How far the animal is can move in one time bin during normal
+        movement.
+    """
     environment_name: str = ''
     movement_var: float = 6.0
 

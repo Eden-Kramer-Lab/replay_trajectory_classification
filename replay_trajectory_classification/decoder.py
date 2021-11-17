@@ -141,33 +141,18 @@ class SortedSpikesDecoder(_DecoderBase):
 
         Attributes
         ----------
-        place_bin_size : float, optional
-            Approximate size of the position bins.
-        replay_speed : int, optional
-            How many times faster the replay movement is than normal movement.
-            It​ is only used with the empirical transition matrix---a transition
-            matrix trained on the animal's actual movement. It can be used to
-            make the empirical transition matrix "faster", means allowing for
-            all the same transitions made by the animal but sped up by
-            replay_speed​ times. So replay_speed​=20 means 20x faster than the
-            animal's movement.
-        movement_var : float, optional
-            How far the animal is can move in one time bin during normal
-            movement.
-        position_range : sequence, optional
-            A sequence of `n_position_dims`, each an optional (lower, upper)
-            tuple giving the outer bin edges for position.
-            An entry of None in the sequence results in the minimum and maximum
-            values being used for the corresponding dimension.
-            The default, None, is equivalent to passing a tuple of
-            `n_position_dims` None values.
-        knot_spacing : float, optional
-        spike_model_penalty : float, optional
-        transition_type : ('empirical_movement' | 'random_walk' |
-                           'uniform', 'identity')
-        initial_conditions_type : ('uniform' | 'uniform_on_track')
+        environment : Environment
+            The spatial environment and topology to fit
+        transition_type : (RandomWalk, Uniform, ...)
+            The continuous state transition class instance to fit
+        initial_conditions_type : InitialConditions
+            The initial conditions class instance to fit
         infer_track_interior : bool, optional
-
+            Whether to infer the valid position bins
+        knot_spacing : float, optional
+            How far apart the spline knots are in position
+        spike_model_penalty : float, optional
+            L2 penalty (ridge) for the size of the regression coefficients
         '''
         super().__init__(environment,
                          transition_type,
@@ -310,33 +295,18 @@ class ClusterlessDecoder(_DecoderBase):
 
     Attributes
     ----------
-    place_bin_size : float, optional
-        Approximate size of the position bins.
-    replay_speed : int, optional
-        How many times faster the replay movement is than normal movement. It​ is
-        only used with the empirical transition matrix---a transition matrix
-        trained on the animal's actual movement. It can be used to make the
-        empirical transition matrix "faster", means allowing for all the same
-        transitions made by the animal but sped up by replay_speed​ times.
-        So replay_speed​=20 means 20x faster than the animal's movement.
-    movement_var : float, optional
-        How far the animal is can move in one time bin during normal
-        movement.
-    position_range : sequence, optional
-        A sequence of `n_position_dims`, each an optional (lower, upper)
-        tuple giving the outer bin edges for position.
-        An entry of None in the sequence results in the minimum and maximum
-        values being used for the corresponding dimension.
-        The default, None, is equivalent to passing a tuple of
-        `n_position_dims` None values.
-    model : scikit-learn density estimator, optional
-    model_kwargs : dict, optional
-    occupancy_model : scikit-learn density estimator, optional
-    occupancy_kwargs : dict, optional
-    transition_type : ('empirical_movement' | 'random_walk' |
-                       'uniform', 'identity')
-    initial_conditions_type : ('uniform' | 'uniform_on_track')
-
+    environment : Environment
+        The spatial environment and topology to fit
+    transition_type : (RandomWalk, Uniform, ...)
+        The continuous state transition class instance to fit
+    initial_conditions_type : InitialConditions
+        The initial conditions class instance to fit
+    infer_track_interior : bool, optional
+        Whether to infer the valid position bins
+    clusterless_algorithm : str
+        The type of clusterless algorithm. See _ClUSTERLESS_ALGORITHMS for keys
+    clusterless_algorithm_params : dict
+        Parameters for the clusterless algorithms.
     '''
 
     def __init__(self,
@@ -383,9 +353,7 @@ class ClusterlessDecoder(_DecoderBase):
                 **kwargs
         )
 
-    def fit(self, position, multiunits, is_training=None,
-            is_track_interior=None, track_graph=None,
-            edge_order=None, edge_spacing=15):
+    def fit(self, position, multiunits, is_training=None):
         '''
 
         Parameters
@@ -393,10 +361,6 @@ class ClusterlessDecoder(_DecoderBase):
         position : array_like, shape (n_time, n_position_dims)
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
         is_training : None or array_like, shape (n_time,)
-        is_track_interior : None or ndarray, shape (n_x_bins, n_y_bins)
-        track_graph : networkx.Graph
-        edge_order : array_like
-        edge_spacing : None, float or array_like
 
         Returns
         -------
