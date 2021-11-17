@@ -55,7 +55,7 @@ class _DecoderBase(BaseEstimator):
         logger.info('Fitting initial conditions...')
         self.initial_conditions_ = (
             self.initial_conditions_type.make_initial_conditions(
-                [self.environment.environment_name],
+                [self.environment],
                 [self.environment.environment_name]))
 
     def fit_state_transition(
