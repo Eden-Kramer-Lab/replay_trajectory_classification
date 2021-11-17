@@ -5,29 +5,26 @@ import joblib
 import numpy as np
 import sklearn
 import xarray as xr
-from replay_trajectory_classification.bins import (atleast_2d, get_centers,
-                                                   get_grid, get_track_grid,
-                                                   get_track_interior)
+from replay_trajectory_classification.bins import atleast_2d, get_centers
+from replay_trajectory_classification.continuous_state_transitions import (
+    EmpiricalMovement, RandomWalk)
 from replay_trajectory_classification.core import (_acausal_decode,
                                                    _acausal_decode_gpu,
                                                    _causal_decode,
                                                    _causal_decode_gpu,
                                                    _ClUSTERLESS_ALGORITHMS,
                                                    mask, scaled_likelihood)
+from replay_trajectory_classification.environments import Environment
 from replay_trajectory_classification.initial_conditions import \
     UniformInitialConditions
 from replay_trajectory_classification.misc import NumbaKDE
 from replay_trajectory_classification.spiking_likelihood import (
     estimate_place_fields, estimate_spiking_likelihood)
-from replay_trajectory_classification.state_transition import \
-    CONTINUOUS_TRANSITIONS
 from sklearn.base import BaseEstimator
 
 logger = getLogger(__name__)
 
 sklearn.set_config(print_changed_only=False)
-
-_DEFAULT_TRANSITIONS = ['random_walk', 'uniform', 'identity']
 
 _DEFAULT_CLUSTERLESS_MODEL_KWARGS = {
     'model': NumbaKDE,
@@ -38,84 +35,46 @@ _DEFAULT_CLUSTERLESS_MODEL_KWARGS = {
 
 
 class _DecoderBase(BaseEstimator):
-    def __init__(self, place_bin_size=2.0, replay_speed=1, movement_var=6.0,
-                 position_range=None, transition_type='random_walk',
-                 initial_conditions_type='uniform_on_track',
-                 infer_track_interior=True):
-        self.place_bin_size = place_bin_size
-        self.replay_speed = replay_speed
-        self.movement_var = movement_var
-        self.position_range = position_range
+    def __init__(self,
+                 environment=Environment(environment_name=''),
+                 transition_type=RandomWalk(),
+                 initial_conditions_type=UniformInitialConditions(),
+                 infer_track_interior=True,
+                 ):
+        self.environment = environment
         self.transition_type = transition_type
         self.initial_conditions_type = initial_conditions_type
         self.infer_track_interior = infer_track_interior
 
-        if 2 * np.sqrt(replay_speed * movement_var) < place_bin_size:
-            logger.warning('Place bin size is too small for a random walk '
-                           'continuous state transition')
-
-    def fit_place_grid(self, position, track_graph=None,
-                       edge_order=None, edge_spacing=15,
-                       infer_track_interior=True, is_track_interior=None):
-        if track_graph is None:
-            (self.edges_, self.place_bin_edges_, self.place_bin_centers_,
-             self.centers_shape_) = get_grid(
-                position, self.place_bin_size, self.position_range,
-                self.infer_track_interior)
-            self.infer_track_interior = infer_track_interior
-
-            if is_track_interior is None and self.infer_track_interior:
-                self.is_track_interior_ = get_track_interior(
-                    position, self.edges_)
-            elif is_track_interior is None and not self.infer_track_interior:
-                self.is_track_interior_ = np.ones(
-                    self.centers_shape_, dtype=np.bool)
-        else:
-            (
-                self.place_bin_centers_,
-                self.place_bin_edges_,
-                self.is_track_interior_,
-                self.distance_between_nodes_,
-                self.centers_shape_,
-                self.edges_,
-                self.track_graph_with_bin_centers_edges_,
-                self.original_nodes_df_,
-                self.place_bin_edges_nodes_df_,
-                self.place_bin_centers_nodes_df_,
-                self.nodes_df_
-            ) = get_track_grid(track_graph, edge_order,
-                               edge_spacing, self.place_bin_size)
+    def fit_environment(self, position):
+        self.environment.fit_place_grid(
+            position,
+            infer_track_interior=self.infer_track_interior)
 
     def fit_initial_conditions(self):
         logger.info('Fitting initial conditions...')
         self.initial_conditions_ = (
             self.initial_conditions_type.make_initial_conditions(
-                self.environment, self.environment))
+                self.environment,
+                [self.environment.environment_name]))
 
     def fit_state_transition(
-            self, position, is_training=None, replay_speed=None,
-            transition_type='random_walk'):
+            self, position, is_training=None, transition_type=RandomWalk()):
         logger.info('Fitting state transition...')
-        if is_training is None:
-            is_training = np.ones((position.shape[0],), dtype=np.bool)
-        is_training = np.asarray(is_training).squeeze()
-        if replay_speed is not None:
-            self.replay_speed = replay_speed
-        self.transition_type = transition_type
-
-        try:
-            self.state_transition_ = CONTINUOUS_TRANSITIONS[transition_type](
-                self.place_bin_centers_, self.is_track_interior_,
-                position, self.edges_, is_training, self.replay_speed,
-                self.position_range, self.movement_var,
-                np.asarray(self.place_bin_centers_nodes_df_.node_id),
-                self.distance_between_nodes_)
-        except AttributeError:
-            self.state_transition_ = CONTINUOUS_TRANSITIONS[transition_type](
-                self.place_bin_centers_, self.is_track_interior_,
-                position, self.edges_, is_training, self.replay_speed,
-                self.position_range, self.movement_var,
-                None, None)
+        if isinstance(self.transition_type, EmpiricalMovement):
+            if is_training is None:
+                is_training = np.ones((position.shape[0],), dtype=np.bool)
+            is_training = np.asarray(is_training).squeeze()
+            n_time = position.shape[0]
+            encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
+            self.state_transition_ = (
+                self.transition_type.make_state_transition(
+                    (self.environment,), position, is_training,
+                    encoding_group_labels, environment_labels=None))
+        else:
+            self.state_transition_ = (
+                self.transition_type.make_state_transition(
+                    (self.environment,)))
 
     def fit(self):
         raise NotImplementedError
@@ -126,7 +85,7 @@ class _DecoderBase(BaseEstimator):
     def save_model(self, filename='model.pkl'):
         joblib.dump(self, filename)
 
-    @staticmethod
+    @ staticmethod
     def load_model(filename='model.pkl'):
         return joblib.load(filename)
 
@@ -134,34 +93,34 @@ class _DecoderBase(BaseEstimator):
         return deepcopy(self)
 
     def convert_results_to_xarray(self, results, time):
-        n_position_dims = self.place_bin_centers_.shape[1]
+        n_position_dims = self.environment.place_bin_centers_.shape[1]
         n_time = time.shape[0]
 
         if n_position_dims > 1:
             dims = ['time', 'x_position', 'y_position']
             coords = dict(
                 time=time,
-                x_position=get_centers(self.edges_[0]),
-                y_position=get_centers(self.edges_[1]),
+                x_position=get_centers(self.environment.edges_[0]),
+                y_position=get_centers(self.environment.edges_[1]),
             )
         else:
             dims = ['time', 'position']
             coords = dict(
                 time=time,
-                position=get_centers(self.edges_[0]),
+                position=get_centers(self.environment.edges_[0]),
             )
-        new_shape = (n_time, *self.centers_shape_)
+        new_shape = (n_time, *self.environment.centers_shape_)
+        is_track_interior = self.environment.is_track_interior_.ravel(
+            order='F')
         try:
             results = xr.Dataset(
-                {key: (dims, mask(value,
-                                  self.is_track_interior_.ravel(order='F'))
+                {key: (dims, mask(value, is_track_interior)
                        .reshape(new_shape).swapaxes(-1, -2))
                  for key, value in results.items()},
                 coords=coords)
         except ValueError:
             results = xr.Dataset(
-                {key: (dims, mask(value,
-                                  self.is_track_interior_.ravel(order='F'))
+                {key: (dims, mask(value, is_track_interior)
                        .reshape(new_shape))
                  for key, value in results.items()},
                 coords=coords)
@@ -170,12 +129,14 @@ class _DecoderBase(BaseEstimator):
 
 
 class SortedSpikesDecoder(_DecoderBase):
-    def __init__(self, place_bin_size=2.0, replay_speed=1, movement_var=6.0,
-                 position_range=None, knot_spacing=10,
+    def __init__(self,
+                 environment=Environment(environment_name=''),
+                 transition_type=RandomWalk(),
+                 initial_conditions_type=UniformInitialConditions(),
+                 infer_track_interior=True,
+                 knot_spacing=10,
                  spike_model_penalty=1E1,
-                 transition_type='random_walk',
-                 initial_conditions_type='uniform_on_track',
-                 infer_track_interior=True):
+                 ):
         '''
 
         Attributes
@@ -208,9 +169,10 @@ class SortedSpikesDecoder(_DecoderBase):
         infer_track_interior : bool, optional
 
         '''
-        super().__init__(place_bin_size, replay_speed, movement_var,
-                         position_range, transition_type,
-                         initial_conditions_type, infer_track_interior)
+        super().__init__(environment,
+                         transition_type,
+                         initial_conditions_type,
+                         infer_track_interior)
         self.knot_spacing = knot_spacing
         self.spike_model_penalty = spike_model_penalty
 
@@ -222,8 +184,8 @@ class SortedSpikesDecoder(_DecoderBase):
         self.place_fields_ = estimate_place_fields(
             position[is_training],
             spikes[is_training],
-            self.place_bin_centers_,
-            self.place_bin_edges_,
+            self.environment.place_bin_centers_,
+            self.environment.place_bin_edges_,
             penalty=self.spike_model_penalty,
             knot_spacing=self.knot_spacing)
 
@@ -251,9 +213,7 @@ class SortedSpikesDecoder(_DecoderBase):
 
         return g
 
-    def fit(self, position, spikes, is_training=None, is_track_interior=None,
-            track_graph=None, edge_order=None,
-            edge_spacing=15):
+    def fit(self, position, spikes, is_training=None):
         '''
 
         Parameters
@@ -262,10 +222,6 @@ class SortedSpikesDecoder(_DecoderBase):
         spikes : ndarray, shape (n_time, n_neurons)
         is_training : None or bool ndarray, shape (n_time), optional
             Time bins to be used for encoding.
-        is_track_interior : None or bool ndaarray, shape (n_x_bins, n_y_bins)
-        track_graph : networkx.Graph
-        edge_order : array_like
-        edge_spacing : None, float or array_like
 
         Returns
         -------
@@ -274,10 +230,8 @@ class SortedSpikesDecoder(_DecoderBase):
         '''
         position = atleast_2d(np.asarray(position))
         spikes = np.asarray(spikes)
-        self.fit_place_grid(position, track_graph,
-                            edge_order, edge_spacing,
-                            self.infer_track_interior, is_track_interior)
-        self.fit_initial_conditions(position)
+        self.fit_environment(position)
+        self.fit_initial_conditions()
         self.fit_state_transition(
             position, is_training, transition_type=self.transition_type)
         self.fit_place_fields(position, spikes, is_training)
@@ -302,7 +256,8 @@ class SortedSpikesDecoder(_DecoderBase):
 
         '''
         spikes = np.asarray(spikes)
-        is_track_interior = self.is_track_interior_.ravel(order='F')
+        is_track_interior = self.environment.is_track_interior_.ravel(
+            order='F')
         n_time = spikes.shape[0]
         n_position_bins = is_track_interior.shape[0]
         st_interior_ind = np.ix_(is_track_interior, is_track_interior)
@@ -385,18 +340,17 @@ class ClusterlessDecoder(_DecoderBase):
     '''
 
     def __init__(self,
-                 place_bin_size=2.0,
-                 replay_speed=1,
-                 movement_var=6.0,
-                 position_range=None,
+                 environment=Environment(environment_name=''),
+                 transition_type=RandomWalk(),
+                 initial_conditions_type=UniformInitialConditions(),
+                 infer_track_interior=True,
                  clusterless_algorithm='multiunit_likelihood',
-                 clusterless_algorithm_params=_DEFAULT_CLUSTERLESS_MODEL_KWARGS,
-                 transition_type='random_walk',
-                 initial_conditions_type='uniform_on_track',
-                 infer_track_interior=True):
-        super().__init__(place_bin_size, replay_speed, movement_var,
-                         position_range, transition_type,
-                         initial_conditions_type, infer_track_interior)
+                 clusterless_algorithm_params=_DEFAULT_CLUSTERLESS_MODEL_KWARGS
+                 ):
+        super().__init__(environment,
+                         transition_type,
+                         initial_conditions_type,
+                         infer_track_interior)
         self.clusterless_algorithm = clusterless_algorithm
         self.clusterless_algorithm_params = clusterless_algorithm_params
 
@@ -451,10 +405,8 @@ class ClusterlessDecoder(_DecoderBase):
         position = atleast_2d(np.asarray(position))
         multiunits = np.asarray(multiunits)
 
-        self.fit_place_grid(position, track_graph,
-                            edge_order, edge_spacing,
-                            self.infer_track_interior, is_track_interior)
-        self.fit_initial_conditions(position)
+        self.fit_environment(position)
+        self.fit_initial_conditions()
         self.fit_state_transition(
             position, is_training, transition_type=self.transition_type)
         self.fit_multiunits(position, multiunits, is_training)
@@ -480,7 +432,8 @@ class ClusterlessDecoder(_DecoderBase):
 
         '''
         multiunits = np.asarray(multiunits)
-        is_track_interior = self.is_track_interior_.ravel(order='F')
+        is_track_interior = self.environment.is_track_interior_.ravel(
+            order='F')
         n_time = multiunits.shape[0]
         n_position_bins = is_track_interior.shape[0]
         st_interior_ind = np.ix_(is_track_interior, is_track_interior)
@@ -490,7 +443,7 @@ class ClusterlessDecoder(_DecoderBase):
         results['likelihood'] = scaled_likelihood(
             _ClUSTERLESS_ALGORITHMS[self.clusterless_algorithm][1](
                 multiunits=multiunits,
-                place_bin_centers=self.place_bin_centers_,
+                place_bin_centers=self.environment.place_bin_centers_,
                 is_track_interior=is_track_interior,
                 **self.encoding_model_
             ))
