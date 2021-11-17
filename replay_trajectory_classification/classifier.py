@@ -371,39 +371,20 @@ class SortedSpikesClassifier(_ClassifierBase):
 
     Attributes
     ----------
-    place_bin_size : float, optional
-        Approximate size of the position bins.
-    replay_speed : int, optional
-        How many times faster the replay movement is than normal movement. It​
-        is only used with the empirical transition matrix---a transition matrix
-        trained on the animal's actual movement. It can be used to make the
-        empirical transition matrix "faster", means allowing for all the same
-        transitions made by the animal but sped up by replay_speed​ times.
-        So replay_speed​=20 means 20x faster than the animal's movement.
-    movement_var : float, optional
-        How far the animal is can move in one time bin during normal
-        movement.
-    position_range : sequence, optional
-        A sequence of `n_position_dims`, each an optional (lower, upper)
-        tuple giving the outer bin edges for position.
-        An entry of None in the sequence results in the minimum and maximum
-        values being used for the corresponding dimension.
-        The default, None, is equivalent to passing a tuple of
-        `n_position_dims` None values.
-    continuous_transition_types : list of ('empirical_movement',
-                                           'random_walk',
-                                           'uniform',
-                                           'identity',
-                                           'uniform_minus_empirical',
-                                           'uniform_minus_random_walk',
-                                           'empirical_minus_identity'
-                                           'random_walk_minus_identity')
-    discrete_transition_type : 'strong_diagonal' | 'identity' | 'uniform'
-    initial_conditions_type : ('uniform' | 'uniform_on_track')
-    discrete_transition_diag : float, optional
+    environment : Environment
+        The spatial environment and topology to fit
+    continuous_transition_types : tuple of tuples
+        The continuous state transition class instances to fit
+    discrete_transition_type : Discrete
+        The type of transition between states
+    initial_conditions_type : InitialConditions
+        The initial conditions class instance to fit
     infer_track_interior : bool, optional
+        Whether to infer the valid position bins
     knot_spacing : float, optional
+        How far apart the spline knots are in position
     spike_model_penalty : float, optional
+        L2 penalty (ridge) for the size of the regression coefficients
 
     '''
 
@@ -518,12 +499,12 @@ class SortedSpikesClassifier(_ClassifierBase):
         spikes : ndarray, shape (n_time, n_neurons)
         is_training : None or bool ndarray, shape (n_time), optional
             Time bins to be used for encoding.
-        is_track_interior : None or bool ndaarray, shape (n_x_bins, n_y_bins)
         encoding_group_labels : None or ndarray, shape (n_time,)
+            Label for the corresponding encoding group for each time point
         encoding_group_to_state : None or ndarray, shape (n_states,)
-        track_graph : networkx.Graph
-        edge_order : array_like
-        edge_spacing : None, float or array_like
+        environment_labels : None or ndarray, shape (n_time,)
+            Label for the corresponding environment for each time point
+        environment_names_to_state : None or ndarray, shape (n_states,)
 
         Returns
         -------
@@ -594,41 +575,20 @@ class ClusterlessClassifier(_ClassifierBase):
 
     Attributes
     ----------
-    place_bin_size : float, optional
-        Approximate size of the position bins.
-    replay_speed : int, optional
-        How many times faster the replay movement is than normal movement. It​
-        is only used with the empirical transition matrix---a transition matrix
-        trained on the animal's actual movement. It can be used to make the
-        empirical transition matrix "faster", means allowing for all the same
-        transitions made by the animal but sped up by replay_speed​ times.
-        So replay_speed​=20 means 20x faster than the animal's movement.
-    movement_var : float, optional
-        How far the animal is can move in one time bin during normal
-        movement.
-    position_range : sequence, optional
-        A sequence of `n_position_dims`, each an optional (lower, upper)
-        tuple giving the outer bin edges for position.
-        An entry of None in the sequence results in the minimum and maximum
-        values being used for the corresponding dimension.
-        The default, None, is equivalent to passing a tuple of
-        `n_position_dims` None values.
-    continuous_transition_types : list of ('empirical_movement',
-                                           'random_walk',
-                                           'uniform',
-                                           'identity',
-                                           'uniform_minus_empirical',
-                                           'uniform_minus_random_walk',
-                                           'empirical_minus_identity'
-                                           'random_walk_minus_identity')
-    discrete_transition_type : 'strong_diagonal' | 'identity' | 'uniform'
-    initial_conditions_type : ('uniform' | 'uniform_on_track')
-    discrete_transition_diag : float, optional
+    environment : Environment
+        The spatial environment and topology to fit
+    continuous_transition_types : tuple of tuples
+        The continuous state transition class instances to fit
+    discrete_transition_type : Discrete
+        The type of transition between states
+    initial_conditions_type : InitialConditions
+        The initial conditions class instance to fit
     infer_track_interior : bool, optional
-    model : scikit-learn density estimator, optional
-    model_kwargs : dict, optional
-    occupancy_model : scikit-learn density estimator, optional
-    occupancy_kwargs : dict, optional
+        Whether to infer the valid position bins
+    clusterless_algorithm : str
+        The type of clusterless algorithm. See _ClUSTERLESS_ALGORITHMS for keys
+    clusterless_algorithm_params : dict
+        Parameters for the clusterless algorithms.
 
     '''
 
@@ -655,8 +615,8 @@ class ClusterlessClassifier(_ClassifierBase):
                        multiunits,
                        is_training=None,
                        encoding_group_labels=None,
-                       environment_labels=None,
                        encoding_group_to_state=None,
+                       environment_labels=None,
                        environment_names_to_state=None):
         '''
 
@@ -665,7 +625,12 @@ class ClusterlessClassifier(_ClassifierBase):
         position : array_like, shape (n_time, n_position_dims)
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
         is_training : None or array_like, shape (n_time,)
-        is_track_interior : None or ndarray, shape (n_x_bins, n_y_bins)
+        encoding_group_labels : None or ndarray, shape (n_time,)
+            Label for the corresponding encoding group for each time point
+        encoding_group_to_state : None or ndarray, shape (n_states,)
+        environment_labels : None or ndarray, shape (n_time,)
+            Label for the corresponding environment for each time point
+        environment_names_to_state : None or ndarray, shape (n_states,)
 
         '''
         logger.info('Fitting multiunits...')
@@ -742,9 +707,12 @@ class ClusterlessClassifier(_ClassifierBase):
         position : array_like, shape (n_time, n_position_dims)
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
         is_training : None or array_like, shape (n_time,)
-        is_track_interior : None or ndarray, shape (n_x_bins, n_y_bins)
         encoding_group_labels : None or ndarray, shape (n_time,)
+            Label for the corresponding encoding group for each time point
         encoding_group_to_state : None or ndarray, shape (n_states,)
+        environment_labels : None or ndarray, shape (n_time,)
+            Label for the corresponding environment for each time point
+        environment_names_to_state : None or ndarray, shape (n_states,)
 
         Returns
         -------
@@ -768,8 +736,8 @@ class ClusterlessClassifier(_ClassifierBase):
                             multiunits,
                             is_training,
                             encoding_group_labels,
-                            environment_labels,
                             encoding_group_to_state,
+                            environment_labels,
                             environment_names_to_state)
 
         return self
