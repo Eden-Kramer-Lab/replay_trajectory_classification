@@ -53,10 +53,10 @@ class _DecoderBase(BaseEstimator):
 
     def fit_initial_conditions(self):
         logger.info('Fitting initial conditions...')
-        self.initial_conditions_ = np.stack(
+        self.initial_conditions_ = (
             self.initial_conditions_type.make_initial_conditions(
                 [self.environment],
-                [self.environment.environment_name]), axis=1)
+                [self.environment.environment_name])[0].squeeze(axis=-1))
 
     def fit_state_transition(
             self, position, is_training=None, transition_type=RandomWalk()):
