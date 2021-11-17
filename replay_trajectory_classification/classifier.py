@@ -675,7 +675,7 @@ class ClusterlessClassifier(_ClassifierBase):
             environment = self.environments[
                 self.environments.index(environment_name)]
 
-            is_encoding = np.isin(encoding_group_labels, encoding_group)
+            is_encoding = (encoding_group_labels == encoding_group)
             is_environment = (environment_labels == environment_name)
             is_group = is_training & is_encoding & is_environment
 
