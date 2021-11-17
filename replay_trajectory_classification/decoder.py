@@ -377,8 +377,9 @@ class ClusterlessDecoder(_DecoderBase):
             self.clusterless_algorithm][0](
                 position=position[is_training],
                 multiunits=multiunits[is_training],
-                place_bin_centers=self.place_bin_centers_,
-                is_track_interior=self.is_track_interior_.ravel(order='F'),
+                place_bin_centers=self.environment.place_bin_centers_,
+                is_track_interior=self.environment.is_track_interior_.ravel(
+                    order='F'),
                 **kwargs
         )
 
