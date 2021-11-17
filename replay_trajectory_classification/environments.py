@@ -10,6 +10,27 @@ from track_linearization import plot_graph_as_1D
 
 @dataclass
 class Environment:
+    """
+    environment_name : str, optional
+    place_bin_size : float, optional
+        Approximate size of the position bins.
+    track_graph : networkx.Graph
+        Graph representing the 1D spatial topology
+    edge_order : tuple of 2-tuples
+        The order of the edges in 1D space
+    edge_spacing : None or int or tuples of len n_edges-1
+        Any gapes between the edges in 1D space
+    is_track_interior : np.ndarray
+    position_range : sequence, optional
+        A sequence of `n_position_dims`, each an optional (lower, upper)
+        tuple giving the outer bin edges for position.
+        An entry of None in the sequence results in the minimum and maximum
+        values being used for the corresponding dimension.
+        The default, None, is equivalent to passing a tuple of
+        `n_position_dims` None values.
+    infer_track_interior : bool, optional
+
+    """
     environment_name: str = ''
     place_bin_size: float = 2.0
     track_graph: nx.Graph = None
