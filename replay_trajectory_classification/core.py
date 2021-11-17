@@ -43,7 +43,7 @@ def normalize_to_probability(distribution):
     return distribution / np.nansum(distribution)
 
 
-@njit(nogil=True, error_model='numpy', cache=True)
+@njit(nogil=True, error_model='numpy', cache=False)
 def _causal_decode(initial_conditions, state_transition, likelihood):
     '''Adaptive filter to iteratively calculate the posterior probability
     of a state variable using past information.
@@ -74,7 +74,7 @@ def _causal_decode(initial_conditions, state_transition, likelihood):
     return posterior
 
 
-@njit(nogil=True, error_model='numpy', cache=True)
+@njit(nogil=True, error_model='numpy', cache=False)
 def _acausal_decode(causal_posterior, state_transition):
     '''Uses past and future information to estimate the state.
 
@@ -107,7 +107,7 @@ def _acausal_decode(causal_posterior, state_transition):
     return acausal_posterior
 
 
-@njit(nogil=True, error_model='numpy', cache=True)
+@njit(nogil=True, error_model='numpy', cache=False)
 def _causal_classify(initial_conditions, continuous_state_transition,
                      discrete_state_transition, likelihood):
     '''Adaptive filter to iteratively calculate the posterior probability
@@ -145,7 +145,7 @@ def _causal_classify(initial_conditions, continuous_state_transition,
     return posterior
 
 
-@njit(nogil=True, error_model='numpy', cache=True)
+@njit(nogil=True, error_model='numpy', cache=False)
 def _acausal_classify(causal_posterior, continuous_state_transition,
                       discrete_state_transition):
     '''Uses past and future information to estimate the state.
