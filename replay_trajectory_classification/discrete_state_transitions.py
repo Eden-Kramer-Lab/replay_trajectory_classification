@@ -33,3 +33,11 @@ class RandomDiscrete:
 
         self.state_transition_ = state_transition
         return self.state_transition_
+
+
+@dataclass
+class UserDefinedDiscrete:
+    state_transition_: np.ndarray
+
+    def make_state_transition(self, n_states):
+        return self.state_transition_
