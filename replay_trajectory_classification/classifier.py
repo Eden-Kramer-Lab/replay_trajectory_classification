@@ -20,8 +20,7 @@ from replay_trajectory_classification.environments import Environment
 from replay_trajectory_classification.initial_conditions import \
     UniformInitialConditions
 from replay_trajectory_classification.misc import NumbaKDE
-from replay_trajectory_classification.observation_models import \
-    ObservationModel
+from replay_trajectory_classification.observation_model import ObservationModel
 from replay_trajectory_classification.spiking_likelihood import (
     estimate_place_fields, estimate_spiking_likelihood)
 from sklearn.base import BaseEstimator
