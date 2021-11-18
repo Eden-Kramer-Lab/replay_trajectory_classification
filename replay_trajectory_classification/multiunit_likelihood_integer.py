@@ -129,7 +129,9 @@ def estimate_log_joint_mark_intensity(decoding_marks,
             mark_distance @ position_distance / n_encoding_spikes,
             occupancy,
             mean_rate)
-
+    else:
+        n_position_bins = place_bin_centers.shape[0]
+        return np.empty((n_decoding_spikes, n_position_bins))
 
 def fit_multiunit_likelihood_integer(position,
                                      multiunits,
