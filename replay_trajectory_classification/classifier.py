@@ -80,7 +80,7 @@ class _ClassifierBase(BaseEstimator):
     def fit_initial_conditions(self):
         logger.info('Fitting initial conditions...')
         environment_names_to_state = [
-            obs.environment_names for obs in self.observation_models]
+            obs.environment_name for obs in self.observation_models]
         n_states = len(self.observation_models)
         initial_conditions = (
             self.initial_conditions_type.make_initial_conditions(
