@@ -3,6 +3,7 @@ import logging
 import dask
 import numpy as np
 import pandas as pd
+import scipy.stats
 import xarray as xr
 from dask.distributed import Client, get_client
 from patsy import build_design_matrices, dmatrix
@@ -80,8 +81,11 @@ def poisson_log_likelihood(spikes, conditional_intensity):
     poisson_log_likelihood : array_like, shape (n_time, n_place_bins)
 
     """
-    return (np.log(conditional_intensity[np.newaxis, :] + np.spacing(1)) *
-            spikes[:, np.newaxis] - conditional_intensity[np.newaxis, :])
+    # Logarithm of the absolute value of the gamma function is always 0 when
+    # spikes are 0 or 1
+    return scipy.stats.poisson.logpmf(
+        spikes[:, np.newaxis],
+        conditional_intensity[np.newaxis, :] + np.spacing(1))
 
 
 def combined_likelihood(spikes, conditional_intensity):
