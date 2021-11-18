@@ -393,7 +393,7 @@ class SortedSpikesClassifier(_ClassifierBase):
 
     def __init__(self,
                  environments=_DEFAULT_ENVIRONMENT,
-                 observation_models=ObservationModel(),
+                 observation_models=None,
                  continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
                  discrete_transition_type=DiagonalDiscrete(0.98),
                  initial_conditions_type=UniformInitialConditions(),
@@ -576,7 +576,7 @@ class ClusterlessClassifier(_ClassifierBase):
 
     def __init__(self,
                  environments=_DEFAULT_ENVIRONMENT,
-                 observation_models=ObservationModel(),
+                 observation_models=None,
                  continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
                  discrete_transition_type=DiagonalDiscrete(0.98),
                  initial_conditions_type=UniformInitialConditions(),
