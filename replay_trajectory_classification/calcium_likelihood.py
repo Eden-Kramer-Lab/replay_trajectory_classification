@@ -73,12 +73,13 @@ def gamma_log_likelihood(mu, v):
     gamma_log_likelihood : array_like, shape (n_time, n_place_bins)
 
     """
-    return scipy.stats.gamma.logpdf(v * calcium_activity / mu, v)
-    return scipy.stats.gamma.logpdf(mu, v)
-    return (-scipy.special.loggamma(v) +
-            v * np.log(v * calcium_activity / mu) -
-            v * calcium_activity / mu -
-            np.log(calcium_activity))
+    # return scipy.stats.gamma.logpdf(v * calcium_activity / mu, v)
+    # return scipy.stats.gamma.logpdf(mu, v)
+    # return (-scipy.special.loggamma(v) +
+    #         v * np.log(v * calcium_activity / mu) -
+    #         v * calcium_activity / mu -
+    #         np.log(calcium_activity))
+    pass
 
 
 def combined_likelihood(calcium_activity, conditional_intensity):
