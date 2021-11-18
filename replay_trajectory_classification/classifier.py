@@ -20,6 +20,8 @@ from replay_trajectory_classification.environments import Environment
 from replay_trajectory_classification.initial_conditions import \
     UniformInitialConditions
 from replay_trajectory_classification.misc import NumbaKDE
+from replay_trajectory_classification.observation_models import \
+    ObservationModel
 from replay_trajectory_classification.spiking_likelihood import (
     estimate_place_fields, estimate_spiking_likelihood)
 from sklearn.base import BaseEstimator
@@ -45,13 +47,18 @@ _DEFAULT_ENVIRONMENT = Environment(environment_name='')
 class _ClassifierBase(BaseEstimator):
     def __init__(self,
                  environments=_DEFAULT_ENVIRONMENT,
+                 observation_models=ObservationModel(),
                  continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
                  discrete_transition_type=DiagonalDiscrete(0.968),
                  initial_conditions_type=UniformInitialConditions(),
                  infer_track_interior=True):
         if isinstance(environments, Environment):
             environments = (environments,)
+        if isinstance(environments, ObservationModel):
+            n_states = len(continuous_transition_types)
+            observation_models = (environments,) * n_states
         self.environments = environments
+        self.observation_models = observation_models
         self.continuous_transition_types = continuous_transition_types
         self.discrete_transition_type = discrete_transition_type
         self.initial_conditions_type = initial_conditions_type
@@ -71,12 +78,11 @@ class _ClassifierBase(BaseEstimator):
         self.max_pos_bins_ = np.max([env.place_bin_centers_.shape[0]
                                      for env in self.environments])
 
-    def fit_initial_conditions(self, environment_names_to_state=None):
+    def fit_initial_conditions(self):
         logger.info('Fitting initial conditions...')
-        n_states = len(self.continuous_transition_types)
-        if environment_names_to_state is None:
-            environment_names_to_state = [
-                self.environments[0].environment_name] * n_states
+        environment_names_to_state = [
+            obs.environment_names for obs in self.observation_models]
+        n_states = len(self.observation_models)
         initial_conditions = (
             self.initial_conditions_type.make_initial_conditions(
                 self.environments, environment_names_to_state))
@@ -139,16 +145,14 @@ class _ClassifierBase(BaseEstimator):
     def _get_results(self, likelihood, n_time, time, state_names, use_gpu,
                      is_compute_acausal):
         n_states = self.discrete_state_transition_.shape[0]
-        states = tuple(zip(self.environment_names_to_state_,
-                           self.encoding_group_to_state_))
-
         results = {}
         results['likelihood'] = np.full(
             (n_time, n_states, self.max_pos_bins_, 1), np.nan)
-        for state_ind, state in enumerate(states):
-            n_bins = likelihood[state].shape[1]
-            results['likelihood'][:, state_ind,
-                                  :n_bins] = likelihood[state][..., np.newaxis]
+        for state_ind, obs in enumerate(self.observation_models):
+            likelihood_name = (obs.environment_name, obs.encoding_group)
+            n_bins = likelihood[likelihood_name].shape[1]
+            results['likelihood'][:, state_ind, :n_bins] = (
+                likelihood[likelihood_name][..., np.newaxis])
         results['likelihood'] = scaled_likelihood(
             results['likelihood'], axis=(1, 2))
         results['likelihood'][np.isnan(results['likelihood'])] = 0.0
@@ -250,12 +254,12 @@ class _ClassifierBase(BaseEstimator):
         diag_transition_names = np.diag(
             np.asarray(self.continuous_transition_types))
         if state_names is None:
-            if len(np.unique(self.encoding_group_to_state_)) == 1:
+            if len(np.unique(self.observation_models)) == 1:
                 state_names = diag_transition_names
             else:
                 state_names = [
-                    f"{state}-{transition}" for state, transition
-                    in zip(self.encoding_group_to_state_,
+                    f"{obs.encoding_group}-{transition}" for obs, transition
+                    in zip(self.observation_models,
                            diag_transition_names)]
         n_time = time.shape[0]
         n_states = len(state_names)
@@ -296,9 +300,8 @@ class _ClassifierBase(BaseEstimator):
     def _convert_results_to_xarray_mutienvironment(self, results, time,
                                                    state_names=None):
         if state_names is None:
-            states = tuple(zip(self.environment_names_to_state_,
-                               self.encoding_group_to_state_))
-            state_names = [f'{env}-{grp}' for env, grp in states]
+            state_names = [f'{obs.environment_name}-{obs.encoding_group}'
+                           for obs in self.observation_models]
 
         n_time = time.shape[0]
         n_states = len(state_names)
@@ -409,11 +412,8 @@ class SortedSpikesClassifier(_ClassifierBase):
                          spikes,
                          is_training=None,
                          encoding_group_labels=None,
-                         environment_labels=None,
-                         encoding_group_to_state=None,
-                         environment_names_to_state=None):
+                         environment_labels=None):
         logger.info('Fitting place fields...')
-        n_states = len(self.continuous_transition_types)
         n_time = position.shape[0]
         if is_training is None:
             is_training = np.ones((n_time,), dtype=np.bool)
@@ -421,34 +421,20 @@ class SortedSpikesClassifier(_ClassifierBase):
         if encoding_group_labels is None:
             encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
 
-        if encoding_group_to_state is None:
-            self.encoding_group_to_state_ = np.zeros(
-                (n_states,), dtype=np.int32)
-        else:
-            self.encoding_group_to_state_ = np.asarray(encoding_group_to_state)
-
         if environment_labels is None:
             environment_labels = np.asarray(
                 [self.environments[0].environment_name] * n_time)
 
-        if environment_names_to_state is None:
-            self.environment_names_to_state_ = [
-                self.environments[0].environment_name] * n_states
-        else:
-            self.environment_names_to_state_ = environment_names_to_state
-
         is_training = np.asarray(is_training).squeeze()
 
-        states = tuple(zip(self.environment_names_to_state_,
-                           self.encoding_group_to_state_))
         self.place_fields_ = {}
-        for environment_name, encoding_group in set(states):
+        for obs in np.unique(self.observation_models):
             environment = self.environments[
-                self.environments.index(environment_name)]
+                self.environments.index(obs.environment_name)]
 
-            is_encoding = (encoding_group_labels == encoding_group)
-            is_environment = (environment_labels == environment_name)
-            likelihood_name = (environment_name, encoding_group)
+            is_encoding = np.isin(encoding_group_labels, obs.encoding_group)
+            is_environment = (environment_labels == obs.environment_name)
+            likelihood_name = (obs.environment_name, obs.encoding_group)
 
             self.place_fields_[likelihood_name] = estimate_place_fields(
                 position=position[is_training & is_encoding & is_environment],
@@ -487,9 +473,7 @@ class SortedSpikesClassifier(_ClassifierBase):
             spikes,
             is_training=None,
             encoding_group_labels=None,
-            encoding_group_to_state=None,
             environment_labels=None,
-            environment_names_to_state=None,
             ):
         '''
 
@@ -501,10 +485,8 @@ class SortedSpikesClassifier(_ClassifierBase):
             Time bins to be used for encoding.
         encoding_group_labels : None or ndarray, shape (n_time,)
             Label for the corresponding encoding group for each time point
-        encoding_group_to_state : None or ndarray, shape (n_states,)
         environment_labels : None or ndarray, shape (n_time,)
             Label for the corresponding environment for each time point
-        environment_names_to_state : None or ndarray, shape (n_states,)
 
         Returns
         -------
@@ -514,7 +496,7 @@ class SortedSpikesClassifier(_ClassifierBase):
         position = atleast_2d(np.asarray(position))
         spikes = np.asarray(spikes)
         self.fit_environments(position, environment_labels)
-        self.fit_initial_conditions(environment_names_to_state)
+        self.fit_initial_conditions()
         self.fit_continuous_state_transition(
             self.continuous_transition_types,
             position,
@@ -527,9 +509,7 @@ class SortedSpikesClassifier(_ClassifierBase):
                               spikes,
                               is_training,
                               encoding_group_labels,
-                              environment_labels,
-                              encoding_group_to_state,
-                              environment_names_to_state)
+                              environment_labels)
 
         return self
 
@@ -615,9 +595,7 @@ class ClusterlessClassifier(_ClassifierBase):
                        multiunits,
                        is_training=None,
                        encoding_group_labels=None,
-                       encoding_group_to_state=None,
-                       environment_labels=None,
-                       environment_names_to_state=None):
+                       environment_labels=None):
         '''
 
         Parameters
@@ -627,14 +605,11 @@ class ClusterlessClassifier(_ClassifierBase):
         is_training : None or array_like, shape (n_time,)
         encoding_group_labels : None or ndarray, shape (n_time,)
             Label for the corresponding encoding group for each time point
-        encoding_group_to_state : None or ndarray, shape (n_states,)
         environment_labels : None or ndarray, shape (n_time,)
             Label for the corresponding environment for each time point
-        environment_names_to_state : None or ndarray, shape (n_states,)
 
         '''
         logger.info('Fitting multiunits...')
-        n_states = len(self.continuous_transition_types)
         n_time = position.shape[0]
         if is_training is None:
             is_training = np.ones((n_time,), dtype=np.bool)
@@ -642,26 +617,11 @@ class ClusterlessClassifier(_ClassifierBase):
         if encoding_group_labels is None:
             encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
 
-        if encoding_group_to_state is None:
-            self.encoding_group_to_state_ = np.zeros(
-                (n_states,), dtype=np.int32)
-        else:
-            self.encoding_group_to_state_ = np.asarray(encoding_group_to_state)
-
         if environment_labels is None:
             environment_labels = np.asarray(
                 [self.environments[0].environment_name] * n_time)
 
-        if environment_names_to_state is None:
-            self.environment_names_to_state_ = [
-                self.environments[0].environment_name] * n_states
-        else:
-            self.environment_names_to_state_ = environment_names_to_state
-
         is_training = np.asarray(is_training).squeeze()
-
-        states = tuple(zip(self.environment_names_to_state_,
-                           self.encoding_group_to_state_))
 
         kwargs = self.clusterless_algorithm_params
         if kwargs is None:
@@ -669,17 +629,15 @@ class ClusterlessClassifier(_ClassifierBase):
 
         self.encoding_model_ = {}
 
-        states = tuple(zip(self.environment_names_to_state_,
-                           self.encoding_group_to_state_))
-        for environment_name, encoding_group in set(states):
+        for obs in np.unique(self.observation_models):
             environment = self.environments[
-                self.environments.index(environment_name)]
+                self.environments.index(obs.environment_name)]
 
-            is_encoding = np.isin(encoding_group_labels, encoding_group)
-            is_environment = (environment_labels == environment_name)
+            is_encoding = np.isin(encoding_group_labels, obs.encoding_group)
+            is_environment = (environment_labels == obs.environment_name)
             is_group = is_training & is_encoding & is_environment
 
-            likelihood_name = (environment_name, encoding_group)
+            likelihood_name = (obs.environment_name, obs.encoding_group)
 
             self.encoding_model_[likelihood_name] = _ClUSTERLESS_ALGORITHMS[
                 self.clusterless_algorithm][0](
@@ -696,9 +654,7 @@ class ClusterlessClassifier(_ClassifierBase):
             multiunits,
             is_training=None,
             encoding_group_labels=None,
-            encoding_group_to_state=None,
             environment_labels=None,
-            environment_names_to_state=None,
             ):
         '''
 
@@ -709,10 +665,8 @@ class ClusterlessClassifier(_ClassifierBase):
         is_training : None or array_like, shape (n_time,)
         encoding_group_labels : None or ndarray, shape (n_time,)
             Label for the corresponding encoding group for each time point
-        encoding_group_to_state : None or ndarray, shape (n_states,)
         environment_labels : None or ndarray, shape (n_time,)
             Label for the corresponding environment for each time point
-        environment_names_to_state : None or ndarray, shape (n_states,)
 
         Returns
         -------
@@ -723,7 +677,7 @@ class ClusterlessClassifier(_ClassifierBase):
         multiunits = np.asarray(multiunits)
 
         self.fit_environments(position, environment_labels)
-        self.fit_initial_conditions(environment_names_to_state)
+        self.fit_initial_conditions()
         self.fit_continuous_state_transition(
             self.continuous_transition_types,
             position,
@@ -736,9 +690,7 @@ class ClusterlessClassifier(_ClassifierBase):
                             multiunits,
                             is_training,
                             encoding_group_labels,
-                            encoding_group_to_state,
-                            environment_labels,
-                            environment_names_to_state)
+                            environment_labels)
 
         return self
 
