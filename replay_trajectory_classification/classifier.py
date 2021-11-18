@@ -53,9 +53,9 @@ class _ClassifierBase(BaseEstimator):
                  infer_track_interior=True):
         if isinstance(environments, Environment):
             environments = (environments,)
-        if isinstance(environments, ObservationModel):
+        if isinstance(observation_models, ObservationModel):
             n_states = len(continuous_transition_types)
-            observation_models = (environments,) * n_states
+            observation_models = (observation_models,) * n_states
         self.environments = environments
         self.observation_models = observation_models
         self.continuous_transition_types = continuous_transition_types
