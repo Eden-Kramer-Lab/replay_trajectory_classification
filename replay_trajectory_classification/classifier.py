@@ -46,16 +46,17 @@ _DEFAULT_ENVIRONMENT = Environment(environment_name='')
 class _ClassifierBase(BaseEstimator):
     def __init__(self,
                  environments=_DEFAULT_ENVIRONMENT,
-                 observation_models=ObservationModel(),
+                 observation_models=None,
                  continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
                  discrete_transition_type=DiagonalDiscrete(0.968),
                  initial_conditions_type=UniformInitialConditions(),
                  infer_track_interior=True):
         if isinstance(environments, Environment):
             environments = (environments,)
-        if isinstance(observation_models, ObservationModel):
+        if observation_models is None:
             n_states = len(continuous_transition_types)
-            observation_models = (observation_models,) * n_states
+            env_name = environments[0].environment_name
+            observation_models = (ObservationModel(env_name),) * n_states
         self.environments = environments
         self.observation_models = observation_models
         self.continuous_transition_types = continuous_transition_types
