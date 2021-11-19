@@ -1,6 +1,6 @@
 import numpy as np
 from replay_trajectory_classification.core import scaled_likelihood
-from replay_trajectory_classification.multiunit_likelihood import (
+from replay_trajectory_classification.likelihoods.multiunit_likelihood import (
     estimate_intensity, poisson_mark_log_likelihood)
 from scipy.special import cotdg
 from scipy.stats import rv_histogram
