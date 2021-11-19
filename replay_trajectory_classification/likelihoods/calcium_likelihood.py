@@ -141,12 +141,12 @@ def estimate_calcium_likelihood(calcium_activity, place_fields, scales,
     return log_likelihood * mask
 
 
-def estimate_place_fields(position,
-                          calcium_activity,
-                          place_bin_centers,
-                          place_bin_edges,
-                          penalty=1E-1,
-                          knot_spacing=10):
+def estimate_calcium_place_fields(position,
+                                  calcium_activity,
+                                  place_bin_centers,
+                                  place_bin_edges,
+                                  penalty=1E-1,
+                                  knot_spacing=10):
     '''Gives the conditional intensity of the neurons' spiking with respect to
     position.
 

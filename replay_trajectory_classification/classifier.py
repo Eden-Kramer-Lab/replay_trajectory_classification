@@ -11,18 +11,18 @@ from replay_trajectory_classification.continuous_state_transitions import (
 from replay_trajectory_classification.core import (_acausal_classify,
                                                    _acausal_classify_gpu,
                                                    _causal_classify,
-                                                   _causal_classify_gpu,
-                                                   _ClUSTERLESS_ALGORITHMS,
-                                                   mask, scaled_likelihood)
+                                                   _causal_classify_gpu, mask,
+                                                   scaled_likelihood)
 from replay_trajectory_classification.discrete_state_transitions import \
     DiagonalDiscrete
 from replay_trajectory_classification.environments import Environment
 from replay_trajectory_classification.initial_conditions import \
     UniformInitialConditions
+from replay_trajectory_classification.likelihoods import (
+    _ClUSTERLESS_ALGORITHMS, estimate_place_fields,
+    estimate_spiking_likelihood)
 from replay_trajectory_classification.misc import NumbaKDE
 from replay_trajectory_classification.observation_model import ObservationModel
-from replay_trajectory_classification.spiking_likelihood import (
-    estimate_place_fields, estimate_spiking_likelihood)
 from sklearn.base import BaseEstimator
 
 logger = getLogger(__name__)
