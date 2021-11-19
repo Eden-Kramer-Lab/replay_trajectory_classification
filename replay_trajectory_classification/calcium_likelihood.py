@@ -3,12 +3,12 @@ import logging
 import dask
 import numpy as np
 import pandas as pd
-import scipy
-import statsmodels as sm
 import xarray as xr
 from dask.distributed import Client, get_client
 from patsy import build_design_matrices, dmatrix
+from regularized_glm import penalized_IRLS
 from replay_trajectory_classification.bins import get_n_bins
+from statsmodels.api import families
 
 
 def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
@@ -30,7 +30,7 @@ def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
         formula += ', '
         data[f'x{ind}'] = position[:, ind]
 
-    formula += ')'
+    formula += 'constraints="center")'
 
     return dmatrix(formula, data)
 
@@ -45,28 +45,31 @@ def make_spline_predict_matrix(design_info, place_bin_centers):
 
 def get_activity_rate(design_matrix, results):
     rate = (design_matrix @ results.coefficients)
-    rate = np.max(rate, 0.1)
+    rate[rate < 0.1] = 0.1
     return rate
 
 
 @dask.delayed
-def fit_glm(response, design_matrix):
-    fit = sm.GLM(response, design_matrix, family=sm.families.Gamma(
-        sm.families.links.identity)).fit()
-    mu = fit.mu
-    v = 1 / fit.scale  # shape, dispersion
-    coefficients = fit.params
+def fit_glm(response, design_matrix, penalty=None, tolerance=1E-5):
+    if penalty is not None:
+        penalty = np.ones((design_matrix.shape[1],)) * penalty
+        penalty[0] = 0.0  # don't penalize the intercept
+    else:
+        penalty = np.finfo(np.float).eps
+    return penalized_IRLS(
+        design_matrix, response.squeeze(), family=families.Gamma(
+            families.links.identity()),
+        penalty=penalty, tolerance=tolerance)
 
-    return mu, v, coefficients
 
-
-def gamma_log_likelihood(mu, v):
+def gamma_log_likelihood(calcium_activity, place_field, scale):
     """Probability of parameters given spiking at a particular time.
 
     Parameters
     ----------
-    mu : ndarray, shape (n_place_bins,)
-    v : float
+    calcium_activity : np.ndarray, shape (n_time,)
+    place_field : np.ndaarray, shape (n_place_bins,)
+    scale : float
 
     Returns
     -------
@@ -79,30 +82,36 @@ def gamma_log_likelihood(mu, v):
     #         v * np.log(v * calcium_activity / mu) -
     #         v * calcium_activity / mu -
     #         np.log(calcium_activity))
-    pass
+    gamma = families.Gamma(families.links.identity())
+    return gamma.loglike_obs(
+        endog=calcium_activity[:, np.newaxis],
+        mu=place_field[np.newaxis, :],
+        scale=scale)
 
 
-def combined_likelihood(calcium_activity, conditional_intensity):
+def combined_likelihood(calcium_activity, place_fields, scales):
     '''
 
     Parameters
     ----------
-    calcium_activity : ndarray, shape (n_time, n_neurons)
+    calcium_activity : np.ndarray, shape (n_time, n_neurons)
         Deconvolved activity rate estimated from the fluorescence level.
-    conditional_intensity : ndarray, shape (n_bins, n_neurons)
+    place_fields : np.ndarray, shape (n_bins, n_neurons)
+    scales : np.ndarray, shape (n_neurons,)
 
     '''
     n_time = calcium_activity.shape[0]
-    n_bins = conditional_intensity.shape[0]
+    n_bins = place_fields.shape[0]
     log_likelihood = np.zeros((n_time, n_bins))
 
-    for activity, ci in zip(calcium_activity.T, conditional_intensity.T):
-        log_likelihood += gamma_log_likelihood(activity, ci)
+    for activity, place_field, scale in zip(
+            calcium_activity.T, place_fields.T, scales):
+        log_likelihood += gamma_log_likelihood(activity, place_field, scale)
 
     return log_likelihood
 
 
-def estimate_calcium_likelihood(calcium_activity, conditional_intensity,
+def estimate_calcium_likelihood(calcium_activity, place_fields, scales,
                                 is_track_interior=None):
     '''
 
@@ -110,7 +119,7 @@ def estimate_calcium_likelihood(calcium_activity, conditional_intensity,
     ----------
     calcium_activity : ndarray, shape (n_time, n_neurons)
         Deconvolved activity rate estimated from the fluorescence level.
-    conditional_intensity : ndarray, shape (n_bins, n_neurons)
+    place_fields : ndarray, shape (n_bins, n_neurons)
     is_track_interior : None or ndarray, optional, shape (n_x_position_bins,
                                                           n_y_position_bins)
     Returns
@@ -120,11 +129,11 @@ def estimate_calcium_likelihood(calcium_activity, conditional_intensity,
     if is_track_interior is not None:
         is_track_interior = is_track_interior.ravel(order='F')
     else:
-        n_bins = conditional_intensity.shape[0]
+        n_bins = place_fields.shape[0]
         is_track_interior = np.ones((n_bins,), dtype=np.bool)
 
     log_likelihood = combined_likelihood(
-        calcium_activity, conditional_intensity)
+        calcium_activity, place_fields, scales)
 
     mask = np.ones_like(is_track_interior, dtype=np.float)
     mask[~is_track_interior] = np.nan
@@ -136,6 +145,7 @@ def estimate_place_fields(position,
                           calcium_activity,
                           place_bin_centers,
                           place_bin_edges,
+                          penalty=1E-1,
                           knot_spacing=10):
     '''Gives the conditional intensity of the neurons' spiking with respect to
     position.
@@ -165,13 +175,14 @@ def estimate_place_fields(position,
     except ValueError:
         client = Client()
     design_matrix = client.scatter(np.asarray(design_matrix), broadcast=True)
-    results = [fit_glm(activity, design_matrix)
+    results = [fit_glm(activity, design_matrix, penalty)
                for activity in calcium_activity.T]
     results = dask.compute(*results)
 
     predict_matrix = make_spline_predict_matrix(design_info, place_bin_centers)
     place_fields = np.stack([get_activity_rate(predict_matrix, result)
                              for result in results], axis=1)
+    scales = np.asarray([result.scale for result in results])
 
     DIMS = ['position', 'neuron']
     if position.shape[1] == 1:
@@ -186,4 +197,4 @@ def estimate_place_fields(position,
                 place_bin_centers.T.tolist(), names=names)
         }
 
-    return xr.DataArray(data=place_fields, coords=coords, dims=DIMS)
+    return xr.DataArray(data=place_fields, coords=coords, dims=DIMS), scales
