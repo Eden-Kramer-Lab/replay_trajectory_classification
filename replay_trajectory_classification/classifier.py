@@ -2,6 +2,7 @@ from copy import deepcopy
 from logging import getLogger
 
 import joblib
+import matplotlib.pyplot as plt
 import numpy as np
 import sklearn
 import xarray as xr
@@ -438,29 +439,31 @@ class SortedSpikesClassifier(_ClassifierBase):
                 penalty=self.spike_model_penalty,
                 knot_spacing=self.knot_spacing)
 
-    def plot_place_fields(self, sampling_frequency=1, col_wrap=5):
-        '''Plots the fitted 2D place fields for each neuron.
-
-        Parameters
-        ----------
-        sampling_frequency : float, optional
-        col_wrap : int, optional
-
-        Returns
-        -------
-        g : xr.plot.FacetGrid instance
-
-        '''
+    def plot_place_fields(self, sampling_frequency=1, figsize=(10, 7)):
         try:
-            g = (self.place_fields_.unstack('position') * sampling_frequency
-                 ).plot(x='x_position', y='y_position', col='neuron',
-                        hue='encoding_group', col_wrap=col_wrap)
+            for (env, enc) in self.place_fields_:
+                is_track_interior = self.environments[self.environments.index(
+                    env)].is_track_interior_[np.newaxis]
+                ((self.place_fields_[(env, enc)] * sampling_frequency)
+                 .unstack('position')
+                 .where(is_track_interior)
+                 .plot(x='x_position', y='y_position',  col='neuron',
+                       col_wrap=8, vmin=0.0, vmax=3.0))
         except ValueError:
-            g = (self.place_fields_ * sampling_frequency).plot(
-                x='position', col='neuron', hue='encoding_group',
-                col_wrap=col_wrap)
-
-        return g
+            fig, axes = plt.subplots(
+                len(self.place_fields_), 1, constrained_layout=True,
+                figsize=figsize)
+            for ax, ((env_name, enc_group), place_fields) in zip(
+                    axes.flat, self.place_fields_.items()):
+                is_track_interior = self.environments[self.environments.index(
+                    env_name)].is_track_interior_[:, np.newaxis]
+                ((place_fields * sampling_frequency)
+                 .where(is_track_interior)
+                 .plot(
+                    x='position', hue='neuron', add_legend=False, ax=ax))
+                ax.set_title(
+                    f'Environment = {env_name}, Encoding Group = {enc_group}')
+                ax.set_ylabel('Firing Rate\n[spikes/s]')
 
     def fit(self,
             position,
