@@ -303,16 +303,10 @@ class _ClassifierBase(BaseEstimator):
             state_names = [f'{obs.environment_name}-{obs.encoding_group}'
                            for obs in self.observation_models]
 
-        n_time = time.shape[0]
-        n_states = len(state_names)
         n_position_dims = self.environments[0].place_bin_centers_.shape[1]
 
         if n_position_dims > 1:
-            max_bin_env_ind = np.argmax(
-                [env.place_bin_centers_.size for env in self.environments])
-            centers_shape = self.environments[max_bin_env_ind].centers_shape_
-            new_shape = (n_time, n_states, *centers_shape)
-            dims = ['time', 'state', 'x_position', 'y_position']
+            dims = ['time', 'state', 'position']
             coords = dict(
                 time=time,
                 state=state_names,
@@ -323,9 +317,7 @@ class _ClassifierBase(BaseEstimator):
                 coords[env.environment_name +
                        '_y_position'] = get_centers(env.edges_[1])
             results = xr.Dataset(
-                {key: (dims,
-                       (value.squeeze(axis=-1)
-                        .reshape(new_shape).swapaxes(-1, -2)))
+                {key: (dims, value.squeeze(axis=-1))
                  for key, value in results.items()},
                 coords=coords)
         else:
