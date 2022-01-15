@@ -92,9 +92,11 @@ class _DecoderBase(BaseEstimator):
     def copy(self):
         return deepcopy(self)
 
-    def convert_results_to_xarray(self, results, time):
+    def convert_results_to_xarray(self, results, time, data_log_likelihood):
         n_position_dims = self.environment.place_bin_centers_.shape[1]
         n_time = time.shape[0]
+
+        attrs = {'data_log_likelihood': data_log_likelihood}
 
         if n_position_dims > 1:
             dims = ['time', 'x_position', 'y_position']
@@ -117,13 +119,15 @@ class _DecoderBase(BaseEstimator):
                 {key: (dims, mask(value, is_track_interior)
                        .reshape(new_shape).swapaxes(-1, -2))
                  for key, value in results.items()},
-                coords=coords)
+                coords=coords,
+                attrs=attrs)
         except ValueError:
             results = xr.Dataset(
                 {key: (dims, mask(value, is_track_interior)
                        .reshape(new_shape))
                  for key, value in results.items()},
-                coords=coords)
+                coords=coords,
+                attrs=attrs)
 
         return results
 
@@ -257,12 +261,14 @@ class SortedSpikesDecoder(_DecoderBase):
         results['causal_posterior'] = np.full(
             (n_time, n_position_bins), np.nan)
         if not use_gpu:
-            results['causal_posterior'][:, is_track_interior] = _causal_decode(
+            (results['causal_posterior'][:, is_track_interior],
+             log_data_likelihood) = _causal_decode(
                 self.initial_conditions_[is_track_interior],
                 self.state_transition_[st_interior_ind],
                 results['likelihood'][:, is_track_interior])
         else:
-            results['causal_posterior'][:, is_track_interior] = _causal_decode_gpu(
+            (results['causal_posterior'][:, is_track_interior],
+             log_data_likelihood) = _causal_decode_gpu(
                 self.initial_conditions_[is_track_interior],
                 self.state_transition_[st_interior_ind],
                 results['likelihood'][:, is_track_interior])
@@ -287,7 +293,8 @@ class SortedSpikesDecoder(_DecoderBase):
         if time is None:
             time = np.arange(n_time)
 
-        return self.convert_results_to_xarray(results, time)
+        return self.convert_results_to_xarray(
+            results, time, log_data_likelihood)
 
 
 class ClusterlessDecoder(_DecoderBase):
@@ -416,14 +423,16 @@ class ClusterlessDecoder(_DecoderBase):
         if not use_gpu:
             results['causal_posterior'] = np.full(
                 (n_time, n_position_bins), np.nan, dtype=np.float64)
-            results['causal_posterior'][:, is_track_interior] = _causal_decode(
+            (results['causal_posterior'][:, is_track_interior],
+             data_log_likelihood) = _causal_decode(
                 self.initial_conditions_[is_track_interior],
                 self.state_transition_[st_interior_ind],
                 results['likelihood'][:, is_track_interior])
         else:
             results['causal_posterior'] = np.full(
                 (n_time, n_position_bins), np.nan, dtype=np.float32)
-            results['causal_posterior'][:, is_track_interior] = _causal_decode_gpu(
+            (results['causal_posterior'][:, is_track_interior],
+             data_log_likelihood) = _causal_decode_gpu(
                 self.initial_conditions_[is_track_interior],
                 self.state_transition_[st_interior_ind],
                 results['likelihood'][:, is_track_interior])
@@ -450,4 +459,5 @@ class ClusterlessDecoder(_DecoderBase):
         if time is None:
             time = np.arange(n_time)
 
-        return self.convert_results_to_xarray(results, time)
+        return self.convert_results_to_xarray(
+            results, time, data_log_likelihood)

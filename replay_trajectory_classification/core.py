@@ -48,15 +48,18 @@ def _causal_decode(initial_conditions, state_transition, likelihood):
     n_time = likelihood.shape[0]
     posterior = np.zeros_like(likelihood)
 
-    posterior[0] = normalize_to_probability(
-        initial_conditions.copy() * likelihood[0])
+    posterior[0] = initial_conditions.copy() * likelihood[0]
+    norm = np.nansum(posterior[0])
+    log_data_likelihood = np.log(norm)
+    posterior[0] /= norm
 
-    for time_ind in np.arange(1, n_time):
-        prior = state_transition.T @ posterior[time_ind - 1]
-        posterior[time_ind] = normalize_to_probability(
-            prior * likelihood[time_ind])
+    for k in np.arange(1, n_time):
+        posterior[k] = state_transition.T @ posterior[k - 1] * likelihood[k]
+        norm = np.nansum(posterior[k])
+        log_data_likelihood += np.log(norm)
+        posterior[k] /= norm
 
-    return posterior
+    return posterior, log_data_likelihood
 
 
 @njit(nogil=True, error_model='numpy', cache=False)
@@ -114,8 +117,10 @@ def _causal_classify(initial_conditions, continuous_state_transition,
     n_time, n_states, n_bins, _ = likelihood.shape
     posterior = np.zeros_like(likelihood)
 
-    posterior[0] = normalize_to_probability(
-        initial_conditions.copy() * likelihood[0])
+    posterior[0] = initial_conditions.copy() * likelihood[0]
+    norm = np.nansum(posterior[0])
+    log_data_likelihood = np.log(norm)
+    posterior[0] /= norm
 
     for k in np.arange(1, n_time):
         prior = np.zeros((n_states, n_bins, 1))
@@ -125,9 +130,12 @@ def _causal_classify(initial_conditions, continuous_state_transition,
                     discrete_state_transition[state_k_1, state_k] *
                     continuous_state_transition[state_k_1, state_k].T @
                     posterior[k - 1, state_k_1])
-        posterior[k] = normalize_to_probability(prior * likelihood[k])
+        posterior[k] = prior * likelihood[k]
+        norm = np.nansum(posterior[k])
+        log_data_likelihood += np.log(norm)
+        posterior[k] /= norm
 
-    return posterior
+    return posterior, log_data_likelihood
 
 
 @njit(nogil=True, error_model='numpy', cache=False)
@@ -241,15 +249,18 @@ def _causal_decode_gpu(initial_conditions, state_transition, likelihood):
     n_time = likelihood.shape[0]
     posterior = cp.zeros_like(likelihood)
 
-    posterior[0] = normalize_to_probability_gpu(
-        initial_conditions * likelihood[0])
+    posterior[0] = initial_conditions * likelihood[0]
+    norm = cp.nansum(posterior[0])
+    log_data_likelihood = cp.log(norm)
+    posterior[0] /= norm
 
-    for time_ind in np.arange(1, n_time):
-        posterior[time_ind] = normalize_to_probability_gpu(
-            (state_transition.T @ posterior[time_ind - 1]) *
-            likelihood[time_ind])
+    for k in np.arange(1, n_time):
+        posterior[k] = state_transition.T @ posterior[k - 1] * likelihood[k]
+        norm = np.nansum(posterior[k])
+        log_data_likelihood += cp.log(norm)
+        posterior[k] /= norm
 
-    return cp.asnumpy(posterior)
+    return cp.asnumpy(posterior), cp.asnumpy(log_data_likelihood)
 
 
 def _acausal_decode_gpu(causal_posterior, state_transition):
@@ -315,8 +326,10 @@ def _causal_classify_gpu(initial_conditions, continuous_state_transition,
     n_time, n_states, n_bins, _ = likelihood.shape
     posterior = cp.zeros_like(likelihood)
 
-    posterior[0] = normalize_to_probability_gpu(
-        initial_conditions * likelihood[0])
+    posterior[0] = initial_conditions * likelihood[0]
+    norm = cp.nansum(posterior[0])
+    log_data_likelihood = cp.log(norm)
+    posterior[0] /= norm
 
     for k in np.arange(1, n_time):
         prior = cp.zeros((n_states, n_bins, 1))
@@ -326,9 +339,12 @@ def _causal_classify_gpu(initial_conditions, continuous_state_transition,
                     discrete_state_transition[state_k_1, state_k] *
                     continuous_state_transition[state_k_1, state_k].T @
                     posterior[k - 1, state_k_1])
-        posterior[k] = normalize_to_probability_gpu(prior * likelihood[k])
+        posterior[k] = prior * likelihood[k]
+        norm = cp.nansum(posterior[k])
+        log_data_likelihood += cp.log(norm)
+        posterior[k] /= norm
 
-    return cp.asnumpy(posterior)
+    return cp.asnumpy(posterior), cp.asnumpy(log_data_likelihood)
 
 
 def _acausal_classify_gpu(causal_posterior, continuous_state_transition,
@@ -383,3 +399,13 @@ def _acausal_classify_gpu(causal_posterior, continuous_state_transition,
             weights * causal_posterior[k])
 
     return cp.asnumpy(acausal_posterior)
+
+
+def check_converged(loglik, previous_loglik, tolerance=1e-4):
+    delta_loglik = abs(loglik - previous_loglik)
+    avg_loglik = (abs(loglik) + abs(previous_loglik) + np.spacing(1)) / 2
+
+    is_increasing = loglik - previous_loglik >= -1e-3
+    is_converged = (delta_loglik / avg_loglik) < tolerance
+
+    return is_converged, is_increasing

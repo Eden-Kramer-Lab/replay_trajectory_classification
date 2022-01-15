@@ -12,7 +12,8 @@ from replay_trajectory_classification.continuous_state_transitions import (
 from replay_trajectory_classification.core import (_acausal_classify,
                                                    _acausal_classify_gpu,
                                                    _causal_classify,
-                                                   _causal_classify_gpu, mask,
+                                                   _causal_classify_gpu,
+                                                   check_converged, mask,
                                                    scaled_likelihood)
 from replay_trajectory_classification.discrete_state_transitions import \
     DiagonalDiscrete
@@ -171,7 +172,8 @@ class _ClassifierBase(BaseEstimator):
                 results['causal_posterior'] = np.full(
                     (n_time, n_states, n_position_bins, 1), np.nan,
                     dtype=np.float64)
-                results['causal_posterior'][:, :, is_track_interior] = (
+                (results['causal_posterior'][:, :, is_track_interior],
+                 data_log_likelihood) = (
                     _causal_classify(
                         self.initial_conditions_[:, is_track_interior],
                         self.continuous_state_transition_[st_interior_ind],
@@ -181,7 +183,8 @@ class _ClassifierBase(BaseEstimator):
                 results['causal_posterior'] = np.full(
                     (n_time, n_states, n_position_bins, 1), np.nan,
                     dtype=np.float32)
-                results['causal_posterior'][:, :, is_track_interior] = (
+                (results['causal_posterior'][:, :, is_track_interior],
+                 data_log_likelihood) = (
                     _causal_classify_gpu(
                         self.initial_conditions_[:, is_track_interior],
                         self.continuous_state_transition_[st_interior_ind],
@@ -214,18 +217,21 @@ class _ClassifierBase(BaseEstimator):
             if time is None:
                 time = np.arange(n_time)
 
-            return self._convert_results_to_xarray(results, time, state_names)
+            return self._convert_results_to_xarray(
+                results, time, state_names, data_log_likelihood)
 
         else:
             logger.info('Estimating causal posterior...')
             if not use_gpu:
-                results['causal_posterior'] = _causal_classify(
+                (results['causal_posterior'],
+                 data_log_likelihood) = _causal_classify(
                     self.initial_conditions_,
                     self.continuous_state_transition_,
                     self.discrete_state_transition_,
                     results['likelihood'])
             else:
-                results['causal_posterior'] = _causal_classify_gpu(
+                (results['causal_posterior'],
+                 data_log_likelihood) = _causal_classify_gpu(
                     self.initial_conditions_,
                     self.continuous_state_transition_,
                     self.discrete_state_transition_,
@@ -248,9 +254,11 @@ class _ClassifierBase(BaseEstimator):
                 time = np.arange(n_time)
 
             return self._convert_results_to_xarray_mutienvironment(
-                results, time, state_names)
+                results, time, state_names, data_log_likelihood)
 
-    def _convert_results_to_xarray(self, results, time, state_names=None):
+    def _convert_results_to_xarray(self, results, time, state_names,
+                                   data_log_likelihood):
+        attrs = {'data_log_likelihood': data_log_likelihood}
         n_position_dims = self.environments[0].place_bin_centers_.shape[1]
         diag_transition_names = np.diag(
             np.asarray(self.continuous_transition_types))
@@ -283,7 +291,8 @@ class _ClassifierBase(BaseEstimator):
                        (mask(value, is_track_interior).squeeze(axis=-1)
                         .reshape(new_shape).swapaxes(-1, -2)))
                  for key, value in results.items()},
-                coords=coords)
+                coords=coords,
+                attrs=attrs)
         else:
             dims = ['time', 'state', 'position']
             coords = dict(
@@ -294,16 +303,19 @@ class _ClassifierBase(BaseEstimator):
             results = xr.Dataset(
                 {key: (dims, (mask(value, is_track_interior).squeeze(axis=-1)))
                  for key, value in results.items()},
-                coords=coords)
+                coords=coords,
+                attrs=attrs)
 
         return results
 
     def _convert_results_to_xarray_mutienvironment(self, results, time,
-                                                   state_names=None):
+                                                   state_names,
+                                                   data_log_likelihood):
         if state_names is None:
             state_names = [f'{obs.environment_name}-{obs.encoding_group}'
                            for obs in self.observation_models]
 
+        attrs = {'data_log_likelihood': data_log_likelihood}
         n_position_dims = self.environments[0].place_bin_centers_.shape[1]
 
         if n_position_dims > 1:
@@ -320,7 +332,8 @@ class _ClassifierBase(BaseEstimator):
             results = xr.Dataset(
                 {key: (dims, value.squeeze(axis=-1))
                  for key, value in results.items()},
-                coords=coords)
+                coords=coords,
+                attrs=attrs)
         else:
             dims = ['time', 'state', 'position']
             coords = dict(
@@ -334,7 +347,8 @@ class _ClassifierBase(BaseEstimator):
             results = xr.Dataset(
                 {key: (dims, value.squeeze(axis=-1))
                  for key, value in results.items()},
-                coords=coords)
+                coords=coords,
+                attrs=attrs)
 
         return results
 
