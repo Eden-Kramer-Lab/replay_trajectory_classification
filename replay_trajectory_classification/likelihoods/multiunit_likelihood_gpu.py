@@ -18,7 +18,7 @@ def gaussian_pdf(x, mean, sigma):
 
 
 @cuda.jit
-def kde1(eval_points, samples, bandwidths, out):
+def kde(eval_points, samples, bandwidths, out):
     """
 
     Parameters
@@ -132,7 +132,7 @@ def estimate_pdf(
         shape=(n_eval_points,), dtype=np.float32, stream=stream)
 
     # Run KDE
-    kde1.forall(n_eval_points, stream=stream)(
+    kde.forall(n_eval_points, stream=stream)(
         eval_points, encoding_samples, bandwidths, pdf)
 
     return pdf
@@ -240,7 +240,7 @@ def estimate_position_density(place_bin_centers, positions, position_std):
     n_eval_points = len(eval_points)
     out = cuda.device_array((n_eval_points,), dtype=np.float32)
 
-    kde1.forall(n_eval_points)(
+    kde.forall(n_eval_points)(
         eval_points, samples, bandwidths, out)
 
     return out.copy_to_host()
