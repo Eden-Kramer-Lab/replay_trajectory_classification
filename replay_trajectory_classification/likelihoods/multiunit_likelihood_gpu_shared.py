@@ -676,7 +676,7 @@ def estimate_pdf(
         shape=(n_eval_points,), dtype=np.float32, stream=stream)
 
     # Run KDE
-    KDE_FUNCS[n_marks].forall(n_eval_points, stream=stream)(
+    KDE_FUNCS[n_marks + n_position_dims].forall(n_eval_points, stream=stream)(
         eval_points, encoding_samples, bandwidths, pdf)
 
     return pdf
