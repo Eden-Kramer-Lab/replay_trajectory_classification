@@ -47,7 +47,7 @@ def estimate_intensity(density, occupancy, mean_rate):
     return cp.exp(estimate_log_intensity(density, occupancy, mean_rate))
 
 
-def normal_pdf_integer_lookup(x, mean, std=20, max_value=6000):
+def normal_pdf_integer_lookup(x, mean, std=20, max_value=6000, dtype=cp.float32):
     """Fast density evaluation for integers by precomputing a hash table of
     values.
 
@@ -63,7 +63,7 @@ def normal_pdf_integer_lookup(x, mean, std=20, max_value=6000):
     probability_density : int
 
     """
-    normal_density = gaussian_pdf(cp.arange(-max_value, max_value), 0, std)
+    normal_density = gaussian_pdf(cp.arange(-max_value, max_value), 0, std).astype(dtype)
 
     return normal_density[(x - mean) + max_value]
 
@@ -71,11 +71,11 @@ def normal_pdf_integer_lookup(x, mean, std=20, max_value=6000):
 def estimate_log_joint_mark_intensity(decoding_marks,
                                       encoding_marks,
                                       mark_std,
-                                      place_bin_centers,
-                                      encoding_positions,
-                                      position_std,
                                       occupancy,
                                       mean_rate,
+                                      place_bin_centers=None,
+                                      encoding_positions=None,
+                                      position_std=None,
                                       max_mark_value=6000,
                                       set_diag_zero=False,
                                       position_distance=None):
@@ -86,11 +86,11 @@ def estimate_log_joint_mark_intensity(decoding_marks,
     decoding_marks : ndarray, shape (n_decoding_spikes, n_features)
     encoding_marks : ndarray, shape (n_encoding_spikes, n_features)
     mark_std : float or ndarray, shape (n_features,)
+    occupancy : ndarray, shape (n_position_bins,)
+    mean_rate : float
     place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
     encoding_positions : ndarray, shape (n_decoding_spikes, n_position_dims)
     position_std : float or ndarray, shape (n_position_dims,)
-    occupancy : ndarray, shape (n_position_bins,)
-    mean_rate : float
     is_track_interior : None or ndarray, shape (n_position_bins,)
     max_mark_value : int
     set_diag_zero : bool
@@ -118,7 +118,7 @@ def estimate_log_joint_mark_intensity(decoding_marks,
 
     if position_distance is None:
         position_distance = estimate_position_distance(
-            place_bin_centers, encoding_positions, position_std)
+            place_bin_centers, encoding_positions, position_std).astype(cp.float32)
 
     return cp.asnumpy(
         estimate_log_intensity(
@@ -225,7 +225,8 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
                                                max_mark_value=6000,
                                                set_diag_zero=False,
                                                is_track_interior=None,
-                                               time_bin_size=1):
+                                               time_bin_size=1,
+                                               block_size=None):
     '''
 
     Parameters
@@ -252,22 +253,43 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
                       np.ones((n_time, 1)))
 
     multiunits = np.moveaxis(multiunits, -1, 0)
+    n_position_bins = is_track_interior.sum()
 
     for multiunit, enc_marks, enc_pos, mean_rate in zip(
             multiunits, encoding_marks, encoding_positions, mean_rates):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
-        log_joint_mark_intensity = estimate_log_joint_mark_intensity(
-            cp.asarray(multiunit[is_spike], dtype=cp.int16),
-            enc_marks,
-            mark_std,
+        decoding_marks = cp.asarray(multiunit[is_spike], dtype=cp.int16)
+        n_decoding_marks = decoding_marks.shape[0]
+        log_joint_mark_intensity = np.zeros((n_decoding_marks, n_position_bins))
+        
+        if block_size is None:
+            gpu_memory_size = cp.get_default_memory_pool().total_bytes()
+            mark_distance_matrix_size = (n_decoding_marks * enc_marks.shape[0]) * 32 // 8 # bytes
+            if mark_distance_matrix_size < gpu_memory_size * 0.8:
+                if n_decoding_marks > 0:
+                    block_size = n_decoding_marks
+                else:
+                    block_size = 1
+            else:
+                block_size = (gpu_memory_size * 0.8 * 8) // (32 * enc_marks.shape[0])
+        
+        position_distance = estimate_position_distance(
             cp.asarray(place_bin_centers[is_track_interior]),
             enc_pos,
-            position_std,
-            cp.asarray(occupancy[is_track_interior]),
-            mean_rate,
-            max_mark_value=max_mark_value,
-            set_diag_zero=set_diag_zero,
-        )
+            position_std).astype(cp.float32)
+            
+        for start_ind in range(0, n_decoding_marks, block_size):
+            block_inds = slice(start_ind, start_ind + block_size)
+            log_joint_mark_intensity[block_inds] = estimate_log_joint_mark_intensity(
+                decoding_marks[block_inds],
+                enc_marks,
+                mark_std,
+                cp.asarray(occupancy[is_track_interior]),
+                mean_rate,
+                max_mark_value=max_mark_value,
+                set_diag_zero=set_diag_zero,
+                position_distance=position_distance,
+            )
         log_likelihood[np.ix_(is_spike, is_track_interior)] += (
             log_joint_mark_intensity + np.spacing(1))
 
