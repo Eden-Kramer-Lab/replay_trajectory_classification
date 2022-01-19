@@ -1,8 +1,5 @@
-import math as math
-
-import numba
-import numpy as np
 import cupy as cp
+import numpy as np
 from replay_trajectory_classification.bins import atleast_2d
 
 SQRT_2PI = cp.sqrt(2.0 * cp.pi)
@@ -192,12 +189,14 @@ def fit_multiunit_likelihood_integer_cupy(position,
                 position_std)
 
         ground_process_intensities.append(
-            estimate_intensity(marginal_density, cp.asarray(occupancy), mean_rates[-1])
+            estimate_intensity(marginal_density, cp.asarray(
+                occupancy), mean_rates[-1])
             + cp.asarray(np.spacing(1)))
 
         encoding_marks.append(
             cp.asarray(multiunit[is_spike & not_nan_position], dtype=cp.int))
-        encoding_positions.append(cp.asarray(position[is_spike & not_nan_position]))
+        encoding_positions.append(cp.asarray(
+            position[is_spike & not_nan_position]))
 
     summed_ground_process_intensity = cp.asnumpy(cp.sum(
         cp.stack(ground_process_intensities, axis=0), axis=0, keepdims=True))

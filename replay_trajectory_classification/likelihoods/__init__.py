@@ -14,7 +14,8 @@ from .multiunit_likelihood_gpu_shared import (
 from .multiunit_likelihood_integer import (
     estimate_multiunit_likelihood_integer, fit_multiunit_likelihood_integer)
 from .multiunit_likelihood_integer_cupy import (
-    estimate_multiunit_likelihood_integer_cupy, fit_multiunit_likelihood_integer_cupy)
+    estimate_multiunit_likelihood_integer_cupy,
+    fit_multiunit_likelihood_integer_cupy)
 from .multiunit_likelihood_integer_no_dask import (
     estimate_multiunit_likelihood_integer_no_dask,
     fit_multiunit_likelihood_integer_no_dask)
