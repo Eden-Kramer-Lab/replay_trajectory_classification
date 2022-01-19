@@ -63,7 +63,8 @@ def normal_pdf_integer_lookup(x, mean, std=20, max_value=6000, dtype=cp.float32)
     probability_density : int
 
     """
-    normal_density = gaussian_pdf(cp.arange(-max_value, max_value), 0, std).astype(dtype)
+    normal_density = gaussian_pdf(
+        cp.arange(-max_value, max_value), 0, std).astype(dtype)
 
     return normal_density[(x - mean) + max_value]
 
@@ -260,24 +261,27 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         decoding_marks = cp.asarray(multiunit[is_spike], dtype=cp.int16)
         n_decoding_marks = decoding_marks.shape[0]
-        log_joint_mark_intensity = np.zeros((n_decoding_marks, n_position_bins))
-        
+        log_joint_mark_intensity = np.zeros(
+            (n_decoding_marks, n_position_bins))
+
         if block_size is None:
             gpu_memory_size = cp.get_default_memory_pool().total_bytes()
-            mark_distance_matrix_size = (n_decoding_marks * enc_marks.shape[0]) * 32 // 8 # bytes
+            mark_distance_matrix_size = (
+                n_decoding_marks * enc_marks.shape[0]) * 32 // 8  # bytes
             if mark_distance_matrix_size < gpu_memory_size * 0.8:
                 if n_decoding_marks > 0:
                     block_size = n_decoding_marks
                 else:
                     block_size = 1
             else:
-                block_size = (gpu_memory_size * 0.8 * 8) // (32 * enc_marks.shape[0])
-        
+                block_size = (gpu_memory_size * 0.8 *
+                              8) // (32 * enc_marks.shape[0])
+
         position_distance = estimate_position_distance(
             cp.asarray(place_bin_centers[is_track_interior]),
             enc_pos,
             position_std).astype(cp.float32)
-            
+
         for start_ind in range(0, n_decoding_marks, block_size):
             block_inds = slice(start_ind, start_ind + block_size)
             log_joint_mark_intensity[block_inds] = estimate_log_joint_mark_intensity(
