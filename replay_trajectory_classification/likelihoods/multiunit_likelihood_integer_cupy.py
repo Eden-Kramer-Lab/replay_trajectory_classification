@@ -194,7 +194,7 @@ def fit_multiunit_likelihood_integer_cupy(position,
             + cp.asarray(np.spacing(1)))
 
         encoding_marks.append(
-            cp.asarray(multiunit[is_spike & not_nan_position], dtype=cp.int))
+            cp.asarray(multiunit[is_spike & not_nan_position], dtype=cp.int16))
         encoding_positions.append(cp.asarray(
             position[is_spike & not_nan_position]))
 
@@ -257,7 +257,7 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
             multiunits, encoding_marks, encoding_positions, mean_rates):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         log_joint_mark_intensity = estimate_log_joint_mark_intensity(
-            cp.asarray(multiunit[is_spike], dtype=cp.int),
+            cp.asarray(multiunit[is_spike], dtype=cp.int16),
             enc_marks,
             mark_std,
             cp.asarray(place_bin_centers[is_track_interior]),
