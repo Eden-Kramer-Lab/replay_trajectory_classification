@@ -62,10 +62,10 @@ def estimate_position_density(place_bin_centers, positions, position_std,
         gpu_memory_size = cp.get_default_memory_pool().total_bytes()
         distance_matrix_size = (
             n_time * n_position_bins) * 32 // 8  # bytes
-        if distance_matrix_size < gpu_memory_size * 0.5:
+        if distance_matrix_size < gpu_memory_size * 0.8:
             block_size = n_position_bins
         else:
-            block_size = int(gpu_memory_size * 0.5 *
+            block_size = int(gpu_memory_size * 0.8 *
                              8) // (32 * n_time)
 
     position_density = cp.empty((n_position_bins,))
@@ -328,7 +328,7 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
             gpu_memory_size = cp.get_default_memory_pool().total_bytes()
             mark_distance_matrix_size = (
                 n_decoding_marks * enc_marks.shape[0]) * 32 // 8  # bytes
-            if mark_distance_matrix_size < gpu_memory_size * 0.5:
+            if mark_distance_matrix_size < gpu_memory_size * 0.8:
                 if n_decoding_marks > 0:
                     block_size = n_decoding_marks
                 else:
