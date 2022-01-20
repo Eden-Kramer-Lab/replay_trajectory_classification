@@ -744,5 +744,6 @@ class ClusterlessClassifier(_ClassifierBase):
                     **encoding_params
             )
 
+        logger.info('Getting results...')
         return self._get_results(
             likelihood, n_time, time, state_names, use_gpu, is_compute_acausal)
