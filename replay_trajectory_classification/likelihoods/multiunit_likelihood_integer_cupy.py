@@ -12,18 +12,66 @@ def gaussian_pdf(x, mean, sigma):
 
 
 def estimate_position_distance(place_bin_centers, positions, position_std):
-    return cp.prod(
-        gaussian_pdf(
-            cp.expand_dims(place_bin_centers, axis=0),
-            cp.expand_dims(positions, axis=1),
-            position_std),
-        axis=-1
-    )
+    '''
+    
+    Parameters
+    ----------
+    place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
+    positions : ndarray, shape (n_time, n_position_dims)
+    position_std : float
+    
+    Returns
+    -------
+    position_distance : ndarray, shape (n_time, n_position_bins)
+    
+    '''
+    n_time, n_position_dims = positions.shape
+    n_position_bins = place_bin_centers.shape[0]
+    
+    position_distance = cp.ones((n_time, n_position_bins))
+    
+    for position_ind in range(n_position_dims):
+        position_distance *= gaussian_pdf(
+            cp.expand_dims(place_bin_centers[:, position_ind], axis=0),
+            cp.expand_dims(positions[:, position_ind], axis=1),
+            position_std)
+
+    return position_distance
 
 
-def estimate_position_density(place_bin_centers, positions, position_std):
-    return cp.mean(estimate_position_distance(
-        place_bin_centers, positions, position_std), axis=0)
+def estimate_position_density(place_bin_centers, positions, position_std, block_size=None):
+    '''
+    
+    Parameters
+    ----------
+    place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
+    positions : ndarray, shape (n_time, n_position_dims)
+    position_std : float
+    
+    Returns
+    -------
+    position_density : ndarray, shape (n_position_bins,)
+    
+    '''
+    n_time = positions.shape[0]
+    n_position_bins = place_bin_centers.shape[0]
+    
+    if block_size is None:
+        gpu_memory_size = cp.get_default_memory_pool().total_bytes()
+        distance_matrix_size = (
+            n_time * n_position_bins) * 32 // 8  # bytes
+        if distance_matrix_size < gpu_memory_size * 0.8:
+            block_size = n_position_bins
+        else:
+            block_size = int(gpu_memory_size * 0.8 *
+                             8) // (32 * n_time)
+    
+    position_density = cp.empty((n_position_bins,))
+    for start_ind in range(0, n_position_bins, block_size):
+        block_inds = slice(start_ind, start_ind + block_size)
+        position_density[block_inds] = cp.mean(estimate_position_distance(
+            place_bin_centers[block_inds], positions, position_std), axis=0)
+    return position_density
 
 
 def estimate_log_intensity(density, occupancy, mean_rate):
@@ -91,7 +139,7 @@ def estimate_log_joint_mark_intensity(decoding_marks,
     mean_rate : float
     place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
     encoding_positions : ndarray, shape (n_decoding_spikes, n_position_dims)
-    position_std : float or ndarray, shape (n_position_dims,)
+    position_std : float
     is_track_interior : None or ndarray, shape (n_position_bins,)
     max_mark_value : int
     set_diag_zero : bool
