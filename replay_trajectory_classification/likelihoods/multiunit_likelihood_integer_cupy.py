@@ -47,7 +47,7 @@ def estimate_intensity(density, occupancy, mean_rate):
     return cp.exp(estimate_log_intensity(density, occupancy, mean_rate))
 
 
-def normal_pdf_integer_lookup(x, mean, std=20, max_value=6000, dtype=cp.float32):
+def normal_pdf_integer_lookup(x, mean, std=20, max_value=6000):
     """Fast density evaluation for integers by precomputing a hash table of
     values.
 
@@ -64,7 +64,7 @@ def normal_pdf_integer_lookup(x, mean, std=20, max_value=6000, dtype=cp.float32)
 
     """
     normal_density = gaussian_pdf(
-        cp.arange(-max_value, max_value), 0, std).astype(dtype)
+        cp.arange(-max_value, max_value), 0, std).astype(cp.float32)
 
     return normal_density[(x - mean) + max_value]
 
@@ -103,7 +103,8 @@ def estimate_log_joint_mark_intensity(decoding_marks,
     """
     n_encoding_spikes, n_marks = encoding_marks.shape
     n_decoding_spikes = decoding_marks.shape[0]
-    mark_distance = cp.ones((n_decoding_spikes, n_encoding_spikes))
+    mark_distance = cp.ones(
+        (n_decoding_spikes, n_encoding_spikes), dtype=cp.float32)
 
     for mark_ind in range(n_marks):
         mark_distance *= normal_pdf_integer_lookup(
@@ -119,7 +120,8 @@ def estimate_log_joint_mark_intensity(decoding_marks,
 
     if position_distance is None:
         position_distance = estimate_position_distance(
-            place_bin_centers, encoding_positions, position_std).astype(cp.float32)
+            place_bin_centers, encoding_positions, position_std
+        ).astype(cp.float32)
 
     return cp.asnumpy(
         estimate_log_intensity(
@@ -280,7 +282,8 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
         position_distance = estimate_position_distance(
             cp.asarray(place_bin_centers[is_track_interior]),
             enc_pos,
-            position_std).astype(cp.float32)
+            position_std
+        ).astype(cp.float32)
 
         for start_ind in range(0, n_decoding_marks, block_size):
             block_inds = slice(start_ind, start_ind + block_size)
