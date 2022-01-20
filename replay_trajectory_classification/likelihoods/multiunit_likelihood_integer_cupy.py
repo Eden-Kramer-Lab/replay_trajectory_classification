@@ -13,23 +13,23 @@ def gaussian_pdf(x, mean, sigma):
 
 def estimate_position_distance(place_bin_centers, positions, position_std):
     '''
-    
+
     Parameters
     ----------
     place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
     positions : ndarray, shape (n_time, n_position_dims)
     position_std : float
-    
+
     Returns
     -------
     position_distance : ndarray, shape (n_time, n_position_bins)
-    
+
     '''
     n_time, n_position_dims = positions.shape
     n_position_bins = place_bin_centers.shape[0]
-    
+
     position_distance = cp.ones((n_time, n_position_bins))
-    
+
     for position_ind in range(n_position_dims):
         position_distance *= gaussian_pdf(
             cp.expand_dims(place_bin_centers[:, position_ind], axis=0),
@@ -39,23 +39,24 @@ def estimate_position_distance(place_bin_centers, positions, position_std):
     return position_distance
 
 
-def estimate_position_density(place_bin_centers, positions, position_std, block_size=None):
+def estimate_position_density(place_bin_centers, positions, position_std,
+                              block_size=None):
     '''
-    
+
     Parameters
     ----------
     place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
     positions : ndarray, shape (n_time, n_position_dims)
     position_std : float
-    
+
     Returns
     -------
     position_density : ndarray, shape (n_position_bins,)
-    
+
     '''
     n_time = positions.shape[0]
     n_position_bins = place_bin_centers.shape[0]
-    
+
     if block_size is None:
         gpu_memory_size = cp.get_default_memory_pool().total_bytes()
         distance_matrix_size = (
@@ -65,7 +66,7 @@ def estimate_position_density(place_bin_centers, positions, position_std, block_
         else:
             block_size = int(gpu_memory_size * 0.8 *
                              8) // (32 * n_time)
-    
+
     position_density = cp.empty((n_position_bins,))
     for start_ind in range(0, n_position_bins, block_size):
         block_inds = slice(start_ind, start_ind + block_size)
