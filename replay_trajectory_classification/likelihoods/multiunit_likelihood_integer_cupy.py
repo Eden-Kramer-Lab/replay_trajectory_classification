@@ -213,15 +213,17 @@ def fit_multiunit_likelihood_integer_cupy(position,
                                     dtype=np.bool)
     position = atleast_2d(position)
     place_bin_centers = atleast_2d(place_bin_centers)
+    interior_place_bin_centers = cp.asarray(
+        place_bin_centers[is_track_interior], dtype=cp.float32)
+    gpu_is_track_interior = cp.asarray(is_track_interior)
 
     not_nan_position = np.all(~np.isnan(position), axis=1)
 
-    occupancy = np.zeros((place_bin_centers.shape[0],))
-    occupancy[is_track_interior] = cp.asnumpy(
-        estimate_position_density(
-            cp.asarray(place_bin_centers[is_track_interior], dtype=cp.float32),
-            cp.asarray(position[not_nan_position], dtype=cp.float32),
-            position_std))
+    occupancy = cp.zeros((place_bin_centers.shape[0],))
+    occupancy[gpu_is_track_interior] = estimate_position_density(
+        interior_place_bin_centers,
+        cp.asarray(position[not_nan_position], dtype=cp.float32),
+        position_std)
 
     mean_rates = []
     ground_process_intensities = []
@@ -236,17 +238,15 @@ def fit_multiunit_likelihood_integer_cupy(position,
         marginal_density = cp.zeros((place_bin_centers.shape[0],))
 
         if is_spike.sum() > 0:
-            marginal_density[cp.asarray(is_track_interior)] = estimate_position_density(
-                cp.asarray(
-                    place_bin_centers[is_track_interior], dtype=cp.float32),
+            marginal_density[gpu_is_track_interior] = estimate_position_density(
+                interior_place_bin_centers,
                 cp.asarray(
                     position[is_spike & not_nan_position], dtype=cp.float32),
                 position_std)
 
         ground_process_intensities.append(
             estimate_intensity(marginal_density, cp.asarray(
-                occupancy, dtype=cp.float32), mean_rates[-1])
-            + cp.asarray(np.spacing(1)))
+                occupancy, dtype=cp.float32), mean_rates[-1]))
 
         encoding_marks.append(
             cp.asarray(multiunit[is_spike & not_nan_position], dtype=cp.int16))
@@ -255,6 +255,7 @@ def fit_multiunit_likelihood_integer_cupy(position,
 
     summed_ground_process_intensity = cp.asnumpy(cp.sum(
         cp.stack(ground_process_intensities, axis=0), axis=0, keepdims=True))
+    summed_ground_process_intensity += np.spacing(1)
 
     return {
         'encoding_marks': encoding_marks,
@@ -309,6 +310,10 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
 
     multiunits = np.moveaxis(multiunits, -1, 0)
     n_position_bins = is_track_interior.sum()
+    interior_place_bin_centers = cp.asarray(
+        place_bin_centers[is_track_interior], dtype=cp.float32)
+    gpu_is_track_interior = cp.asarray(is_track_interior)
+    interior_occupancy = occupancy[gpu_is_track_interior]
 
     for multiunit, enc_marks, enc_pos, mean_rate in zip(
             tqdm(multiunits, desc='n_electrodes'),
@@ -329,11 +334,11 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
                 else:
                     block_size = 1
             else:
-                block_size = int(gpu_memory_size * 0.8 *
+                block_size = int(gpu_memory_size * 0.5 *
                                  8) // (32 * enc_marks.shape[0])
 
         position_distance = estimate_position_distance(
-            cp.asarray(place_bin_centers[is_track_interior], dtype=cp.float32),
+            interior_place_bin_centers,
             enc_pos,
             position_std
         ).astype(cp.float32)
@@ -344,7 +349,7 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
                 decoding_marks[block_inds],
                 enc_marks,
                 mark_std,
-                cp.asarray(occupancy[is_track_interior], dtype=cp.float32),
+                interior_occupancy,
                 mean_rate,
                 max_mark_value=max_mark_value,
                 set_diag_zero=set_diag_zero,
