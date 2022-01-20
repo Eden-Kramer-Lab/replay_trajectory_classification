@@ -1,6 +1,7 @@
 import cupy as cp
 import numpy as np
 from replay_trajectory_classification.bins import atleast_2d
+from tqdm.autonotebook import tqdm
 
 SQRT_2PI = cp.sqrt(2.0 * cp.pi)
 
@@ -310,7 +311,8 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
     n_position_bins = is_track_interior.sum()
 
     for multiunit, enc_marks, enc_pos, mean_rate in zip(
-            multiunits, encoding_marks, encoding_positions, mean_rates):
+            tqdm(multiunits, desc='n_electrodes'),
+            encoding_marks, encoding_positions, mean_rates):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         decoding_marks = cp.asarray(multiunit[is_spike], dtype=cp.int16)
         n_decoding_marks = decoding_marks.shape[0]

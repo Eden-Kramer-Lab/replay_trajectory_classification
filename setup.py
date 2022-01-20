@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 INSTALL_REQUIRES = ['numpy', 'statsmodels', 'numba', 'matplotlib',
                     'pandas', 'xarray', 'scipy', 'scikit-learn', 'scikit-image',
                     'regularized_glm', 'dask', 'patsy', 'networkx', 'joblib',
-                    'track_linearization']
+                    'track_linearization', 'tqdm']
 TESTS_REQUIRE = ['pytest >= 2.7.1']
 
 setup(

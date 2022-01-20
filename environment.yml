@@ -22,6 +22,7 @@ dependencies:
 - regularized_glm
 - nvtx
 - patsy
+- tqdm
 - jupyter
 - jupyterlab
 - nb_conda
