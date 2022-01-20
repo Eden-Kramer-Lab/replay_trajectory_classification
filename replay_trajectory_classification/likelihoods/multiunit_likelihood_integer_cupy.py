@@ -230,7 +230,7 @@ def fit_multiunit_likelihood_integer_cupy(position,
     encoding_marks = []
     encoding_positions = []
 
-    for multiunit in np.moveaxis(multiunits, -1, 0):
+    for multiunit in tqdm(np.moveaxis(multiunits, -1, 0), desc='electrodes'):
 
         # ground process intensity
         is_spike = np.any(~np.isnan(multiunit), axis=1)
