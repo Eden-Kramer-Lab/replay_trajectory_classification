@@ -4,6 +4,7 @@ from logging import getLogger
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import sklearn
 import xarray as xr
 from replay_trajectory_classification.bins import atleast_2d, get_centers
@@ -15,8 +16,8 @@ from replay_trajectory_classification.core import (_acausal_classify,
                                                    _causal_classify_gpu,
                                                    check_converged, mask,
                                                    scaled_likelihood)
-from replay_trajectory_classification.discrete_state_transitions import \
-    DiagonalDiscrete
+from replay_trajectory_classification.discrete_state_transitions import (
+    DiagonalDiscrete, estimate_discrete_state_transition)
 from replay_trajectory_classification.environments import Environment
 from replay_trajectory_classification.initial_conditions import \
     UniformInitialConditions
@@ -143,6 +144,73 @@ class _ClassifierBase(BaseEstimator):
         n_states = len(self.continuous_transition_types)
         self.discrete_state_transition_ = (
             self.discrete_transition_type.make_state_transition(n_states))
+
+    def plot_discrete_state_transition(
+            self, state_names=None, cmap='Oranges', ax=None,
+            convert_to_seconds=False, sampling_frequency=1):
+
+        if ax is None:
+            ax = plt.gca()
+
+        if state_names is None:
+            state_names = [f'state {ind + 1}' for ind in
+                           range(self.discrete_state_transition_.shape[0])]
+
+        if convert_to_seconds:
+            discrete_state_transition = (
+                1 / (1 - self.discrete_state_transition_)) / sampling_frequency
+            vmin, vmax, fmt = 0.0, None, '0.03f'
+            label = 'Seconds'
+        else:
+            discrete_state_transition = self.discrete_state_transition_
+            vmin, vmax, fmt = 0.0, 1.0, '0.03f'
+            label = 'Probability'
+
+        sns.heatmap(data=discrete_state_transition,
+                    vmin=vmin, vmax=vmax, annot=True, fmt=fmt, cmap=cmap,
+                    xticklabels=state_names, yticklabels=state_names, ax=ax,
+                    cbar_kws={'label': label})
+        ax.set_ylabel('Previous State', fontsize=12)
+        ax.set_xlabel('Current State', fontsize=12)
+        ax.set_title('Discrete State Transition', fontsize=16)
+
+    def estimate_parameters(self, fit_args, predict_args, tolerance=1E-4,
+                            max_iter=10):
+
+        self.fit(**fit_args)
+        results = self.predict(**predict_args)
+
+        data_log_likelihoods = [results.data_log_likelihood]
+        discrete_state_transitions = [self.discrete_state_transition_]
+        log_likelihood_change = np.inf
+        converged = False
+        increasing = True
+        n_iter = 0
+
+        logger.info(
+            f'iteration {n_iter}, likelihood: {data_log_likelihoods[-1]}')
+
+        while not converged and (n_iter <= max_iter):
+            self.discrete_state_transition_ = estimate_discrete_state_transition(
+                self, results)
+            results = self.predict(**predict_args)
+            data_log_likelihoods.append(results.data_log_likelihood)
+            discrete_state_transitions.append(
+                self.discrete_state_transition_)
+            log_likelihood_change = (
+                data_log_likelihoods[-1] - data_log_likelihoods[-2])
+            n_iter += 1
+
+            converged, increasing = check_converged(
+                data_log_likelihoods[-1], data_log_likelihoods[-2], tolerance)
+
+            logger.info(
+                f'iteration {n_iter}, '
+                f'likelihood: {data_log_likelihoods[-1]}, '
+                f'change: {log_likelihood_change}'
+            )
+
+        return results, data_log_likelihoods, discrete_state_transitions
 
     def _get_results(self, likelihood, n_time, time, state_names, use_gpu,
                      is_compute_acausal):

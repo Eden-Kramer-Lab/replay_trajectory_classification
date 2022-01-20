@@ -99,7 +99,8 @@ def make_continuous_replay(sampling_frequency=SAMPLING_FREQUENCY,
                            is_outbound=True):
 
     replay_speed = running_speed * replay_speedup
-    n_samples = int(2 * sampling_frequency * track_height / replay_speed)
+    n_samples = int(
+        np.ceil(2 * sampling_frequency * track_height / replay_speed))
     replay_time = simulate_time(n_samples, sampling_frequency)
     true_replay_position = simulate_linear_distance(
         replay_time, track_height, replay_speed)
@@ -185,6 +186,20 @@ def make_fragmented_continuous_fragmented_replay(
     _, test_spikes3 = make_fragmented_replay()
 
     test_spikes = np.concatenate((test_spikes1, test_spikes2, test_spikes3))
+    replay_time = np.arange(test_spikes.shape[0]) / sampling_frequency
+
+    return replay_time, test_spikes
+
+
+def make_theta_sweep(sampling_frequency=SAMPLING_FREQUENCY, n_sweeps=5):
+    _, test_spikes1 = make_continuous_replay(
+        is_outbound=False, replay_speedup=145)
+    _, test_spikes2 = make_continuous_replay(
+        is_outbound=True, replay_speedup=145)
+
+    test_spikes = np.concatenate(
+        [test_spikes1[test_spikes1.shape[0] // 2:],
+         test_spikes2] * n_sweeps)
     replay_time = np.arange(test_spikes.shape[0]) / sampling_frequency
 
     return replay_time, test_spikes

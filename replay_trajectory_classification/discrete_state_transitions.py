@@ -106,3 +106,29 @@ class UserDefinedDiscrete:
 
         """
         return self.state_transition_
+
+
+def expected_duration(discrete_state_transition, sampling_frequency=1):
+    self_transitions = np.diag(discrete_state_transition)
+    return (1 / (1 - self_transitions)) / sampling_frequency
+
+
+def estimate_discrete_state_transition(classifier, results):
+    try:
+        causal_prob = results.causal_posterior.sum('position').values
+        acausal_prob = results.acausal_posterior.sum('position').values
+    except ValueError:
+        causal_prob = results.causal_posterior.sum(
+            ['x_position', 'y_position']).values
+        acausal_prob = results.acausal_posterior.sum(
+            ['x_position', 'y_position']).values
+
+    discrete_state_transition = (
+        classifier.discrete_state_transition_[np.newaxis] *
+        causal_prob[2:-1, np.newaxis] *
+        acausal_prob[3:, np.newaxis] /
+        causal_prob[3:, np.newaxis]).sum(axis=0) + 1e-32
+    discrete_state_transition /= discrete_state_transition.sum(
+        axis=1, keepdims=True)
+
+    return discrete_state_transition
