@@ -12,8 +12,7 @@ from replay_trajectory_classification.continuous_state_transitions import (
 from replay_trajectory_classification.core import (_acausal_classify,
                                                    _acausal_classify_gpu,
                                                    _causal_classify,
-                                                   _causal_classify_gpu,
-                                                   check_converged, mask,
+                                                   _causal_classify_gpu, mask,
                                                    scaled_likelihood)
 from replay_trajectory_classification.discrete_state_transitions import \
     DiagonalDiscrete
