@@ -551,7 +551,8 @@ class SortedSpikesClassifier(_ClassifierBase):
         likelihood = {}
         for (env_name, enc_group), place_fields in self.place_fields_.items():
             env_ind = self.environments.index(env_name)
-            is_track_interior = self.environments[env_ind].is_track_interior_
+            is_track_interior = (
+                self.environments[env_ind].is_track_interior_.ravel(order='F'))
             likelihood[(env_name, enc_group)] = estimate_spiking_likelihood(
                 spikes,
                 place_fields.values,
@@ -733,7 +734,8 @@ class ClusterlessClassifier(_ClassifierBase):
         likelihood = {}
         for (env_name, enc_group), encoding_params in self.encoding_model_.items():
             env_ind = self.environments.index(env_name)
-            is_track_interior = self.environments[env_ind].is_track_interior_
+            is_track_interior = (
+                self.environments[env_ind].is_track_interior_.ravel(order='F'))
             place_bin_centers = self.environments[env_ind].place_bin_centers_
             likelihood[(env_name, enc_group)] = _ClUSTERLESS_ALGORITHMS[
                 self.clusterless_algorithm][1](
