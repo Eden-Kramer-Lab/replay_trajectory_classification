@@ -66,7 +66,9 @@ def estimate_position_density(place_bin_centers, positions, position_std,
             block_size = n_position_bins
         else:
             block_size = int(gpu_memory_size * 0.8 *
-                             8) // (32 * n_time)
+                             8 // (32 * n_time))
+            if block_size <= 0:
+                block_size = 1
 
     position_density = cp.empty((n_position_bins,))
     for start_ind in range(0, n_position_bins, block_size):
@@ -335,7 +337,7 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
                     block_size = 1
             else:
                 block_size = int(gpu_memory_size * 0.5 *
-                                 8) // (32 * enc_marks.shape[0])
+                                 8 // (32 * enc_marks.shape[0]))
                 if block_size <= 0:
                     block_size = 1
 
