@@ -274,8 +274,8 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
                 else:
                     block_size = 1
             else:
-                block_size = (gpu_memory_size * 0.8 *
-                              8) // (32 * enc_marks.shape[0])
+                block_size = int(gpu_memory_size * 0.8 *
+                                 8) // (32 * enc_marks.shape[0])
 
         position_distance = estimate_position_distance(
             cp.asarray(place_bin_centers[is_track_interior]),
