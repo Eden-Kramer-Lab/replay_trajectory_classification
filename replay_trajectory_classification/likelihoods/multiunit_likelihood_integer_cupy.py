@@ -306,7 +306,7 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
 
     n_time = multiunits.shape[0]
     log_likelihood = (-time_bin_size * summed_ground_process_intensity *
-                      np.ones((n_time, 1)))
+                      np.ones((n_time, 1), dtype=np.float32))
 
     multiunits = np.moveaxis(multiunits, -1, 0)
     n_position_bins = is_track_interior.sum()
@@ -322,7 +322,7 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
         decoding_marks = cp.asarray(multiunit[is_spike], dtype=cp.int16)
         n_decoding_marks = decoding_marks.shape[0]
         log_joint_mark_intensity = np.zeros(
-            (n_decoding_marks, n_position_bins))
+            (n_decoding_marks, n_position_bins), dtype=np.float32)
 
         if block_size is None:
             gpu_memory_size = cp.get_default_memory_pool().total_bytes()
