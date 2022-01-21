@@ -231,7 +231,7 @@ def fit_multiunit_likelihood_integer_cupy(position,
     encoding_marks = []
     encoding_positions = []
 
-    for multiunit in tqdm(np.moveaxis(multiunits, -1, 0), desc='electrodes'):
+    for multiunit in np.moveaxis(multiunits, -1, 0):
 
         # ground process intensity
         is_spike = np.any(~np.isnan(multiunit), axis=1)
@@ -283,7 +283,8 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
                                                set_diag_zero=False,
                                                is_track_interior=None,
                                                time_bin_size=1,
-                                               block_size=None):
+                                               block_size=None,
+                                               disable_progress_bar=True):
     '''
 
     Parameters
@@ -317,7 +318,7 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
     interior_occupancy = occupancy[gpu_is_track_interior]
 
     for multiunit, enc_marks, enc_pos, mean_rate in zip(
-            tqdm(multiunits, desc='n_electrodes'),
+            tqdm(multiunits, desc='n_electrodes', disable=show_progress_bar),
             encoding_marks, encoding_positions, mean_rates):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         decoding_marks = cp.asarray(multiunit[is_spike], dtype=cp.int16)

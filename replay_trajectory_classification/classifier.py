@@ -148,7 +148,6 @@ class _ClassifierBase(BaseEstimator):
         n_states = self.discrete_state_transition_.shape[0]
         results = {}
 
-        print('Pre-allocate likelihood')
         if use_gpu:
             results['likelihood'] = np.full(
                 (n_time, n_states, self.max_pos_bins_, 1), np.nan,
@@ -157,13 +156,13 @@ class _ClassifierBase(BaseEstimator):
             results['likelihood'] = np.full(
                 (n_time, n_states, self.max_pos_bins_, 1), np.nan,
                 dtype=np.float64)
-        print('Assign likelihoods')
+
         for state_ind, obs in enumerate(self.observation_models):
             likelihood_name = (obs.environment_name, obs.encoding_group)
             n_bins = likelihood[likelihood_name].shape[1]
             results['likelihood'][:, state_ind, :n_bins] = (
                 likelihood[likelihood_name][..., np.newaxis])
-        print('Scale likelihood')
+
         results['likelihood'] = scaled_likelihood(
             results['likelihood'], axis=(1, 2))
         results['likelihood'][np.isnan(results['likelihood'])] = 0.0
