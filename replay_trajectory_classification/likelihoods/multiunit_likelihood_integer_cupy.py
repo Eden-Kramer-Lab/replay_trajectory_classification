@@ -360,7 +360,7 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
             )
         log_likelihood[np.ix_(is_spike, is_track_interior)] += (
             log_joint_mark_intensity + np.spacing(1))
-    print('Done with electrodes...')
+
     log_likelihood[:, ~is_track_interior] = np.nan
 
     return log_likelihood
