@@ -1,6 +1,7 @@
 # replay_trajectory_classification
 [![DOI](https://zenodo.org/badge/177004334.svg)](https://zenodo.org/badge/latestdoi/177004334)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Eden-Kramer-Lab/replay_trajectory_classification/master)
+[![PR Test](https://github.com/Eden-Kramer-Lab/replay_trajectory_classification/actions/workflows/python-package-conda.yml/badge.svg)](https://github.com/Eden-Kramer-Lab/replay_trajectory_classification/actions/workflows/python-package-conda.yml)
 
 `replay_trajectory_classification` is a python package for decoding spatial position represented by neural activity and categorizing the type of trajectory.
 
