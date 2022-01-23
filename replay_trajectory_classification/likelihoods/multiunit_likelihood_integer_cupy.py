@@ -318,7 +318,8 @@ def estimate_multiunit_likelihood_integer_cupy(multiunits,
     interior_occupancy = occupancy[gpu_is_track_interior]
 
     for multiunit, enc_marks, enc_pos, mean_rate in zip(
-            tqdm(multiunits, desc='n_electrodes', disable=show_progress_bar),
+            tqdm(multiunits, desc='n_electrodes',
+                 disable=disable_progress_bar),
             encoding_marks, encoding_positions, mean_rates):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         decoding_marks = cp.asarray(multiunit[is_spike], dtype=cp.int16)
