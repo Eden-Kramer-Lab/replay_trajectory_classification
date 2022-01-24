@@ -1,4 +1,7 @@
-import cupy as cp
+try:
+    import cupy as cp
+except ImportError:
+    import numpy as cp
 import numpy as np
 from replay_trajectory_classification.bins import atleast_2d
 from tqdm.autonotebook import tqdm
