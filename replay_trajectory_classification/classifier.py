@@ -68,7 +68,7 @@ class _ClassifierBase(BaseEstimator):
     def fit_environments(self, position, environment_labels=None):
         for environment in self.environments:
             if environment_labels is None:
-                is_environment = np.ones((position.shape[0],), dtype=np.bool)
+                is_environment = np.ones((position.shape[0],), dtype=bool)
             else:
                 is_environment = (environment_labels ==
                                   environment.environment_name)
@@ -106,7 +106,7 @@ class _ClassifierBase(BaseEstimator):
 
         if is_training is None:
             n_time = position.shape[0]
-            is_training = np.ones((n_time,), dtype=np.bool)
+            is_training = np.ones((n_time,), dtype=bool)
 
         if encoding_group_labels is None:
             n_time = position.shape[0]
@@ -433,7 +433,7 @@ class SortedSpikesClassifier(_ClassifierBase):
         logger.info('Fitting place fields...')
         n_time = position.shape[0]
         if is_training is None:
-            is_training = np.ones((n_time,), dtype=np.bool)
+            is_training = np.ones((n_time,), dtype=bool)
 
         if encoding_group_labels is None:
             encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
@@ -634,7 +634,7 @@ class ClusterlessClassifier(_ClassifierBase):
         logger.info('Fitting multiunits...')
         n_time = position.shape[0]
         if is_training is None:
-            is_training = np.ones((n_time,), dtype=np.bool)
+            is_training = np.ones((n_time,), dtype=bool)
 
         if encoding_group_labels is None:
             encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
