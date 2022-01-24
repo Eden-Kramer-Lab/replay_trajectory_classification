@@ -8,7 +8,6 @@ dependencies:
 - scipy
 - pandas
 - numba
-- cupy
 - scikit-learn
 - scikit-image
 - joblib
