@@ -783,13 +783,13 @@ class ClusterlessClassifier(_ClassifierBase):
             causal_posterior)
 
 
-def block_predict3(classifier,
-                   spikes,
-                   time=None,
-                   state_names=None,
-                   use_gpu=False,
-                   block_size=50,
-                   custom_str=''):
+def block_predict(classifier,
+                  spikes,
+                  time=None,
+                  state_names=None,
+                  use_gpu=False,
+                  block_size=50,
+                  custom_str=''):
 
     classifier_copy = classifier.copy()
     n_time = spikes.shape[0]
