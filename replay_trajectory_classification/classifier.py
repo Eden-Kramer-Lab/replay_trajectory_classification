@@ -144,60 +144,68 @@ class _ClassifierBase(BaseEstimator):
             self.discrete_transition_type.make_state_transition(n_states))
 
     def _get_results(self, likelihood, n_time, time, state_names, use_gpu,
-                     is_compute_acausal):
+                     is_compute_acausal, causal_posterior):
         n_states = self.discrete_state_transition_.shape[0]
         results = {}
-
-        if use_gpu:
+        if isinstance(likelihood, dict) and causal_posterior is None:
+            dtype = np.float32 if use_gpu else np.float64
             results['likelihood'] = np.full(
                 (n_time, n_states, self.max_pos_bins_, 1), np.nan,
-                dtype=np.float32)
-        else:
-            results['likelihood'] = np.full(
-                (n_time, n_states, self.max_pos_bins_, 1), np.nan,
-                dtype=np.float64)
+                dtype=dtype)
 
-        for state_ind, obs in enumerate(self.observation_models):
-            likelihood_name = (obs.environment_name, obs.encoding_group)
-            n_bins = likelihood[likelihood_name].shape[1]
-            results['likelihood'][:, state_ind, :n_bins] = (
-                likelihood[likelihood_name][..., np.newaxis])
+            for state_ind, obs in enumerate(self.observation_models):
+                likelihood_name = (obs.environment_name, obs.encoding_group)
+                n_bins = likelihood[likelihood_name].shape[1]
+                results['likelihood'][:, state_ind, :n_bins] = (
+                    likelihood[likelihood_name][..., np.newaxis])
 
-        results['likelihood'] = scaled_likelihood(
-            results['likelihood'], axis=(1, 2))
-        results['likelihood'][np.isnan(results['likelihood'])] = 0.0
+            results['likelihood'] = scaled_likelihood(
+                results['likelihood'], axis=(1, 2))
+            results['likelihood'][np.isnan(results['likelihood'])] = 0.0
+
+        if not isinstance(likelihood, dict) and likelihood is not None:
+            results['likelihood'] = np.asarray(likelihood)
+            if results['likelihood'].ndim < 4:
+                results['likelihood'] = results['likelihood'][..., np.newaxis]
 
         n_environments = len(self.environments)
         if n_environments == 1:
-            logger.info('Estimating causal posterior...')
             is_track_interior = (self.environments[0]
                                  .is_track_interior_.ravel(order='F'))
             n_position_bins = len(is_track_interior)
             is_states = np.ones((n_states,), dtype=bool)
             st_interior_ind = np.ix_(
                 is_states, is_states, is_track_interior, is_track_interior)
-            if not use_gpu:
-                results['causal_posterior'] = np.full(
-                    (n_time, n_states, n_position_bins, 1), np.nan,
-                    dtype=np.float64)
-                (results['causal_posterior'][:, :, is_track_interior],
-                 data_log_likelihood) = (
-                    _causal_classify(
-                        self.initial_conditions_[:, is_track_interior],
-                        self.continuous_state_transition_[st_interior_ind],
-                        self.discrete_state_transition_,
-                        results['likelihood'][:, :, is_track_interior]))
+
+            if causal_posterior is None:
+                logger.info('Estimating causal posterior...')
+                if not use_gpu:
+                    results['causal_posterior'] = np.full(
+                        (n_time, n_states, n_position_bins, 1), np.nan,
+                        dtype=np.float64)
+                    (results['causal_posterior'][:, :, is_track_interior],
+                     data_log_likelihood) = (
+                        _causal_classify(
+                            self.initial_conditions_[:, is_track_interior],
+                            self.continuous_state_transition_[st_interior_ind],
+                            self.discrete_state_transition_,
+                            results['likelihood'][:, :, is_track_interior]))
+                else:
+                    results['causal_posterior'] = np.full(
+                        (n_time, n_states, n_position_bins, 1), np.nan,
+                        dtype=np.float32)
+                    (results['causal_posterior'][:, :, is_track_interior],
+                     data_log_likelihood) = (
+                        _causal_classify_gpu(
+                            self.initial_conditions_[:, is_track_interior],
+                            self.continuous_state_transition_[st_interior_ind],
+                            self.discrete_state_transition_,
+                            results['likelihood'][:, :, is_track_interior]))
             else:
-                results['causal_posterior'] = np.full(
-                    (n_time, n_states, n_position_bins, 1), np.nan,
-                    dtype=np.float32)
-                (results['causal_posterior'][:, :, is_track_interior],
-                 data_log_likelihood) = (
-                    _causal_classify_gpu(
-                        self.initial_conditions_[:, is_track_interior],
-                        self.continuous_state_transition_[st_interior_ind],
-                        self.discrete_state_transition_,
-                        results['likelihood'][:, :, is_track_interior]))
+                results['causal_posterior'] = np.asarray(causal_posterior)
+                if results['causal_posterior'].ndim < 4:
+                    results['causal_posterior'] = results['causal_posterior'][..., np.newaxis]
+                data_log_likelihood = None
 
             if is_compute_acausal:
                 logger.info('Estimating acausal posterior...')
@@ -229,21 +237,27 @@ class _ClassifierBase(BaseEstimator):
                 results, time, state_names, data_log_likelihood)
 
         else:
-            logger.info('Estimating causal posterior...')
-            if not use_gpu:
-                (results['causal_posterior'],
-                 data_log_likelihood) = _causal_classify(
-                    self.initial_conditions_,
-                    self.continuous_state_transition_,
-                    self.discrete_state_transition_,
-                    results['likelihood'])
+            if causal_posterior is None:
+                logger.info('Estimating causal posterior...')
+                if not use_gpu:
+                    (results['causal_posterior'],
+                     data_log_likelihood) = _causal_classify(
+                        self.initial_conditions_,
+                        self.continuous_state_transition_,
+                        self.discrete_state_transition_,
+                        results['likelihood'])
+                else:
+                    (results['causal_posterior'],
+                     data_log_likelihood) = _causal_classify_gpu(
+                        self.initial_conditions_,
+                        self.continuous_state_transition_,
+                        self.discrete_state_transition_,
+                        results['likelihood'])
             else:
-                (results['causal_posterior'],
-                 data_log_likelihood) = _causal_classify_gpu(
-                    self.initial_conditions_,
-                    self.continuous_state_transition_,
-                    self.discrete_state_transition_,
-                    results['likelihood'])
+                results['causal_posterior'] = np.asarray(causal_posterior)
+                if results['causal_posterior'].ndim < 4:
+                    results['causal_posterior'] = results['causal_posterior'][..., np.newaxis]
+                data_log_likelihood = None
 
             if is_compute_acausal:
                 logger.info('Estimating acausal posterior...')
@@ -533,8 +547,8 @@ class SortedSpikesClassifier(_ClassifierBase):
         return self
 
     def predict(self, spikes, time=None, is_compute_acausal=True,
-                use_gpu=False,
-                state_names=None):
+                use_gpu=False, state_names=None, likelihood=None,
+                causal_posterior=None):
         '''
 
         Parameters
@@ -545,6 +559,10 @@ class SortedSpikesClassifier(_ClassifierBase):
         use_gpu : bool, optional
             Use GPU for the state space part of the model, not the likelihood.
         state_names : None or array_like, shape (n_states,)
+        likelihood : None or array_like
+            Can pass in already computed likelihood to avoid recomuputing
+        causal_posterior : None or array_like
+            Can pass in already computed causal_posterior to avoid recomuputing
 
         Returns
         -------
@@ -555,19 +573,21 @@ class SortedSpikesClassifier(_ClassifierBase):
         n_time = spikes.shape[0]
 
         # likelihood
-        logger.info('Estimating likelihood...')
-        likelihood = {}
-        for (env_name, enc_group), place_fields in self.place_fields_.items():
-            env_ind = self.environments.index(env_name)
-            is_track_interior = (
-                self.environments[env_ind].is_track_interior_.ravel(order='F'))
-            likelihood[(env_name, enc_group)] = estimate_spiking_likelihood(
-                spikes,
-                place_fields.values,
-                is_track_interior)
+        if likelihood is None and causal_posterior is None:
+            logger.info('Estimating likelihood...')
+            likelihood = {}
+            for (env_name, enc_group), place_fields in self.place_fields_.items():
+                env_ind = self.environments.index(env_name)
+                is_track_interior = (
+                    self.environments[env_ind].is_track_interior_.ravel(order='F'))
+                likelihood[(env_name, enc_group)] = estimate_spiking_likelihood(
+                    spikes,
+                    place_fields.values,
+                    is_track_interior)
 
         return self._get_results(
-            likelihood, n_time, time, state_names, use_gpu, is_compute_acausal)
+            likelihood, n_time, time, state_names, use_gpu, is_compute_acausal,
+            causal_posterior)
 
 
 class ClusterlessClassifier(_ClassifierBase):
@@ -717,7 +737,8 @@ class ClusterlessClassifier(_ClassifierBase):
         return self
 
     def predict(self, multiunits, time=None, is_compute_acausal=True,
-                use_gpu=False, state_names=None):
+                use_gpu=False, state_names=None, likelihood=None,
+                causal_posterior=None):
         '''
 
         Parameters
@@ -729,6 +750,10 @@ class ClusterlessClassifier(_ClassifierBase):
         use_gpu : bool, optional
             Use GPU for the state space part of the model, not the likelihood.
         state_names : None or array_like, shape (n_states,)
+        likelihood : None or array_like
+            Can pass in already computed likelihood to avoid recomuputing
+        causal_posterior : None or array_like
+            Can pass in already computed causal_posterior to avoid recomuputing
 
         Returns
         -------
@@ -737,21 +762,103 @@ class ClusterlessClassifier(_ClassifierBase):
         '''
         multiunits = np.asarray(multiunits)
         n_time = multiunits.shape[0]
-
-        logger.info('Estimating likelihood...')
-        likelihood = {}
-        for (env_name, enc_group), encoding_params in self.encoding_model_.items():
-            env_ind = self.environments.index(env_name)
-            is_track_interior = (
-                self.environments[env_ind].is_track_interior_.ravel(order='F'))
-            place_bin_centers = self.environments[env_ind].place_bin_centers_
-            likelihood[(env_name, enc_group)] = _ClUSTERLESS_ALGORITHMS[
-                self.clusterless_algorithm][1](
-                    multiunits=multiunits,
-                    place_bin_centers=place_bin_centers,
-                    is_track_interior=is_track_interior,
-                    **encoding_params
-            )
+        if likelihood is None and causal_posterior is None:
+            logger.info('Estimating likelihood...')
+            likelihood = {}
+            for (env_name, enc_group), encoding_params in self.encoding_model_.items():
+                env_ind = self.environments.index(env_name)
+                is_track_interior = (
+                    self.environments[env_ind].is_track_interior_.ravel(order='F'))
+                place_bin_centers = self.environments[env_ind].place_bin_centers_
+                likelihood[(env_name, enc_group)] = _ClUSTERLESS_ALGORITHMS[
+                    self.clusterless_algorithm][1](
+                        multiunits=multiunits,
+                        place_bin_centers=place_bin_centers,
+                        is_track_interior=is_track_interior,
+                        **encoding_params
+                )
 
         return self._get_results(
-            likelihood, n_time, time, state_names, use_gpu, is_compute_acausal)
+            likelihood, n_time, time, state_names, use_gpu, is_compute_acausal,
+            causal_posterior)
+
+
+def block_predict3(classifier,
+                   spikes,
+                   time=None,
+                   state_names=None,
+                   use_gpu=False,
+                   block_size=50,
+                   custom_str=''):
+
+    classifier_copy = classifier.copy()
+    n_time = spikes.shape[0]
+    block_causal_results = None
+
+    n_blocks = len(range(0, n_time, block_size))
+    data_log_likelihood = 0
+
+    for block_id, start_ind in enumerate(range(0, n_time, block_size)):
+        block_inds = slice(start_ind, start_ind + block_size)
+
+        if time is not None:
+            block_time = time[block_inds]
+        else:
+            block_time = None
+
+        if start_ind > 0:
+            classifier_copy.initial_conditions_ = (
+                block_causal_results.causal_posterior.isel(time=-1)
+                .values[..., np.newaxis])
+
+        block_causal_results = classifier_copy.predict(
+            spikes[block_inds],
+            time=block_time,
+            state_names=state_names,
+            is_compute_acausal=False,
+            use_gpu=use_gpu,
+        )
+        # normally would save to disk and then load
+        block_causal_results.to_netcdf(
+            f'{custom_str}block_causal_results_{block_id:02d}.nc')
+        data_log_likelihood += block_causal_results.data_log_likelihood
+
+    acausal_results = []
+    for block_id in range(n_blocks - 1, -1, -1):
+        block_causal_results = xr.open_dataset(
+            f'{custom_str}block_causal_results_{block_id:02d}.nc')
+
+        causal_posterior = (
+            block_causal_results.causal_posterior.values[..., np.newaxis])
+        block_time = block_causal_results.time.values
+        block_spikes = spikes[:block_time.shape[0]]
+
+        if block_id != n_blocks - 1:
+            causal_posterior = np.concatenate(
+                (causal_posterior,
+                 acausal_results.acausal_posterior
+                 .values[[0], ..., np.newaxis]))
+            block_time = np.concatenate(
+                (block_time,
+                 [acausal_results.time.values[0]]))
+
+            block_spikes = np.concatenate(
+                (block_spikes,
+                 np.zeros((1, *spikes.shape[1:]))))
+
+        acausal_results = classifier_copy.predict(
+            block_spikes,
+            time=block_time,
+            causal_posterior=causal_posterior,
+            state_names=state_names,
+            is_compute_acausal=True,
+            use_gpu=use_gpu,
+        )
+        if block_id != n_blocks - 1:
+            acausal_results = acausal_results.isel(time=slice(0, -1))
+
+        acausal_results = acausal_results.assign_attrs(
+            {'data_log_likelihood': data_log_likelihood})
+
+        acausal_results.to_netcdf(
+            f'{custom_str}acausal_results_{block_id:02d}.nc')
