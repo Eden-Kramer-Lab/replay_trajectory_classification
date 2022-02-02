@@ -68,7 +68,7 @@ class _ClassifierBase(BaseEstimator):
     def fit_environments(self, position, environment_labels=None):
         for environment in self.environments:
             if environment_labels is None:
-                is_environment = np.ones((position.shape[0],), dtype=np.bool)
+                is_environment = np.ones((position.shape[0],), dtype=bool)
             else:
                 is_environment = (environment_labels ==
                                   environment.environment_name)
@@ -106,7 +106,7 @@ class _ClassifierBase(BaseEstimator):
 
         if is_training is None:
             n_time = position.shape[0]
-            is_training = np.ones((n_time,), dtype=np.bool)
+            is_training = np.ones((n_time,), dtype=bool)
 
         if encoding_group_labels is None:
             n_time = position.shape[0]
@@ -147,13 +147,22 @@ class _ClassifierBase(BaseEstimator):
                      is_compute_acausal):
         n_states = self.discrete_state_transition_.shape[0]
         results = {}
-        results['likelihood'] = np.full(
-            (n_time, n_states, self.max_pos_bins_, 1), np.nan)
+
+        if use_gpu:
+            results['likelihood'] = np.full(
+                (n_time, n_states, self.max_pos_bins_, 1), np.nan,
+                dtype=np.float32)
+        else:
+            results['likelihood'] = np.full(
+                (n_time, n_states, self.max_pos_bins_, 1), np.nan,
+                dtype=np.float64)
+
         for state_ind, obs in enumerate(self.observation_models):
             likelihood_name = (obs.environment_name, obs.encoding_group)
             n_bins = likelihood[likelihood_name].shape[1]
             results['likelihood'][:, state_ind, :n_bins] = (
                 likelihood[likelihood_name][..., np.newaxis])
+
         results['likelihood'] = scaled_likelihood(
             results['likelihood'], axis=(1, 2))
         results['likelihood'][np.isnan(results['likelihood'])] = 0.0
@@ -424,7 +433,7 @@ class SortedSpikesClassifier(_ClassifierBase):
         logger.info('Fitting place fields...')
         n_time = position.shape[0]
         if is_training is None:
-            is_training = np.ones((n_time,), dtype=np.bool)
+            is_training = np.ones((n_time,), dtype=bool)
 
         if encoding_group_labels is None:
             encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
@@ -625,7 +634,7 @@ class ClusterlessClassifier(_ClassifierBase):
         logger.info('Fitting multiunits...')
         n_time = position.shape[0]
         if is_training is None:
-            is_training = np.ones((n_time,), dtype=np.bool)
+            is_training = np.ones((n_time,), dtype=bool)
 
         if encoding_group_labels is None:
             encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
@@ -744,6 +753,5 @@ class ClusterlessClassifier(_ClassifierBase):
                     **encoding_params
             )
 
-        logger.info('Getting results...')
         return self._get_results(
             likelihood, n_time, time, state_names, use_gpu, is_compute_acausal)
