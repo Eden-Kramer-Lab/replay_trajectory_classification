@@ -13,9 +13,9 @@ from .multiunit_likelihood_gpu_shared import (
     fit_multiunit_likelihood_gpu_shared)
 from .multiunit_likelihood_integer import (
     estimate_multiunit_likelihood_integer, fit_multiunit_likelihood_integer)
-from .multiunit_likelihood_integer_cupy import (
-    estimate_multiunit_likelihood_integer_cupy,
-    fit_multiunit_likelihood_integer_cupy)
+from .multiunit_likelihood_integer_gpu import (
+    estimate_multiunit_likelihood_integer_gpu,
+    fit_multiunit_likelihood_integer_gpu)
 from .multiunit_likelihood_integer_no_dask import (
     estimate_multiunit_likelihood_integer_no_dask,
     fit_multiunit_likelihood_integer_no_dask)
@@ -32,22 +32,10 @@ _ClUSTERLESS_ALGORITHMS = {
     'multiunit_likelihood_integer': (
         fit_multiunit_likelihood_integer,
         estimate_multiunit_likelihood_integer),
-    'multiunit_likelihood_integer_cupy': (
-        fit_multiunit_likelihood_integer_cupy,
-        estimate_multiunit_likelihood_integer_cupy),
-    'multiunit_likelihood_integer_no_dask_cupy': (
-        fit_multiunit_likelihood_integer_no_dask,
-        estimate_multiunit_likelihood_integer_no_dask),
-    'multiunit_likelihood_integer_pass_position': (
-        fit_multiunit_likelihood_integer_pass_position,
-        estimate_multiunit_likelihood_integer_pass_position),
+    'multiunit_likelihood_integer_gpu': (
+        fit_multiunit_likelihood_integer_gpu,
+        estimate_multiunit_likelihood_integer_gpu),
     'multiunit_likelihood_gpu': (
         fit_multiunit_likelihood_gpu,
         estimate_multiunit_likelihood_gpu),
-    'multiunit_likelihood_gpu_shared': (
-        fit_multiunit_likelihood_gpu_shared,
-        estimate_multiunit_likelihood_gpu_shared),
-    'multiunit_likelihood_gpu_pinned_arrays': (
-        fit_multiunit_likelihood_gpu_pinned_arrays,
-        estimate_multiunit_likelihood_gpu_pinned_arrays),
 }
