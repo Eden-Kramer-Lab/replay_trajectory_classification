@@ -171,13 +171,13 @@ def estimate_log_joint_mark_intensity(decoding_marks,
         mean_rate)
 
 
-def fit_multiunit_likelihood_integer_cupy(position,
-                                          multiunits,
-                                          place_bin_centers,
-                                          mark_std,
-                                          position_std,
-                                          is_track_interior=None,
-                                          **kwargs):
+def fit_multiunit_likelihood_integer(position,
+                                     multiunits,
+                                     place_bin_centers,
+                                     mark_std,
+                                     position_std,
+                                     is_track_interior=None,
+                                     **kwargs):
     '''
 
     Parameters
@@ -259,21 +259,21 @@ def fit_multiunit_likelihood_integer_cupy(position,
     }
 
 
-def estimate_multiunit_likelihood_integer_cupy(multiunits,
-                                               encoding_marks,
-                                               mark_std,
-                                               place_bin_centers,
-                                               encoding_positions,
-                                               position_std,
-                                               occupancy,
-                                               mean_rates,
-                                               summed_ground_process_intensity,
-                                               max_mark_value=6000,
-                                               set_diag_zero=False,
-                                               is_track_interior=None,
-                                               time_bin_size=1,
-                                               block_size=100,
-                                               disable_progress_bar=True):
+def estimate_multiunit_likelihood_integer(multiunits,
+                                          encoding_marks,
+                                          mark_std,
+                                          place_bin_centers,
+                                          encoding_positions,
+                                          position_std,
+                                          occupancy,
+                                          mean_rates,
+                                          summed_ground_process_intensity,
+                                          max_mark_value=6000,
+                                          set_diag_zero=False,
+                                          is_track_interior=None,
+                                          time_bin_size=1,
+                                          block_size=100,
+                                          disable_progress_bar=True):
     '''
 
     Parameters
