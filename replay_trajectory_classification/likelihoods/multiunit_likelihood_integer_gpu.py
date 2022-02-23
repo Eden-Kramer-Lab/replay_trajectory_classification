@@ -182,6 +182,7 @@ def fit_multiunit_likelihood_integer_gpu(position,
                                          mark_std,
                                          position_std,
                                          is_track_interior=None,
+                                         block_size=100,
                                          **kwargs):
     '''
 
@@ -219,7 +220,7 @@ def fit_multiunit_likelihood_integer_gpu(position,
     occupancy[gpu_is_track_interior] = estimate_position_density(
         interior_place_bin_centers,
         cp.asarray(position[not_nan_position], dtype=cp.float32),
-        position_std)
+        position_std, block_size=block_size)
 
     mean_rates = []
     ground_process_intensities = []
@@ -238,7 +239,8 @@ def fit_multiunit_likelihood_integer_gpu(position,
                 interior_place_bin_centers,
                 cp.asarray(
                     position[is_spike & not_nan_position], dtype=cp.float32),
-                position_std)
+                position_std,
+                block_size=block_size)
 
         ground_process_intensities.append(
             estimate_intensity(marginal_density, cp.asarray(
