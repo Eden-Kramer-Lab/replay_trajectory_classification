@@ -282,6 +282,7 @@ def estimate_multiunit_likelihood_integer_gpu(multiunits,
                                               is_track_interior=None,
                                               time_bin_size=1,
                                               block_size=100,
+                                              ignore_no_spike=False,
                                               disable_progress_bar=True):
     '''
 
@@ -305,8 +306,12 @@ def estimate_multiunit_likelihood_integer_gpu(multiunits,
                                     dtype=np.bool)
 
     n_time = multiunits.shape[0]
-    log_likelihood = (-time_bin_size * summed_ground_process_intensity *
-                      np.ones((n_time, 1), dtype=np.float32))
+    if ignore_no_spike:
+        log_likelihood = np.zeros((n_time, place_bin_centers.shape[0]),
+                                  dtype=np.float32)
+    else:
+        log_likelihood = (-time_bin_size * summed_ground_process_intensity *
+                          np.ones((n_time, 1), dtype=np.float32))
 
     multiunits = np.moveaxis(multiunits, -1, 0)
     n_position_bins = is_track_interior.sum()
