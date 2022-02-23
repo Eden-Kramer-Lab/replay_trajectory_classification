@@ -263,6 +263,7 @@ def fit_multiunit_likelihood_integer_gpu(position,
         'mean_rates': mean_rates,
         'mark_std': mark_std,
         'position_std': position_std,
+        'block_size': block_size,
         **kwargs,
     }
 
