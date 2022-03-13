@@ -1,10 +1,6 @@
-import itertools
-import warnings
-
-import dask
-import dask.array as da
 import numpy as np
 from replay_trajectory_classification.bins import atleast_2d
+from tqdm.autonotebook import tqdm
 
 SQRT_2PI = np.sqrt(2.0 * np.pi)
 
@@ -16,22 +12,64 @@ def gaussian_pdf(x, mean, sigma):
 
 
 def estimate_position_distance(place_bin_centers, positions, position_std):
-    return da.prod(
-        gaussian_pdf(
-            place_bin_centers[np.newaxis],
-            positions[:, np.newaxis],
-            position_std),
-        axis=-1
-    )
+    '''
+
+    Parameters
+    ----------
+    place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
+    positions : ndarray, shape (n_time, n_position_dims)
+    position_std : float
+
+    Returns
+    -------
+    position_distance : ndarray, shape (n_time, n_position_bins)
+
+    '''
+    n_time, n_position_dims = positions.shape
+    n_position_bins = place_bin_centers.shape[0]
+
+    position_distance = np.ones((n_time, n_position_bins))
+
+    for position_ind in range(n_position_dims):
+        position_distance *= gaussian_pdf(
+            np.expand_dims(place_bin_centers[:, position_ind], axis=0),
+            np.expand_dims(positions[:, position_ind], axis=1),
+            position_std)
+
+    return position_distance
 
 
-def estimate_position_density(place_bin_centers, positions, position_std):
-    return da.mean(estimate_position_distance(
-        place_bin_centers, positions, position_std), axis=0)
+def estimate_position_density(place_bin_centers, positions, position_std,
+                              block_size=100):
+    '''
+
+    Parameters
+    ----------
+    place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
+    positions : ndarray, shape (n_time, n_position_dims)
+    position_std : float
+
+    Returns
+    -------
+    position_density : ndarray, shape (n_position_bins,)
+
+    '''
+    n_time = positions.shape[0]
+    n_position_bins = place_bin_centers.shape[0]
+
+    if block_size is None:
+        block_size = n_time
+
+    position_density = np.empty((n_position_bins,))
+    for start_ind in range(0, n_position_bins, block_size):
+        block_inds = slice(start_ind, start_ind + block_size)
+        position_density[block_inds] = np.mean(estimate_position_distance(
+            place_bin_centers[block_inds], positions, position_std), axis=0)
+    return position_density
 
 
 def estimate_log_intensity(density, occupancy, mean_rate):
-    return da.log(mean_rate) + da.log(density) - da.log(occupancy)
+    return np.log(mean_rate) + np.log(density) - np.log(occupancy)
 
 
 def estimate_intensity(density, occupancy, mean_rate):
@@ -48,10 +86,10 @@ def estimate_intensity(density, occupancy, mean_rate):
     intensity : ndarray, shape (n_bins,)
 
     '''
-    return da.exp(estimate_log_intensity(density, occupancy, mean_rate))
+    return np.exp(estimate_log_intensity(density, occupancy, mean_rate))
 
 
-def normal_pdf_integer_lookup(x, mean, std=20.0, max_value=3000):
+def normal_pdf_integer_lookup(x, mean, std=20, max_value=6000):
     """Fast density evaluation for integers by precomputing a hash table of
     values.
 
@@ -67,23 +105,22 @@ def normal_pdf_integer_lookup(x, mean, std=20.0, max_value=3000):
     probability_density : int
 
     """
-    normal_density = da.from_array(
-        gaussian_pdf(np.arange(-max_value, max_value), 0.0, std))
-    diff = (x - mean) + max_value
-    # Look up each diff value, flatten and reshape because
-    # dask doesn't allow integer indexing in more than one dimension
-    return normal_density[diff.reshape(-1)].reshape(diff.shape)
+    normal_density = gaussian_pdf(
+        np.arange(-max_value, max_value), 0, std).astype(np.float32)
+
+    return normal_density[(x - mean) + max_value]
 
 
 def estimate_log_joint_mark_intensity(decoding_marks,
                                       encoding_marks,
                                       mark_std,
-                                      place_bin_centers,
-                                      encoding_positions,
-                                      position_std,
                                       occupancy,
                                       mean_rate,
+                                      place_bin_centers=None,
+                                      encoding_positions=None,
+                                      position_std=None,
                                       max_mark_value=6000,
+                                      set_diag_zero=False,
                                       position_distance=None):
     """
 
@@ -92,11 +129,11 @@ def estimate_log_joint_mark_intensity(decoding_marks,
     decoding_marks : ndarray, shape (n_decoding_spikes, n_features)
     encoding_marks : ndarray, shape (n_encoding_spikes, n_features)
     mark_std : float or ndarray, shape (n_features,)
-    place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
-    encoding_positions : ndarray, shape (n_decoding_spikes, n_position_dims)
-    position_std : float or ndarray, shape (n_position_dims,)
     occupancy : ndarray, shape (n_position_bins,)
     mean_rate : float
+    place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
+    encoding_positions : ndarray, shape (n_decoding_spikes, n_position_dims)
+    position_std : float
     is_track_interior : None or ndarray, shape (n_position_bins,)
     max_mark_value : int
     set_diag_zero : bool
@@ -106,32 +143,33 @@ def estimate_log_joint_mark_intensity(decoding_marks,
     log_joint_mark_intensity : ndarray, shape (n_decoding_spikes, n_position_bins)
 
     """
-    n_encoding_spikes = encoding_marks.shape[0]
+    n_encoding_spikes, n_marks = encoding_marks.shape
     n_decoding_spikes = decoding_marks.shape[0]
+    mark_distance = np.ones(
+        (n_decoding_spikes, n_encoding_spikes), dtype=np.float32)
 
-    if (n_decoding_spikes > 0) & (n_encoding_spikes > 0):
-        # mark_distance: ndarray, shape (n_decoding_spikes, n_encoding_spikes)
-        pdf = normal_pdf_integer_lookup(
-            decoding_marks[:, np.newaxis],
-            encoding_marks[np.newaxis],
+    for mark_ind in range(n_marks):
+        mark_distance *= normal_pdf_integer_lookup(
+            np.expand_dims(decoding_marks[:, mark_ind], axis=1),
+            np.expand_dims(encoding_marks[:, mark_ind], axis=0),
             std=mark_std,
-            max_value=max_mark_value)
-        mark_distance = da.prod(pdf, axis=-1)
+            max_value=max_mark_value
+        )
 
-        if decoding_marks is encoding_marks:
-            np.fill_diagonal(mark_distance, 0.0)
+    if set_diag_zero:
+        diag_ind = np.diag_indices_from(mark_distance)
+        mark_distance[diag_ind] = 0.0
 
-        if position_distance is None:
-            position_distance = estimate_position_distance(
-                place_bin_centers, encoding_positions, position_std)
+    if position_distance is None:
+        position_distance = estimate_position_distance(
+            place_bin_centers, encoding_positions, position_std
+        ).astype(np.float32)
 
-        return estimate_log_intensity(
-            mark_distance @ position_distance / n_encoding_spikes,
-            occupancy,
-            mean_rate)
-    else:
-        n_position_bins = place_bin_centers.shape[0]
-        return np.empty((n_decoding_spikes, n_position_bins))
+    return estimate_log_intensity(
+        mark_distance @ position_distance / n_encoding_spikes,
+        occupancy,
+        mean_rate)
+
 
 def fit_multiunit_likelihood_integer(position,
                                      multiunits,
@@ -139,7 +177,6 @@ def fit_multiunit_likelihood_integer(position,
                                      mark_std,
                                      position_std,
                                      is_track_interior=None,
-                                     dtype=np.int64,
                                      **kwargs):
     '''
 
@@ -167,13 +204,15 @@ def fit_multiunit_likelihood_integer(position,
                                     dtype=np.bool)
     position = atleast_2d(position)
     place_bin_centers = atleast_2d(place_bin_centers)
+    interior_place_bin_centers = np.asarray(
+        place_bin_centers[is_track_interior], dtype=np.float32)
 
     not_nan_position = np.all(~np.isnan(position), axis=1)
 
     occupancy = np.zeros((place_bin_centers.shape[0],))
     occupancy[is_track_interior] = estimate_position_density(
-        place_bin_centers[is_track_interior],
-        position[not_nan_position],
+        interior_place_bin_centers,
+        np.asarray(position[not_nan_position], dtype=np.float32),
         position_std)
 
     mean_rates = []
@@ -184,29 +223,29 @@ def fit_multiunit_likelihood_integer(position,
     for multiunit in np.moveaxis(multiunits, -1, 0):
 
         # ground process intensity
-        nan_multiunit = np.isnan(multiunit)
-        is_spike = np.any(~nan_multiunit, axis=1)
-        nan_mark_dims = np.all(nan_multiunit, axis=0)
-
+        is_spike = np.any(~np.isnan(multiunit), axis=1)
         mean_rates.append(is_spike.mean())
         marginal_density = np.zeros((place_bin_centers.shape[0],))
 
         if is_spike.sum() > 0:
             marginal_density[is_track_interior] = estimate_position_density(
-                place_bin_centers[is_track_interior],
-                position[is_spike & not_nan_position], position_std)
+                interior_place_bin_centers,
+                np.asarray(
+                    position[is_spike & not_nan_position], dtype=np.float32),
+                position_std)
 
         ground_process_intensities.append(
-            estimate_intensity(marginal_density, occupancy, mean_rates[-1])
-            + np.spacing(1))
+            estimate_intensity(marginal_density, np.asarray(
+                occupancy, dtype=np.float32), mean_rates[-1]))
 
         encoding_marks.append(
-            multiunit[np.ix_(is_spike & not_nan_position, ~nan_mark_dims)
-                      ].astype(dtype))
-        encoding_positions.append(position[is_spike & not_nan_position])
+            np.asarray(multiunit[is_spike & not_nan_position], dtype=np.int16))
+        encoding_positions.append(np.asarray(
+            position[is_spike & not_nan_position], dtype=np.float32))
 
     summed_ground_process_intensity = np.sum(
         np.stack(ground_process_intensities, axis=0), axis=0, keepdims=True)
+    summed_ground_process_intensity += np.spacing(1)
 
     return {
         'encoding_marks': encoding_marks,
@@ -230,10 +269,11 @@ def estimate_multiunit_likelihood_integer(multiunits,
                                           mean_rates,
                                           summed_ground_process_intensity,
                                           max_mark_value=6000,
+                                          set_diag_zero=False,
                                           is_track_interior=None,
                                           time_bin_size=1,
-                                          chunks=1000,
-                                          dtype=np.int64):
+                                          block_size=100,
+                                          disable_progress_bar=True):
     '''
 
     Parameters
@@ -257,47 +297,48 @@ def estimate_multiunit_likelihood_integer(multiunits,
 
     n_time = multiunits.shape[0]
     log_likelihood = (-time_bin_size * summed_ground_process_intensity *
-                      np.ones((n_time, 1)))
+                      np.ones((n_time, 1), dtype=np.float32))
 
     multiunits = np.moveaxis(multiunits, -1, 0)
-    log_joint_mark_intensities = []
+    n_position_bins = is_track_interior.sum()
+    interior_place_bin_centers = np.asarray(
+        place_bin_centers[is_track_interior], dtype=np.float32)
+    interior_occupancy = occupancy[is_track_interior]
 
     for multiunit, enc_marks, enc_pos, mean_rate in zip(
-            multiunits, encoding_marks, encoding_positions, mean_rates):
-        nan_multiunit = np.isnan(multiunit)
-        is_spike = np.any(~nan_multiunit, axis=1)
-        nan_mark_dims = np.all(nan_multiunit, axis=0)
-        multiunit = multiunit[np.ix_(is_spike, ~nan_mark_dims)]
+            tqdm(multiunits, desc='n_electrodes',
+                 disable=disable_progress_bar),
+            encoding_marks, encoding_positions, mean_rates):
+        is_spike = np.any(~np.isnan(multiunit), axis=1)
+        decoding_marks = np.asarray(multiunit[is_spike], dtype=np.int16)
+        n_decoding_marks = decoding_marks.shape[0]
+        log_joint_mark_intensity = np.zeros(
+            (n_decoding_marks, n_position_bins), dtype=np.float32)
 
-        log_joint_mark_intensities.append(
-            estimate_log_joint_mark_intensity(
-                da.from_array(multiunit.astype(dtype), chunks=chunks),
-                da.from_array(enc_marks.astype(dtype), chunks=chunks),
+        if block_size is None:
+            block_size = n_decoding_marks
+
+        position_distance = estimate_position_distance(
+            interior_place_bin_centers,
+            enc_pos,
+            position_std
+        ).astype(np.float32)
+
+        for start_ind in range(0, n_decoding_marks, block_size):
+            block_inds = slice(start_ind, start_ind + block_size)
+            log_joint_mark_intensity[block_inds] = estimate_log_joint_mark_intensity(
+                decoding_marks[block_inds],
+                enc_marks,
                 mark_std,
-                da.from_array(place_bin_centers[is_track_interior]),
-                da.from_array(enc_pos),
-                position_std,
-                da.from_array(occupancy[is_track_interior]),
+                interior_occupancy,
                 mean_rate,
                 max_mark_value=max_mark_value,
-            ))
-
-    with dask.config.set(array_plugins=[warn_on_large_chunks]):
-        for log_joint_mark_intensity, multiunit in zip(
-                dask.compute(*log_joint_mark_intensities), multiunits):
-            is_spike = np.any(~np.isnan(multiunit), axis=1)
-            if (is_spike.sum() > 0) & (log_joint_mark_intensity is not None):
-                # TODO: combine spikes in the same timebin using np.bincount
-                log_likelihood[np.ix_(is_spike, is_track_interior)] += (
-                    np.asarray(log_joint_mark_intensity) + np.spacing(1))
+                set_diag_zero=set_diag_zero,
+                position_distance=position_distance,
+            )
+        log_likelihood[np.ix_(is_spike, is_track_interior)] += (
+            log_joint_mark_intensity + np.spacing(1))
 
     log_likelihood[:, ~is_track_interior] = np.nan
 
     return log_likelihood
-
-
-def warn_on_large_chunks(x):
-    shapes = list(itertools.product(*x.chunks))
-    nbytes = [x.dtype.itemsize * np.prod(shape) for shape in shapes]
-    if any(nb > 1e9 for nb in nbytes):
-        warnings.warn("Array contains very large chunks")

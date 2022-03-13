@@ -13,8 +13,7 @@ from replay_trajectory_classification.continuous_state_transitions import (
 from replay_trajectory_classification.core import (_acausal_classify,
                                                    _acausal_classify_gpu,
                                                    _causal_classify,
-                                                   _causal_classify_gpu,
-                                                   check_converged, mask,
+                                                   _causal_classify_gpu, mask,
                                                    scaled_likelihood)
 from replay_trajectory_classification.discrete_state_transitions import (
     DiagonalDiscrete, estimate_discrete_state_transition)
@@ -70,7 +69,7 @@ class _ClassifierBase(BaseEstimator):
     def fit_environments(self, position, environment_labels=None):
         for environment in self.environments:
             if environment_labels is None:
-                is_environment = np.ones((position.shape[0],), dtype=np.bool)
+                is_environment = np.ones((position.shape[0],), dtype=bool)
             else:
                 is_environment = (environment_labels ==
                                   environment.environment_name)
@@ -108,7 +107,7 @@ class _ClassifierBase(BaseEstimator):
 
         if is_training is None:
             n_time = position.shape[0]
-            is_training = np.ones((n_time,), dtype=np.bool)
+            is_training = np.ones((n_time,), dtype=bool)
 
         if encoding_group_labels is None:
             n_time = position.shape[0]
@@ -216,13 +215,22 @@ class _ClassifierBase(BaseEstimator):
                      is_compute_acausal):
         n_states = self.discrete_state_transition_.shape[0]
         results = {}
-        results['likelihood'] = np.full(
-            (n_time, n_states, self.max_pos_bins_, 1), np.nan)
+
+        if use_gpu:
+            results['likelihood'] = np.full(
+                (n_time, n_states, self.max_pos_bins_, 1), np.nan,
+                dtype=np.float32)
+        else:
+            results['likelihood'] = np.full(
+                (n_time, n_states, self.max_pos_bins_, 1), np.nan,
+                dtype=np.float64)
+
         for state_ind, obs in enumerate(self.observation_models):
             likelihood_name = (obs.environment_name, obs.encoding_group)
             n_bins = likelihood[likelihood_name].shape[1]
             results['likelihood'][:, state_ind, :n_bins] = (
                 likelihood[likelihood_name][..., np.newaxis])
+
         results['likelihood'] = scaled_likelihood(
             results['likelihood'], axis=(1, 2))
         results['likelihood'][np.isnan(results['likelihood'])] = 0.0
@@ -493,7 +501,7 @@ class SortedSpikesClassifier(_ClassifierBase):
         logger.info('Fitting place fields...')
         n_time = position.shape[0]
         if is_training is None:
-            is_training = np.ones((n_time,), dtype=np.bool)
+            is_training = np.ones((n_time,), dtype=bool)
 
         if encoding_group_labels is None:
             encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
@@ -619,7 +627,8 @@ class SortedSpikesClassifier(_ClassifierBase):
         likelihood = {}
         for (env_name, enc_group), place_fields in self.place_fields_.items():
             env_ind = self.environments.index(env_name)
-            is_track_interior = self.environments[env_ind].is_track_interior_
+            is_track_interior = (
+                self.environments[env_ind].is_track_interior_.ravel(order='F'))
             likelihood[(env_name, enc_group)] = estimate_spiking_likelihood(
                 spikes,
                 place_fields.values,
@@ -693,7 +702,7 @@ class ClusterlessClassifier(_ClassifierBase):
         logger.info('Fitting multiunits...')
         n_time = position.shape[0]
         if is_training is None:
-            is_training = np.ones((n_time,), dtype=np.bool)
+            is_training = np.ones((n_time,), dtype=bool)
 
         if encoding_group_labels is None:
             encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
@@ -801,7 +810,8 @@ class ClusterlessClassifier(_ClassifierBase):
         likelihood = {}
         for (env_name, enc_group), encoding_params in self.encoding_model_.items():
             env_ind = self.environments.index(env_name)
-            is_track_interior = self.environments[env_ind].is_track_interior_
+            is_track_interior = (
+                self.environments[env_ind].is_track_interior_.ravel(order='F'))
             place_bin_centers = self.environments[env_ind].place_bin_centers_
             likelihood[(env_name, enc_group)] = _ClUSTERLESS_ALGORITHMS[
                 self.clusterless_algorithm][1](
