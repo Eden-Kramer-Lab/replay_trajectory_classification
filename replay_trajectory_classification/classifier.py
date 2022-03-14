@@ -189,7 +189,7 @@ class _ClassifierBase(BaseEstimator):
         logger.info(
             f'iteration {n_iter}, likelihood: {data_log_likelihoods[-1]}')
 
-        while not converged and (n_iter <= max_iter):
+        while not converged and (n_iter < max_iter):
             self.discrete_state_transition_ = estimate_discrete_state_transition(
                 self, results)
             results = self.predict(**predict_args)
@@ -206,6 +206,8 @@ class _ClassifierBase(BaseEstimator):
                 f'likelihood: {data_log_likelihoods[-1]}, '
                 f'change: {log_likelihood_change}'
             )
+        if (n_iter < max_iter):
+            logger.warning('Max iterations reached...')
 
         return results, data_log_likelihoods
 
