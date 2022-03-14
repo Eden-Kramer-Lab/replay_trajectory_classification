@@ -175,7 +175,7 @@ class _ClassifierBase(BaseEstimator):
         ax.set_title('Discrete State Transition', fontsize=16)
 
     def estimate_parameters(self, fit_args, predict_args, tolerance=1E-4,
-                            max_iter=10):
+                            max_iter=10, verbose=True):
 
         self.fit(**fit_args)
         results = self.predict(**predict_args)
@@ -201,12 +201,14 @@ class _ClassifierBase(BaseEstimator):
             converged, increasing = check_converged(
                 data_log_likelihoods[-1], data_log_likelihoods[-2], tolerance)
 
-            logger.info(
-                f'iteration {n_iter}, '
-                f'likelihood: {data_log_likelihoods[-1]}, '
-                f'change: {log_likelihood_change}'
-            )
-        if (n_iter < max_iter):
+            if verbose:
+                logger.info(
+                    f'iteration {n_iter}, '
+                    f'likelihood: {data_log_likelihoods[-1]}, '
+                    f'change: {log_likelihood_change}'
+                )
+
+        if not converged and (n_iter == max_iter):
             logger.warning('Max iterations reached...')
 
         return results, data_log_likelihoods
