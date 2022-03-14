@@ -13,7 +13,8 @@ from replay_trajectory_classification.continuous_state_transitions import (
 from replay_trajectory_classification.core import (_acausal_classify,
                                                    _acausal_classify_gpu,
                                                    _causal_classify,
-                                                   _causal_classify_gpu, mask,
+                                                   _causal_classify_gpu,
+                                                   check_converged, mask,
                                                    scaled_likelihood)
 from replay_trajectory_classification.discrete_state_transitions import (
     DiagonalDiscrete, estimate_discrete_state_transition)
@@ -180,7 +181,6 @@ class _ClassifierBase(BaseEstimator):
         results = self.predict(**predict_args)
 
         data_log_likelihoods = [results.data_log_likelihood]
-        discrete_state_transitions = [self.discrete_state_transition_]
         log_likelihood_change = np.inf
         converged = False
         increasing = True
@@ -194,8 +194,6 @@ class _ClassifierBase(BaseEstimator):
                 self, results)
             results = self.predict(**predict_args)
             data_log_likelihoods.append(results.data_log_likelihood)
-            discrete_state_transitions.append(
-                self.discrete_state_transition_)
             log_likelihood_change = (
                 data_log_likelihoods[-1] - data_log_likelihoods[-2])
             n_iter += 1
@@ -209,7 +207,7 @@ class _ClassifierBase(BaseEstimator):
                 f'change: {log_likelihood_change}'
             )
 
-        return results, data_log_likelihoods, discrete_state_transitions
+        return results, data_log_likelihoods
 
     def _get_results(self, likelihood, n_time, time, state_names, use_gpu,
                      is_compute_acausal):
