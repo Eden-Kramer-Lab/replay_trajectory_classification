@@ -114,6 +114,24 @@ def expected_duration(discrete_state_transition, sampling_frequency=1):
 
 
 def estimate_discrete_state_transition(classifier, results):
+    '''Updates the discrete_state_transition based on the probability of each
+    state.
+
+    Parameters
+    ----------
+    classifier : ClusterlessClassifier or SortedSpikesClassifier
+    results : xarray.Dataset
+
+    Returns
+    -------
+    discrete_state_transition : numpy.ndarray, shape (n_states, n_states)
+
+    Notes
+    -----
+    $$
+    Pr(I_{k} = i, I_{k+1} = j \mid O_{1:T}) = \frac{Pr(I_{k+1} = j \mid I_{k} = i) Pr(I_{k} = i \mid O_{1:k})}{Pr(I_{k+1} = j \mid O_{1:k})} Pr(I_{k+1} = j \mid O_{1:T})
+    $$
+    '''
     try:
         causal_prob = results.causal_posterior.sum('position').values
         acausal_prob = results.acausal_posterior.sum('position').values
@@ -123,12 +141,20 @@ def estimate_discrete_state_transition(classifier, results):
         acausal_prob = results.acausal_posterior.sum(
             ['x_position', 'y_position']).values
 
-    discrete_state_transition = (
-        classifier.discrete_state_transition_[np.newaxis] *
-        causal_prob[2:-1, np.newaxis] *
-        acausal_prob[3:, np.newaxis] /
-        causal_prob[3:, np.newaxis]).sum(axis=0) + 1e-32
-    discrete_state_transition /= discrete_state_transition.sum(
-        axis=1, keepdims=True)
+    old_discrete_state_transition = classifier.discrete_state_transition_
+    EPS = 1e-32
+    n_states = old_discrete_state_transition.shape[0]
 
-    return discrete_state_transition
+    new_discrete_state_transition = np.zeros((n_states, n_states))
+    for i in range(n_states):
+        for j in range(n_states):
+            new_discrete_state_transition[i, j] = (
+                old_discrete_state_transition[i, j] *
+                causal_prob[:-1, i] *
+                acausal_prob[1:, j] /
+                causal_prob[1:, j]).sum() + EPS
+            new_discrete_state_transition[i, j] /= acausal_prob[:-1, i].sum()
+    new_discrete_state_transition /= new_discrete_state_transition.sum(
+        axis=-1, keepdims=True)
+
+    return new_discrete_state_transition
