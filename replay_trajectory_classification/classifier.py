@@ -175,7 +175,7 @@ class _ClassifierBase(BaseEstimator):
         ax.set_title('Discrete State Transition', fontsize=16)
 
     def estimate_parameters(self, fit_args, predict_args, tolerance=1E-4,
-                            max_iter=10, verbose=True):
+                            max_iter=10, verbose=True, store_likelihood=True):
 
         self.fit(**fit_args)
         results = self.predict(**predict_args)
@@ -185,14 +185,32 @@ class _ClassifierBase(BaseEstimator):
         converged = False
         increasing = True
         n_iter = 0
+        n_time = len(results.time)
+
+        if store_likelihood in predict_args:
+            store_likelihood = predict_args['store_likelihood']
+        else:
+            predict_args['store_likelihood'] = store_likelihood
 
         logger.info(
             f'iteration {n_iter}, likelihood: {data_log_likelihoods[-1]}')
+        get_results_args = {
+            key: value for key, value in predict_args.items()
+            if key in ['time', 'state_names', 'use_gpu', 'is_compute_acausal']
+        }
 
         while not converged and (n_iter < max_iter):
             self.discrete_state_transition_ = estimate_discrete_state_transition(
                 self, results)
-            results = self.predict(**predict_args)
+
+            if store_likelihood:
+                results = self._get_results(
+                    self.likelihood_,
+                    n_time,
+                    **get_results_args)
+            else:
+                results = self.predict(**predict_args)
+
             data_log_likelihoods.append(results.data_log_likelihood)
             log_likelihood_change = (
                 data_log_likelihoods[-1] - data_log_likelihoods[-2])
@@ -213,8 +231,15 @@ class _ClassifierBase(BaseEstimator):
 
         return results, data_log_likelihoods
 
-    def _get_results(self, likelihood, n_time, time, state_names, use_gpu,
-                     is_compute_acausal):
+    def _get_results(
+        self,
+        likelihood,
+        n_time,
+        time=None,
+        is_compute_acausal=True,
+        use_gpu=False,
+        state_names=None
+    ):
         n_states = self.discrete_state_transition_.shape[0]
         results = {}
 
@@ -604,7 +629,8 @@ class SortedSpikesClassifier(_ClassifierBase):
 
     def predict(self, spikes, time=None, is_compute_acausal=True,
                 use_gpu=False,
-                state_names=None):
+                state_names=None,
+                store_likelihood=True):
         '''
 
         Parameters
@@ -635,9 +661,11 @@ class SortedSpikesClassifier(_ClassifierBase):
                 spikes,
                 place_fields.values,
                 is_track_interior)
+        if store_likelihood:
+            self.likelihood_ = likelihood
 
         return self._get_results(
-            likelihood, n_time, time, state_names, use_gpu, is_compute_acausal)
+            likelihood, n_time, time, is_compute_acausal, use_gpu, state_names)
 
 
 class ClusterlessClassifier(_ClassifierBase):
@@ -787,7 +815,7 @@ class ClusterlessClassifier(_ClassifierBase):
         return self
 
     def predict(self, multiunits, time=None, is_compute_acausal=True,
-                use_gpu=False, state_names=None):
+                use_gpu=False, state_names=None, store_likelihood=True):
         '''
 
         Parameters
@@ -799,6 +827,8 @@ class ClusterlessClassifier(_ClassifierBase):
         use_gpu : bool, optional
             Use GPU for the state space part of the model, not the likelihood.
         state_names : None or array_like, shape (n_states,)
+        store_likelihood : bool, optional
+            Save the likelihood for EM computations
 
         Returns
         -------
@@ -822,6 +852,8 @@ class ClusterlessClassifier(_ClassifierBase):
                     is_track_interior=is_track_interior,
                     **encoding_params
             )
+        if store_likelihood:
+            self.likelihood_ = likelihood
 
         return self._get_results(
-            likelihood, n_time, time, state_names, use_gpu, is_compute_acausal)
+            likelihood, n_time, time, is_compute_acausal, use_gpu, state_names)
