@@ -133,14 +133,19 @@ def estimate_discrete_state_transition(classifier, results):
     Pr(I_{k} = i, I_{k+1} = j \mid O_{1:T}) = \frac{Pr(I_{k+1} = j \mid I_{k} = i) Pr(I_{k} = i \mid O_{1:k})}{Pr(I_{k+1} = j \mid O_{1:k})} Pr(I_{k+1} = j \mid O_{1:T})
     $$
     '''
+    EPS = 1e-32
     try:
-        causal_prob = np.log(results.causal_posterior.sum('position').values)
-        acausal_prob = np.log(results.acausal_posterior.sum('position').values)
+        causal_prob = np.log(
+            results.causal_posterior.sum('position').values + EPS)
+        acausal_prob = np.log(
+            results.acausal_posterior.sum('position').values + EPS)
     except ValueError:
-        causal_prob = np.log(results.causal_posterior.sum(
-            ['x_position', 'y_position']).values)
-        acausal_prob = np.log(results.acausal_posterior.sum(
-            ['x_position', 'y_position']).values)
+        causal_prob = np.log(
+            results.causal_posterior.sum(['x_position', 'y_position']).values
+            + EPS)
+        acausal_prob = np.log(
+            results.acausal_posterior.sum(['x_position', 'y_position']).values
+            + EPS)
 
     old_discrete_state_transition = np.log(
         classifier.discrete_state_transition_)
