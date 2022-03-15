@@ -630,7 +630,7 @@ class SortedSpikesClassifier(_ClassifierBase):
     def predict(self, spikes, time=None, is_compute_acausal=True,
                 use_gpu=False,
                 state_names=None,
-                store_likelihood=True):
+                store_likelihood=False):
         '''
 
         Parameters
@@ -815,7 +815,7 @@ class ClusterlessClassifier(_ClassifierBase):
         return self
 
     def predict(self, multiunits, time=None, is_compute_acausal=True,
-                use_gpu=False, state_names=None, store_likelihood=True):
+                use_gpu=False, state_names=None, store_likelihood=False):
         '''
 
         Parameters
