@@ -188,7 +188,7 @@ class _ClassifierBase(BaseEstimator):
         n_iter = 0
         n_time = len(results.time)
 
-        if store_likelihood in predict_args:
+        if 'store_likelihood' in predict_args:
             store_likelihood = predict_args['store_likelihood']
         else:
             predict_args['store_likelihood'] = store_likelihood
