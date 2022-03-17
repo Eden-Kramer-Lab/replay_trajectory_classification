@@ -104,7 +104,7 @@ class _ClassifierBase(BaseEstimator):
             encoding_group_labels=None,
             environment_labels=None,
     ):
-        logger.info('Fitting state transition...')
+        logger.info('Fitting continuous state transition...')
 
         if is_training is None:
             n_time = position.shape[0]
@@ -141,6 +141,7 @@ class _ClassifierBase(BaseEstimator):
                     row_ind, column_ind, :st.shape[0], :st.shape[1]] = st
 
     def fit_discrete_state_transition(self):
+        logger.info('Fitting discrete state transition')
         n_states = len(self.continuous_transition_types)
         self.discrete_state_transition_ = (
             self.discrete_transition_type.make_state_transition(n_states))
