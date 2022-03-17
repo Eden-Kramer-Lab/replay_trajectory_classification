@@ -176,7 +176,9 @@ class _ClassifierBase(BaseEstimator):
         ax.set_title('Discrete State Transition', fontsize=16)
 
     def estimate_parameters(self, fit_args, predict_args, tolerance=1E-4,
-                            max_iter=10, verbose=True, store_likelihood=True):
+                            max_iter=10, verbose=True, store_likelihood=True,
+                            estimate_initial_conditions=True,
+                            estimate_discrete_transition=True):
 
         if 'store_likelihood' in predict_args:
             store_likelihood = predict_args['store_likelihood']
@@ -201,8 +203,12 @@ class _ClassifierBase(BaseEstimator):
         }
 
         while not converged and (n_iter < max_iter):
-            self.discrete_state_transition_ = estimate_discrete_state_transition(
-                self, results)
+            if estimate_initial_conditions:
+                self.initial_conditions_ = results.isel(
+                    time=0).acausal_posterior.values[..., np.newaxis]
+            if estimate_discrete_transition:
+                self.discrete_state_transition_ = estimate_discrete_state_transition(
+                    self, results)
 
             if store_likelihood:
                 results = self._get_results(
