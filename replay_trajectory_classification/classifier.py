@@ -178,6 +178,11 @@ class _ClassifierBase(BaseEstimator):
     def estimate_parameters(self, fit_args, predict_args, tolerance=1E-4,
                             max_iter=10, verbose=True, store_likelihood=True):
 
+        if 'store_likelihood' in predict_args:
+            store_likelihood = predict_args['store_likelihood']
+        else:
+            predict_args['store_likelihood'] = store_likelihood
+
         self.fit(**fit_args)
         results = self.predict(**predict_args)
 
@@ -187,11 +192,6 @@ class _ClassifierBase(BaseEstimator):
         increasing = True
         n_iter = 0
         n_time = len(results.time)
-
-        if 'store_likelihood' in predict_args:
-            store_likelihood = predict_args['store_likelihood']
-        else:
-            predict_args['store_likelihood'] = store_likelihood
 
         logger.info(
             f'iteration {n_iter}, likelihood: {data_log_likelihoods[-1]}')
