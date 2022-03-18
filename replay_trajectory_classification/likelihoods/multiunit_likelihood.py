@@ -310,8 +310,8 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
             occupancy[is_track_interior],
             joint_model,
             mean_rate)
-        log_likelihood[np.ix_(is_spike, is_track_interior)] += (
-            log_joint_mark_intensity + np.spacing(1))
+        log_likelihood[np.ix_(is_spike, is_track_interior)] += np.nan_to_num(
+            log_joint_mark_intensity)
 
     log_likelihood[:, ~is_track_interior] = np.nan
 

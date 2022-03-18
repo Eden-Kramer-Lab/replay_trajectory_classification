@@ -353,8 +353,8 @@ def estimate_multiunit_likelihood_integer_gpu(multiunits,
                 set_diag_zero=set_diag_zero,
                 position_distance=position_distance,
             )
-        log_likelihood[np.ix_(is_spike, is_track_interior)] += (
-            log_joint_mark_intensity + np.spacing(1))
+        log_likelihood[np.ix_(is_spike, is_track_interior)] += np.nan_to_num(
+            log_joint_mark_intensity)
 
     log_likelihood[:, ~is_track_interior] = np.nan
 

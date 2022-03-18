@@ -214,12 +214,10 @@ def estimate_multiunit_likelihood_gpu(multiunits,
             pdf = (pdf
                    .copy_to_host(stream=streams[elec_ind % n_streams])
                    .reshape((n_spikes, n_interior_place_bins), order='F'))
-            log_intensity = estimate_log_intensity(
+            log_intensity = np.nan_to_num(estimate_log_intensity(
                 pdf,
                 occupancy[is_track_interior],
-                mean_rate)
-            is_inf = np.all(np.isneginf(log_intensity), axis=1)
-            log_intensity[is_inf] = np.spacing(1)
+                mean_rate))
             log_likelihood[np.ix_(
                 is_spike, is_track_interior)] += log_intensity
 
