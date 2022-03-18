@@ -332,14 +332,13 @@ def _causal_classify_gpu(initial_conditions, continuous_state_transition,
     posterior[0] /= norm
 
     for k in np.arange(1, n_time):
-        prior = cp.zeros((n_states, n_bins, 1))
         for state_k in np.arange(n_states):
             for state_k_1 in np.arange(n_states):
-                prior[state_k, :] += (
+                posterior[k, state_k] += (
                     discrete_state_transition[state_k_1, state_k] *
                     continuous_state_transition[state_k_1, state_k].T @
                     posterior[k - 1, state_k_1])
-        posterior[k] = prior * likelihood[k]
+        posterior[k] *= likelihood[k]
         norm = cp.nansum(posterior[k])
         log_data_likelihood += cp.log(norm)
         posterior[k] /= norm
