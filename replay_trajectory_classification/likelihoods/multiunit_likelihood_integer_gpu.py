@@ -245,9 +245,11 @@ def fit_multiunit_likelihood_integer_gpu(position,
         ground_process_intensities.append(
             estimate_intensity(marginal_density, cp.asarray(
                 occupancy, dtype=cp.float32), mean_rates[-1]))
-
+        is_mark_features = np.any(~np.isnan(multiunit), axis=0)
         encoding_marks.append(
-            cp.asarray(multiunit[is_spike & not_nan_position], dtype=cp.int16))
+            cp.asarray(multiunit[
+                np.ix_(is_spike & not_nan_position, is_mark_features)],
+                dtype=cp.int16))
         encoding_positions.append(cp.asarray(
             position[is_spike & not_nan_position], dtype=cp.float32))
 
@@ -327,7 +329,9 @@ def estimate_multiunit_likelihood_integer_gpu(multiunits,
                  disable=disable_progress_bar),
             encoding_marks, encoding_positions, mean_rates):
         is_spike = np.any(~np.isnan(multiunit), axis=1)
-        decoding_marks = cp.asarray(multiunit[is_spike], dtype=cp.int16)
+        is_mark_features = np.any(~np.isnan(multiunit), axis=0)
+        decoding_marks = cp.asarray(
+            multiunit[np.ix_(is_spike, is_mark_features)], dtype=cp.int16)
         n_decoding_marks = decoding_marks.shape[0]
         log_joint_mark_intensity = np.zeros(
             (n_decoding_marks, n_position_bins), dtype=np.float32)
