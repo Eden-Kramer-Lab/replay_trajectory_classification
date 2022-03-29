@@ -401,6 +401,14 @@ def _acausal_classify_gpu(causal_posterior, continuous_state_transition,
 
 
 def check_converged(loglik, previous_loglik, tolerance=1e-4):
+    '''
+    We have converged if the slope of the log-likelihood function falls below 'threshold',
+    i.e., |f(t) - f(t-1)| / avg < threshold,
+    where avg = (|f(t)| + |f(t-1)|)/2 and f(t) is log lik at iteration t.
+    'threshold' defaults to 1e-4.
+
+    This stopping criterion is from Numerical Recipes in C p423
+    '''
     delta_loglik = abs(loglik - previous_loglik)
     avg_loglik = (abs(loglik) + abs(previous_loglik) + np.spacing(1)) / 2
 
