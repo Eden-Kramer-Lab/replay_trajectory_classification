@@ -399,7 +399,7 @@ class _ClassifierBase(BaseEstimator):
             results = xr.Dataset(
                 {key: (dims,
                        (mask(value, is_track_interior).squeeze(axis=-1)
-                        .reshape(new_shape).swapaxes(-1, -2)))
+                        .reshape(new_shape, order='F')))
                  for key, value in results.items()},
                 coords=coords,
                 attrs=attrs)
