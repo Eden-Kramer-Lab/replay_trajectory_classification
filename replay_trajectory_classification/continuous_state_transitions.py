@@ -68,13 +68,15 @@ class RandomWalk:
                       self.environment.edges_[0][0])
                 dy = (self.environment.edges_[1][1] -
                       self.environment.edges_[1][0])
+                n_total_bins = np.prod(
+                    self.environment.is_track_interior_.shape)
                 transition_matrix = diffuse_each_bin(
                     self.environment.is_track_interior_,
                     self.environment.is_track_boundary_,
                     dx,
                     dy,
                     std=np.sqrt(self.movement_var),
-                )
+                ).reshape((n_total_bins, -1), order='F')
         else:
             place_bin_center_ind_to_node = np.asarray(
                 self.environment.place_bin_centers_nodes_df_.node_id)
