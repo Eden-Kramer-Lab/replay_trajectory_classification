@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
 import pandas as pd
+from numba import njit
 from scipy import ndimage
 from scipy.interpolate import interp1d
 from sklearn.neighbors import NearestNeighbors
@@ -58,29 +59,6 @@ def get_grid(position, bin_size=2.5, position_range=None,
     return edges, place_bin_edges, place_bin_centers, centers_shape
 
 
-def order_border(border):
-    '''
-    https://stackoverflow.com/questions/37742358/sorting-points-to-form-a-continuous-line
-    '''
-    n_points = border.shape[0]
-    clf = NearestNeighbors(2).fit(border)
-    G = clf.kneighbors_graph()
-    T = nx.from_scipy_sparse_matrix(G)
-
-    paths = [list(nx.dfs_preorder_nodes(T, i))
-             for i in range(n_points)]
-    min_idx, min_dist = 0, np.inf
-
-    for idx, path in enumerate(paths):
-        ordered = border[path]    # ordered nodes
-        cost = np.sum(np.diff(ordered) ** 2)
-        if cost < min_dist:
-            min_idx, min_dist = idx, cost
-
-    opt_order = paths[min_idx]
-    return border[opt_order][:-1]
-
-
 def get_track_interior(position, bins):
     '''
 
@@ -102,24 +80,6 @@ def get_track_interior(position, bins):
         is_maze = ndimage.binary_fill_holes(is_maze)
         is_maze = ndimage.binary_dilation(is_maze, structure=structure)
 
-
-def get_track_border(is_maze, edges):
-    '''
-
-    Parameters
-    ----------
-    is_maze : ndarray, shape (n_x_bins, n_y_bins)
-    edges : list of ndarray
-
-    '''
-    structure = ndimage.generate_binary_structure(2, 2)
-    border = ndimage.binary_dilation(is_maze, structure=structure) ^ is_maze
-
-    inds = np.nonzero(border)
-    centers = [get_centers(x) for x in edges]
-    border = np.stack([center[ind] for center, ind in zip(centers, inds)],
-                      axis=1)
-    return order_border(border)
         # adjust for boundary edges in 2D
         is_maze[-1] = False
         is_maze[:, -1] = False
@@ -390,3 +350,216 @@ def get_track_grid(track_graph, edge_order, edge_spacing, place_bin_size):
         place_bin_centers_nodes_df,
         nodes_df.reset_index(),
     )
+
+
+def get_track_boundary(is_track, n_dims=2, connectivity=1):
+    structure = ndimage.generate_binary_structure(
+        rank=n_dims, connectivity=connectivity)
+    return ndimage.binary_dilation(is_track, structure=structure) ^ is_track
+
+
+def order_border(border):
+    '''
+    https://stackoverflow.com/questions/37742358/sorting-points-to-form-a-continuous-line
+    '''
+    n_points = border.shape[0]
+    clf = NearestNeighbors(n_neighbors=2).fit(border)
+    G = clf.kneighbors_graph()
+    T = nx.from_scipy_sparse_matrix(G)
+
+    paths = [list(nx.dfs_preorder_nodes(T, i))
+             for i in range(n_points)]
+    min_idx, min_dist = 0, np.inf
+
+    for idx, path in enumerate(paths):
+        ordered = border[path]    # ordered nodes
+        cost = np.sum(np.diff(ordered) ** 2)
+        if cost < min_dist:
+            min_idx, min_dist = idx, cost
+
+    opt_order = paths[min_idx]
+    return border[opt_order][:-1]
+
+
+def get_track_border_points(is_maze, edges, n_dims=2, connectivity=1):
+    '''
+
+    Parameters
+    ----------
+    is_maze : ndarray, shape (n_x_bins, n_y_bins)
+    edges : list of ndarray
+
+    '''
+    border = get_track_boundary(
+        is_maze, n_dims=n_dims, connectivity=connectivity)
+
+    inds = np.nonzero(border)
+    centers = [get_centers(x) for x in edges]
+    border = np.stack([center[ind] for center, ind in zip(centers, inds)],
+                      axis=1)
+    return order_border(border)
+
+
+@njit(parallel=True)
+def diffuse(
+    position_grid: np.ndarray,
+    Fx: float,
+    Fy: float,
+    is_track_interior: np.ndarray,
+    is_track_boundary: np.ndarray
+):
+    """
+    Parameters
+    ----------
+    position_grid : np.ndarray, shape (n_bins_x, n_bins_y)
+        Function to diffusion
+    Fx : float
+        Diffusion coefficient x
+    Fy : float
+        Diffusion coefficient y
+    is_track_interior : np.ndarray, shape (n_bins_x, n_bins_y)
+    is_track_boundary : np.ndarray, shape (n_bins_x, n_bins_y)
+
+    Returns
+    -------
+    diffused_grid : np.ndarray, shape (n_bins_x, n_bins_y)
+
+    """
+    # interior points
+    for x_ind, y_ind in zip(*np.nonzero(is_track_interior)):
+        # no flux boundary condition
+        if is_track_boundary[x_ind - 1, y_ind]:
+            position_grid[x_ind - 1, y_ind] = position_grid[x_ind, y_ind]
+
+        if is_track_boundary[x_ind + 1, y_ind]:
+            position_grid[x_ind + 1, y_ind] = position_grid[x_ind, y_ind]
+
+        if is_track_boundary[x_ind, y_ind - 1]:
+            position_grid[x_ind, y_ind - 1] = position_grid[x_ind, y_ind]
+
+        if is_track_boundary[x_ind, y_ind + 1]:
+            position_grid[x_ind, y_ind + 1] = position_grid[x_ind, y_ind]
+
+        position_grid[x_ind, y_ind] += (
+            Fx * (position_grid[x_ind - 1, y_ind] -
+                  2.0 * position_grid[x_ind, y_ind] +
+                  position_grid[x_ind + 1, y_ind]) +
+            Fy * (position_grid[x_ind, y_ind - 1] -
+                  2.0 * position_grid[x_ind, y_ind] +
+                  position_grid[x_ind, y_ind + 1]))
+
+    return position_grid
+
+
+@njit
+def run_diffusion(
+    position_grid: np.ndarray,
+    is_track_interior: np.ndarray,
+    is_track_boundary: np.ndarray,
+    dx: float,
+    dy: float,
+    std=6.0,
+    alpha=0.5,
+    dt=0.250,
+):
+    Fx = alpha * (dt / dx**2)
+    Fy = alpha * (dt / dy**2)
+
+    T = std**2
+    n_time = int((T // dt) + 1)
+
+    for _ in range(n_time):
+        position_grid = diffuse(position_grid, Fx, Fy,
+                                is_track_interior, is_track_boundary)
+
+    return position_grid
+
+
+@njit
+def diffuse_each_bin(
+    is_track_interior: np.ndarray,
+    is_track_boundary: np.ndarray,
+    dx: float,
+    dy: float,
+    std=6.0,
+    alpha=0.5,
+):
+    '''
+    For each position bin in the grid, diffuse by `std`.
+
+    Parameters
+    ----------
+    is_track_interior : np.ndarray, shape (n_bins_x, n_bins_y)
+        Boolean that denotes which bins that are on the track
+    is_track_boundary : np.ndarray, shape (n_bins_x, n_bins_y)
+        Boolean that denotes which bins that are just outside the track
+    dx : float
+        Size of grid bins in x-direction
+    dy : float
+        Size of grid bins in y-direction
+    std : float
+        Standard deviation of the diffusion if it were Gaussian
+    alpha : float
+        Diffusion constant. Should be 0.5 if Gaussian diffusion.
+
+    Returns
+    -------
+    diffused_grid : np.ndarray, shape (n_bins_x * n_bins_y, n_bins_x * n_bins_y)
+        For each bin in the grid, the diffusion of that bin
+
+    '''
+    x_inds, y_inds = np.nonzero(is_track_interior)
+    n_interior_bins = len(x_inds)
+    n_bins = is_track_interior.shape[0] * is_track_interior.shape[1]
+    bins_shape = is_track_interior.shape
+    diffused_grid = np.zeros((n_bins, *bins_shape))
+
+    dt = 0.49 / (alpha / dx**2 + alpha / dy**2)
+
+    for ind in range(n_interior_bins):
+        # initial conditions
+        position_grid = np.zeros(bins_shape)
+        position_grid[x_inds[ind], y_inds[ind]] = 1.0
+
+        diffused_grid[x_inds[ind] + y_inds[ind] * bins_shape[0]] = run_diffusion(
+            position_grid,
+            is_track_interior,
+            is_track_boundary,
+            dx,
+            dy,
+            std=std,
+            alpha=alpha,
+            dt=dt
+        )
+
+    return diffused_grid
+
+
+def get_bin_ind(sample, edges):
+    '''Extracted from histogramdd to get bin inds'''
+
+    try:
+        # Sample is an ND-array.
+        N, D = sample.shape
+    except (AttributeError, ValueError):
+        # Sample is a sequence of 1D arrays.
+        sample = np.atleast_2d(sample).T
+        N, D = sample.shape
+
+    # Compute the bin number each sample falls into.
+    Ncount = tuple(
+        # avoid np.digitize to work around gh-11022
+        np.searchsorted(edges[i], sample[:, i], side='right')
+        for i in range(D)
+    )
+
+    # Using digitize, values that fall on an edge are put in the right bin.
+    # For the rightmost bin, we want values equal to the right edge to be
+    # counted in the last bin, and not as an outlier.
+    for i in range(D):
+        # Find which points are on the rightmost edge.
+        on_edge = (sample[:, i] == edges[i][-1])
+        # Shift these points one bin to the left.
+        Ncount[i][on_edge] -= 1
+
+    return Ncount

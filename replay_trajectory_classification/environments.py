@@ -3,7 +3,9 @@ from dataclasses import dataclass
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-from replay_trajectory_classification.bins import (get_grid, get_track_grid,
+from replay_trajectory_classification.bins import (get_grid,
+                                                   get_track_boundary,
+                                                   get_track_grid,
                                                    get_track_interior)
 from track_linearization import plot_graph_as_1D
 
@@ -48,7 +50,7 @@ class Environment:
             (self.edges_,
              self.place_bin_edges_,
              self.place_bin_centers_,
-             self.centers_shape_
+             self.centers_shape_,
              ) = get_grid(position, self.place_bin_size, self.position_range,
                           self.infer_track_interior)
 
@@ -60,6 +62,9 @@ class Environment:
             elif self.is_track_interior is None and not self.infer_track_interior:
                 self.is_track_interior_ = np.ones(
                     self.centers_shape_, dtype=np.bool)
+
+            self.is_track_boundary_ = get_track_boundary(
+                self.is_track_interior_, connectivity=1)
         else:
             (
                 self.place_bin_centers_,
