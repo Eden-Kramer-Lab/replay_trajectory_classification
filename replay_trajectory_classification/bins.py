@@ -41,7 +41,11 @@ def get_grid(position, bin_size=2.5, position_range=None,
     is_nan = np.any(np.isnan(position), axis=1)
     position = position[~is_nan]
     n_bins = get_n_bins(position, bin_size, position_range)
-    hist, edges = np.histogramdd(position, bins=n_bins, range=position_range)
+    _, edges = np.histogramdd(position, bins=n_bins, range=position_range)
+    if len(edges) > 1:
+        edges = [np.insert(edge, (0, len(edge)), (edge[0] - np.diff(edge)[0],
+                                                  edge[-1] + np.diff(edge)[0]))
+                 for edge in edges]
     mesh_edges = np.meshgrid(*edges)
     place_bin_edges = np.stack([edge.ravel() for edge in mesh_edges], axis=1)
 
@@ -49,7 +53,7 @@ def get_grid(position, bin_size=2.5, position_range=None,
         *[get_centers(edge) for edge in edges])
     place_bin_centers = np.stack(
         [center.ravel() for center in mesh_centers], axis=1)
-    centers_shape = mesh_centers[0].shape
+    centers_shape = mesh_centers[0].T.shape
 
     return edges, place_bin_edges, place_bin_centers, centers_shape
 
@@ -97,7 +101,6 @@ def get_track_interior(position, bins):
         is_maze = ndimage.binary_closing(is_maze, structure=structure)
         is_maze = ndimage.binary_fill_holes(is_maze)
         is_maze = ndimage.binary_dilation(is_maze, structure=structure)
-    return is_maze.astype(np.bool)
 
 
 def get_track_border(is_maze, edges):
@@ -117,6 +120,10 @@ def get_track_border(is_maze, edges):
     border = np.stack([center[ind] for center, ind in zip(centers, inds)],
                       axis=1)
     return order_border(border)
+        # adjust for boundary edges in 2D
+        is_maze[-1] = False
+        is_maze[:, -1] = False
+    return is_maze.astype(np.bool)
 
 
 def get_track_segments_from_graph(track_graph):
