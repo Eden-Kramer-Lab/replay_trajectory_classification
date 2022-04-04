@@ -93,7 +93,7 @@ def get_track_interior(position, bins):
         * The number of bins for all dimensions (nx=ny=...=bins).
 
     '''
-    bin_counts, edges = np.histogramdd(position, bins=bins)
+    bin_counts, _ = np.histogramdd(position, bins=bins)
     is_maze = (bin_counts > 0).astype(int)
     n_position_dims = position.shape[1]
     if n_position_dims > 1:
@@ -302,11 +302,11 @@ def extract_bin_info_from_track_graph(
     nodes_df = (pd.merge(nodes_df.reset_index(), edge_avg_linear_position,
                          on="edge_id")
                 .sort_values(
-                    by=['edge_avg_linear_position', 'linear_position'],
-                    axis='rows')
-                .set_index("node_id")
-                .drop(columns="edge_avg_linear_position")
-                )
+        by=['edge_avg_linear_position', 'linear_position'],
+        axis='rows')
+        .set_index("node_id")
+        .drop(columns="edge_avg_linear_position")
+    )
 
     return nodes_df
 
