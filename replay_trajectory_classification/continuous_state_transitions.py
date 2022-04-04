@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import numpy as np
+from replay_trajectory_classification.bins import diffuse_each_bin
 from replay_trajectory_classification.state_transition import (
     _normalize_row_probability, atleast_2d)
 from scipy.stats import multivariate_normal
@@ -45,18 +46,35 @@ class RandomWalk:
     environment_name: str = ''
     movement_var: float = 6.0
     movement_mean: float = 0.0
+    use_diffusion: bool = True
 
     def make_state_transition(self, environments: tuple):
         self.environment = environments[
             environments.index(self.environment_name)]
 
         if self.environment.track_graph is None:
-            transition_matrix = np.stack(
-                [multivariate_normal(
-                    mean=center + self.movement_mean,
-                    cov=self.movement_var
-                ).pdf(self.environment.place_bin_centers_)
-                    for center in self.environment.place_bin_centers_], axis=1)
+            n_position_dims = self.environment.place_bin_centers_.shape[1]
+
+            if (n_position_dims == 1) or not self.use_diffusion:
+                transition_matrix = np.stack(
+                    [multivariate_normal(
+                        mean=center + self.movement_mean,
+                        cov=self.movement_var
+                    ).pdf(self.environment.place_bin_centers_)
+                        for center in self.environment.place_bin_centers_],
+                    axis=1)
+            else:
+                dx = (self.environment.edges_[0][1] -
+                      self.environment.edges_[0][0])
+                dy = (self.environment.edges_[1][1] -
+                      self.environment.edges_[1][0])
+                transition_matrix = diffuse_each_bin(
+                    self.environment.is_track_interior_,
+                    self.environment.is_track_boundary_,
+                    dx,
+                    dy,
+                    std=np.sqrt(self.movement_var),
+                )
         else:
             place_bin_center_ind_to_node = np.asarray(
                 self.environment.place_bin_centers_nodes_df_.node_id)
