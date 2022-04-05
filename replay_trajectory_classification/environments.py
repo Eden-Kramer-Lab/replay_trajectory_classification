@@ -63,8 +63,12 @@ class Environment:
                 self.is_track_interior_ = np.ones(
                     self.centers_shape_, dtype=np.bool)
 
-            self.is_track_boundary_ = get_track_boundary(
-                self.is_track_interior_, connectivity=1)
+            if len(self.edges_) > 1:
+                self.is_track_boundary_ = get_track_boundary(
+                    self.is_track_interior_, connectivity=1)
+            else:
+                self.is_track_boundary_ = None
+
         else:
             (
                 self.place_bin_centers_,
