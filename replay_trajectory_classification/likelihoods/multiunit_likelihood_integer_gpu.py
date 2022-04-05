@@ -1,7 +1,10 @@
+from replay_trajectory_classification.bins import diffuse_each_bin, get_bin_ind
+
 try:
     import cupy as cp
 except ImportError:
     import numpy as cp
+
 import numpy as np
 from replay_trajectory_classification.bins import atleast_2d
 from tqdm.autonotebook import tqdm
@@ -363,3 +366,40 @@ def estimate_multiunit_likelihood_integer_gpu(multiunits,
     log_likelihood[:, ~is_track_interior] = np.nan
 
     return log_likelihood
+
+
+def estimate_diffusion_position_distance(
+        positions,
+        edges,
+        is_track_interior=None,
+        is_track_boundary=None,
+        position_std=3.0,
+        bin_distances=None,
+):
+    '''
+
+    Parameters
+    ----------
+    positions : ndarray, shape (n_time, n_position_dims)
+    position_std : float
+
+    Returns
+    -------
+    position_distance : ndarray, shape (n_time, n_position_bins)
+
+    '''
+    if bin_distances is None:
+        n_time = positions.shape[0]
+
+        dx = edges[0][1] - edges[0][0]
+        dy = edges[1][1] - edges[1][0]
+
+        bin_distances = diffuse_each_bin(
+            is_track_interior,
+            is_track_boundary,
+            dx,
+            dy,
+            std=position_std,
+        ).reshape((n_time, -1), order='F')
+
+    return bin_distances[get_bin_ind(positions, edges)]
