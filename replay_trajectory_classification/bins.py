@@ -514,7 +514,7 @@ def diffuse_each_bin(
     bins_shape = is_track_interior.shape
     diffused_grid = np.zeros((n_bins, *bins_shape))
 
-    dt = 0.49 / (alpha / dx**2 + alpha / dy**2)
+    dt = 0.25 / (alpha / dx**2 + alpha / dy**2)
 
     for ind in range(n_interior_bins):
         # initial conditions
