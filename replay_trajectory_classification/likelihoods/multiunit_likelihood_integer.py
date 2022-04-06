@@ -202,6 +202,9 @@ def fit_multiunit_likelihood_integer(position,
     if is_track_interior is None:
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
+    else:
+        is_track_interior = is_track_interior.ravel(order='F')
+
     position = atleast_2d(position)
     place_bin_centers = atleast_2d(place_bin_centers)
     interior_place_bin_centers = np.asarray(
@@ -297,6 +300,8 @@ def estimate_multiunit_likelihood_integer(multiunits,
     if is_track_interior is None:
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
+    else:
+        is_track_interior = is_track_interior.ravel(order='F')
 
     n_time = multiunits.shape[0]
     log_likelihood = (-time_bin_size * summed_ground_process_intensity *

@@ -771,8 +771,9 @@ class ClusterlessClassifier(_ClassifierBase):
                     position=position[is_group],
                     multiunits=multiunits[is_group],
                     place_bin_centers=environment.place_bin_centers_,
-                    is_track_interior=environment.is_track_interior_.ravel(
-                        order='F'),
+                    is_track_interior=environment.is_track_interior_,
+                    is_track_boundary=environment.is_track_boundary_,
+                    edges=environment.edges_,
                     **kwargs
             )
 

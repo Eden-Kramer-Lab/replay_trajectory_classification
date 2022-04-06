@@ -214,8 +214,12 @@ def estimate_log_joint_mark_intensity(
 
 
 def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
-                             model, model_kwargs, occupancy_model=None,
-                             occupancy_kwargs=None, is_track_interior=None):
+                             model, model_kwargs,
+                             occupancy_model=None,
+                             occupancy_kwargs=None,
+                             is_track_interior=None,
+                             is_track_boundary=None,
+                             edges=None):
     '''
 
     Parameters
@@ -241,6 +245,9 @@ def fit_multiunit_likelihood(position, multiunits, place_bin_centers,
     if is_track_interior is None:
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
+    else:
+        is_track_interior = is_track_interior.ravel(order='F')
+
     if occupancy_model is None:
         occupancy_model = model
     if occupancy_kwargs is None:
@@ -296,6 +303,8 @@ def estimate_multiunit_likelihood(multiunits, place_bin_centers,
     if is_track_interior is None:
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
+    else:
+        is_track_interior = is_track_interior.ravel(order='F')
 
     n_time = multiunits.shape[0]
     log_likelihood = (-time_bin_size * summed_ground_process_intensity *
