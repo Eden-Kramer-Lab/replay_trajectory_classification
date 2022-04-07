@@ -400,7 +400,7 @@ def get_track_border_points(is_maze, edges, n_dims=2, connectivity=1):
     return order_border(border)
 
 
-@njit(parallel=True)
+@njit
 def diffuse(
     position_grid: np.ndarray,
     Fx: float,
