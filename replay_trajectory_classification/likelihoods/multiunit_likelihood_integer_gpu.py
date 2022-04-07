@@ -452,7 +452,7 @@ def estimate_diffusion_position_distance(
 
     bin_ind = get_bin_ind(positions, [edge[1:-1] for edge in edges])
     linear_ind = np.ravel_multi_index(
-        bin_ind, is_track_interior.shape, order='F')
+        bin_ind, [len(edge) - 1 for edge in edges], order='F')
     return bin_distances[linear_ind]
 
 
