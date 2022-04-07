@@ -450,7 +450,10 @@ def estimate_diffusion_position_distance(
             std=position_std,
         ).reshape((n_time, -1), order='F')
 
-    return bin_distances[get_bin_ind(positions, edges)]
+    bin_ind = get_bin_ind(positions, [edge[1:-1] for edge in edges])
+    linear_ind = np.ravel_multi_index(
+        bin_ind, is_track_interior.shape, order='F')
+    return bin_distances[linear_ind]
 
 
 def estimate_diffusion_position_density(
