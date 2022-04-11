@@ -106,4 +106,5 @@ class Environment:
                           cmap='bone_r')
             ax.set_xticks(self.edges_[0], minor=True)
             ax.set_yticks(self.edges_[1], minor=True)
-            ax.grid(True, which='both')
+            ax.grid(visible=True, which='minor')
+            ax.grid(visible=False, which='major')
