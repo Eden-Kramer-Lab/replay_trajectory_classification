@@ -465,8 +465,8 @@ def run_diffusion(
     Fx = alpha * (dt / dx**2)
     Fy = alpha * (dt / dy**2)
 
-    T = std**2
     n_time = int((T // dt) + 1)
+    T = std**2 / (2 * alpha)
 
     for _ in range(n_time):
         position_grid = diffuse(position_grid, Fx, Fy,
