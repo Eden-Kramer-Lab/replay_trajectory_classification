@@ -105,5 +105,8 @@ class Environment:
                           self.is_track_interior_.T,
                           cmap='bone_r')
             ax.set_xticks(self.edges_[0], minor=True)
+            ax.set_xticks(self.edges_[0], minor=False)
             ax.set_yticks(self.edges_[1], minor=True)
+            ax.set_yticks(self.edges_[1], minor=False)
+
             ax.grid(True, which='both')
