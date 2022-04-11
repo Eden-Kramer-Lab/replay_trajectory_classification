@@ -353,9 +353,7 @@ def estimate_multiunit_likelihood_integer_gpu(multiunits,
     n_time = multiunits.shape[0]
     if ignore_no_spike:
         log_likelihood = (-time_bin_size * summed_ground_process_intensity *
-                          np.ones((n_time, 1), dtype=np.float32))
-        no_spikes = np.all(np.isnan(multiunits), axis=(1, 2))
-        log_likelihood[no_spikes] = 0.0
+                          np.zeros((n_time, 1), dtype=np.float32))
     else:
         log_likelihood = (-time_bin_size * summed_ground_process_intensity *
                           np.ones((n_time, 1), dtype=np.float32))
