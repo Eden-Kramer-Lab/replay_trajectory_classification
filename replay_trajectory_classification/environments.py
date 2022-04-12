@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+import joblib
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -108,3 +109,6 @@ class Environment:
             ax.set_yticks(self.edges_[1], minor=True)
             ax.grid(visible=True, which='minor')
             ax.grid(visible=False, which='major')
+
+    def save_environment(self, filename='environment.pkl'):
+        joblib.dump(self, filename)
