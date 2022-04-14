@@ -286,8 +286,7 @@ def fit_multiunit_likelihood_integer_gpu(position,
             cp.asarray(multiunit[
                 np.ix_(is_spike & not_nan_position, is_mark_features)],
                 dtype=cp.int16))
-        encoding_positions.append(cp.asarray(
-            position[is_spike & not_nan_position], dtype=cp.float32))
+        encoding_positions.append(position[is_spike & not_nan_position])
 
     summed_ground_process_intensity = cp.asnumpy(cp.sum(
         cp.stack(ground_process_intensities, axis=0), axis=0, keepdims=True))
@@ -303,6 +302,7 @@ def fit_multiunit_likelihood_integer_gpu(position,
         'position_std': position_std,
         'block_size': block_size,
         'bin_diffusion_distances': bin_diffusion_distances,
+        'use_diffusion_distance': use_diffusion_distance,
         'edges': edges,
         **kwargs,
     }
@@ -386,11 +386,11 @@ def estimate_multiunit_likelihood_integer_gpu(multiunits,
                     enc_pos,
                     edges,
                     bin_distances=bin_diffusion_distances,
-                ), dtype=cp.float32)
+                )[:, is_track_interior], dtype=cp.float32)
         else:
             position_distance = estimate_position_distance(
                 interior_place_bin_centers,
-                enc_pos,
+                cp.asarray(enc_pos, dtype=cp.float32),
                 position_std
             ).astype(cp.float32)
 
