@@ -5,7 +5,10 @@ try:
 except ImportError:
     import numpy as cp
 
+import math
+
 import numpy as np
+from numba import cuda
 from replay_trajectory_classification.bins import atleast_2d
 from tqdm.autonotebook import tqdm
 
@@ -100,17 +103,54 @@ def estimate_log_position_density(place_bin_centers, positions, position_std,
     return position_density
 
 
+@cuda.jit()
+def logsumexp_over_bins(log_mark_distances, log_position_distances, output):
+    """
+
+    Parameters
+    ----------
+    log_mark_distances : cupy.ndarray, shape (n_decoding_spikes, n_encoding_spikes)
+    log_position_distances : cupy.ndarray, shape (n_encoding_spikes, n_position_bins)
+
+    Returns
+    -------
+    output : cupy.ndarray, shape (n_decoding_spikes, n_position_bins)
+
+    """
+    decoding_ind, pos_bin_ind = cuda.grid(2)
+
+    if (decoding_ind < output.shape[0]) and (pos_bin_ind < output.shape[1]):
+
+        # find maximum
+        max_exp = log_mark_distances[decoding_ind,
+                                     0] + log_position_distances[0, pos_bin_ind]
+        for encoding_ind in range(1, log_position_distances.shape[0]):
+            candidate_max = log_mark_distances[decoding_ind, encoding_ind] + \
+                log_position_distances[encoding_ind, pos_bin_ind]
+            if candidate_max > max_exp:
+                max_exp = candidate_max
+
+        # logsumexp
+        tmp = 0.0
+        for encoding_ind in range(log_position_distances.shape[0]):
+            tmp += math.exp(log_mark_distances[decoding_ind, encoding_ind] +
+                            log_position_distances[encoding_ind, pos_bin_ind] - max_exp)
+
+        output[decoding_ind, pos_bin_ind] = math.log(tmp) + max_exp
+
+
 def estimate_log_joint_mark_intensity(decoding_marks,
                                       encoding_marks,
                                       mark_std,
-                                      log_position_distance,
+                                      log_position_distances,
                                       log_occupancy,
                                       log_mean_rate,
-                                      max_mark_diff_value=6000):
+                                      max_mark_diff_value=6000,
+                                      threads_per_block=(32, 32)):
 
     n_encoding_spikes, n_marks = encoding_marks.shape
     n_decoding_spikes = decoding_marks.shape[0]
-    mark_distance = cp.zeros(
+    log_mark_distances = cp.zeros(
         (n_decoding_spikes, n_encoding_spikes), dtype=cp.float32)
 
     log_normal_pdf_lookup = (
@@ -121,18 +161,20 @@ def estimate_log_joint_mark_intensity(decoding_marks,
     )
 
     for mark_ind in range(n_marks):
-        mark_distance += log_normal_pdf_lookup[
+        log_mark_distances += log_normal_pdf_lookup[
             (cp.expand_dims(decoding_marks[:, mark_ind], axis=1) -
              cp.expand_dims(encoding_marks[:, mark_ind], axis=0))
             + max_mark_diff_value]
 
-    # maybe do for loop in blocks?
+    n_position_bins = log_position_distances.shape[1]
+
+    blocks_per_grid = (math.ceil(n_decoding_spikes / threads_per_block[0]),
+                       math.ceil(n_position_bins / threads_per_block[1]))
+    pdf = cp.empty((n_decoding_spikes, n_position_bins))
+    logsumexp_over_bins[blocks_per_grid, threads_per_block](
+        log_mark_distances, log_position_distances, pdf)
     return cp.asnumpy(estimate_log_intensity(
-        cp.stack(
-            [cp.squeeze(logsumexp(mark_distance[spike_ind, :, np.newaxis] +
-                                  log_position_distance, axis=0)) -
-             cp.log(n_encoding_spikes)
-             for spike_ind in cp.arange(n_decoding_spikes)], axis=0),
+        pdf,
         log_occupancy,
         log_mean_rate
     ))
@@ -287,7 +329,8 @@ def estimate_multiunit_likelihood_integer_gpu2(multiunits,
                                                block_size=100,
                                                ignore_no_spike=False,
                                                disable_progress_bar=True,
-                                               use_diffusion_distance=False):
+                                               use_diffusion_distance=False,
+                                               threads_per_block=(32, 32)):
     '''
 
     Parameters
@@ -342,14 +385,14 @@ def estimate_multiunit_likelihood_integer_gpu2(multiunits,
             block_size = n_decoding_marks
 
         if use_diffusion_distance:
-            log_position_distance = cp.log(cp.asarray(
+            log_position_distances = cp.log(cp.asarray(
                 estimate_diffusion_position_distance(
                     enc_pos,
                     edges,
                     bin_distances=bin_diffusion_distances,
                 )[:, is_track_interior], dtype=cp.float32))
         else:
-            log_position_distance = estimate_log_position_distance(
+            log_position_distances = estimate_log_position_distance(
                 interior_place_bin_centers,
                 cp.asarray(enc_pos, dtype=cp.float32),
                 position_std
@@ -361,10 +404,11 @@ def estimate_multiunit_likelihood_integer_gpu2(multiunits,
                 decoding_marks[block_inds],
                 enc_marks,
                 mark_std,
-                log_position_distance,
+                log_position_distances,
                 interior_log_occupancy,
                 log_mean_rate,
                 max_mark_diff_value=max_mark_diff_value,
+                threads_per_block=threads_per_block,
             )
         log_likelihood[np.ix_(is_spike, is_track_interior)] += np.nan_to_num(
             log_joint_mark_intensity)
