@@ -35,7 +35,7 @@ def estimate_position_distance(place_bin_centers, positions, position_std):
     n_time, n_position_dims = positions.shape
     n_position_bins = place_bin_centers.shape[0]
 
-    position_distance = cp.ones((n_time, n_position_bins))
+    position_distance = cp.ones((n_time, n_position_bins), dtype=cp.float32)
 
     for position_ind in range(n_position_dims):
         position_distance *= gaussian_pdf(
@@ -244,7 +244,7 @@ def fit_multiunit_likelihood_integer_gpu(position,
                 bin_distances=bin_diffusion_distances,
             ), dtype=cp.float32)
     else:
-        occupancy = cp.zeros((place_bin_centers.shape[0],))
+        occupancy = cp.zeros((place_bin_centers.shape[0],), dtype=cp.float32)
         occupancy[gpu_is_track_interior] = estimate_position_density(
             interior_place_bin_centers,
             cp.asarray(position[not_nan_position], dtype=cp.float32),
