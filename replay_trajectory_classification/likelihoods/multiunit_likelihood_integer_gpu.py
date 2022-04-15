@@ -251,7 +251,8 @@ def fit_multiunit_likelihood_integer_gpu(position,
             position_std, block_size=block_size)
 
     mean_rates = []
-    ground_process_intensities = []
+    summed_ground_process_intensity = cp.zeros(
+        (place_bin_centers.shape[0],), dtype=cp.float32)
     encoding_marks = []
     encoding_positions = []
 
@@ -260,7 +261,6 @@ def fit_multiunit_likelihood_integer_gpu(position,
         # ground process intensity
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         mean_rates.append(is_spike.mean())
-        marginal_density = cp.zeros((place_bin_centers.shape[0],))
 
         if is_spike.sum() > 0:
             if use_diffusion_distance:
@@ -271,6 +271,8 @@ def fit_multiunit_likelihood_integer_gpu(position,
                         bin_distances=bin_diffusion_distances
                     ), dtype=cp.float32)
             else:
+                marginal_density = cp.zeros(
+                    (place_bin_centers.shape[0],), dtype=cp.float32)
                 marginal_density[gpu_is_track_interior] = estimate_position_density(
                     interior_place_bin_centers,
                     cp.asarray(
@@ -279,8 +281,9 @@ def fit_multiunit_likelihood_integer_gpu(position,
                     position_std,
                     block_size=block_size)
 
-        ground_process_intensities.append(
+        summed_ground_process_intensity += (
             estimate_intensity(marginal_density, occupancy, mean_rates[-1]))
+
         is_mark_features = np.any(~np.isnan(multiunit), axis=0)
         encoding_marks.append(
             cp.asarray(multiunit[
@@ -288,9 +291,8 @@ def fit_multiunit_likelihood_integer_gpu(position,
                 dtype=cp.int16))
         encoding_positions.append(position[is_spike & not_nan_position])
 
-    summed_ground_process_intensity = cp.asnumpy(cp.sum(
-        cp.stack(ground_process_intensities, axis=0), axis=0, keepdims=True))
-    summed_ground_process_intensity += np.spacing(1)
+    summed_ground_process_intensity = cp.asnumpy(
+        summed_ground_process_intensity) + np.spacing(1)
 
     return {
         'encoding_marks': encoding_marks,
