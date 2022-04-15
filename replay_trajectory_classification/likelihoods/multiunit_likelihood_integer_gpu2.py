@@ -9,10 +9,8 @@ import numpy as np
 from replay_trajectory_classification.bins import atleast_2d
 from tqdm.autonotebook import tqdm
 
-HALF_LOG_2PI = 0.5 * cp.log(2 * cp.pi)
 
-
-def logsumexp(a, axis=None):
+def logsumexp(a, axis):
     a_max = cp.amax(a, axis=axis, keepdims=True)
 
     if a_max.ndim > 0:
@@ -23,18 +21,21 @@ def logsumexp(a, axis=None):
     return cp.log(cp.sum(cp.exp(a - a_max), axis=axis, keepdims=True)) + a_max
 
 
-def log_mean(x, axis=None):
+def log_mean(x, axis):
     return cp.squeeze(logsumexp(x, axis=axis) - cp.log(x.shape[axis]))
 
 
+@cp.fuse()
 def log_gaussian_pdf(x, mean, sigma):
-    return -cp.log(sigma) - HALF_LOG_2PI - 0.5 * ((x - mean) / sigma)**2
+    return -cp.log(sigma) - 0.5 * cp.log(2 * cp.pi) - 0.5 * ((x - mean) / sigma)**2
 
 
+@cp.fuse()
 def estimate_log_intensity(log_density, log_occupancy, log_mean_rate):
     return log_mean_rate + log_density - log_occupancy
 
 
+@cp.fuse()
 def estimate_intensity(log_density, log_occupancy, log_mean_rate):
     return cp.exp(
         estimate_log_intensity(log_density, log_occupancy, log_mean_rate))
@@ -114,7 +115,7 @@ def estimate_log_joint_mark_intensity(decoding_marks,
 
     log_normal_pdf_lookup = (
         -cp.log(mark_std) -
-        HALF_LOG_2PI -
+        0.5 * cp.log(2 * cp.pi) -
         0.5 * (cp.arange(-max_mark_diff_value, max_mark_diff_value) /
                mark_std)**2
     )
