@@ -85,6 +85,7 @@ class Environment:
                 self.nodes_df_
             ) = get_track_grid(self.track_graph, self.edge_order,
                                self.edge_spacing, self.place_bin_size)
+            self.is_track_boundary_ = None
 
         return self
 
