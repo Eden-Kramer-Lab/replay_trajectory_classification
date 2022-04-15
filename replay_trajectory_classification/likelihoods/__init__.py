@@ -10,6 +10,9 @@ from .multiunit_likelihood_integer import (
 from .multiunit_likelihood_integer_gpu import (
     estimate_multiunit_likelihood_integer_gpu,
     fit_multiunit_likelihood_integer_gpu)
+from .multiunit_likelihood_integer_gpu2 import (
+    estimate_multiunit_likelihood_integer_gpu2,
+    fit_multiunit_likelihood_integer_gpu2)
 from .spiking_likelihood import (estimate_place_fields,
                                  estimate_spiking_likelihood)
 
@@ -23,6 +26,9 @@ _ClUSTERLESS_ALGORITHMS = {
     'multiunit_likelihood_integer_gpu': (
         fit_multiunit_likelihood_integer_gpu,
         estimate_multiunit_likelihood_integer_gpu),
+    'multiunit_likelihood_integer_gpu2': (
+        fit_multiunit_likelihood_integer_gpu2,
+        estimate_multiunit_likelihood_integer_gpu2),
     'multiunit_likelihood_gpu': (
         fit_multiunit_likelihood_gpu,
         estimate_multiunit_likelihood_gpu),

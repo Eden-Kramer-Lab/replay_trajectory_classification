@@ -24,11 +24,20 @@ def logsumexp(a, axis=None):
 
 
 def log_mean(x, axis=None):
-    logsumexp(x, axis=axis) - cp.log(x.shape[axis])
+    return cp.squeeze(logsumexp(x, axis=axis) - cp.log(x.shape[axis]))
 
 
 def log_gaussian_pdf(x, mean, sigma):
     return -cp.log(sigma) - HALF_LOG_2PI - 0.5 * ((x - mean) / sigma)**2
+
+
+def estimate_log_intensity(log_density, log_occupancy, log_mean_rate):
+    return log_mean_rate + log_density - log_occupancy
+
+
+def estimate_intensity(log_density, log_occupancy, log_mean_rate):
+    return cp.exp(
+        estimate_log_intensity(log_density, log_occupancy, log_mean_rate))
 
 
 def estimate_log_position_distance(place_bin_centers, positions, position_std):
@@ -48,7 +57,8 @@ def estimate_log_position_distance(place_bin_centers, positions, position_std):
     n_time, n_position_dims = positions.shape
     n_position_bins = place_bin_centers.shape[0]
 
-    log_position_distance = cp.zeros((n_time, n_position_bins))
+    log_position_distance = cp.zeros(
+        (n_time, n_position_bins), dtype=cp.float32)
 
     for position_ind in range(n_position_dims):
         log_position_distance += log_gaussian_pdf(
@@ -85,28 +95,8 @@ def estimate_log_position_density(place_bin_centers, positions, position_std,
         block_inds = slice(start_ind, start_ind + block_size)
         position_density[block_inds] = log_mean(estimate_log_position_distance(
             place_bin_centers[block_inds], positions, position_std), axis=0)
+
     return position_density
-
-
-def estimate_log_intensity(log_density, log_occupancy, log_mean_rate):
-    return log_mean_rate + log_density - log_occupancy
-
-
-def estimate_intensity(density, occupancy, mean_rate):
-    '''
-
-    Parameters
-    ----------
-    density : ndarray, shape (n_bins,)
-    occupancy : ndarray, shape (n_bins,)
-    mean_rate : float
-
-    Returns
-    -------
-    intensity : ndarray, shape (n_bins,)
-
-    '''
-    return cp.exp(estimate_log_intensity(density, occupancy, mean_rate))
 
 
 def estimate_log_joint_mark_intensity(decoding_marks,
@@ -136,7 +126,7 @@ def estimate_log_joint_mark_intensity(decoding_marks,
             + max_mark_diff_value]
 
     # maybe do for loop in blocks?
-    return estimate_log_intensity(
+    return cp.asnumpy(estimate_log_intensity(
         cp.stack(
             [cp.squeeze(logsumexp(mark_distance[spike_ind, :, np.newaxis] +
                                   log_position_distance, axis=0)) -
@@ -144,20 +134,20 @@ def estimate_log_joint_mark_intensity(decoding_marks,
              for spike_ind in cp.arange(n_decoding_spikes)], axis=0),
         log_occupancy,
         log_mean_rate
-    )
+    ))
 
 
-def fit_multiunit_likelihood_integer_gpu(position,
-                                         multiunits,
-                                         place_bin_centers,
-                                         mark_std,
-                                         position_std,
-                                         is_track_boundary=None,
-                                         is_track_interior=None,
-                                         edges=None,
-                                         block_size=100,
-                                         use_diffusion_distance=False,
-                                         **kwargs):
+def fit_multiunit_likelihood_integer_gpu2(position,
+                                          multiunits,
+                                          place_bin_centers,
+                                          mark_std,
+                                          position_std,
+                                          is_track_boundary=None,
+                                          is_track_interior=None,
+                                          edges=None,
+                                          block_size=100,
+                                          use_diffusion_distance=False,
+                                          **kwargs):
     '''
 
     Parameters
@@ -212,7 +202,8 @@ def fit_multiunit_likelihood_integer_gpu(position,
                 bin_distances=bin_diffusion_distances,
             ), dtype=cp.float32))
     else:
-        log_occupancy = cp.zeros((place_bin_centers.shape[0],))
+        log_occupancy = cp.zeros(
+            (place_bin_centers.shape[0],), dtype=cp.float32)
         log_occupancy[gpu_is_track_interior] = estimate_log_position_density(
             interior_place_bin_centers,
             cp.asarray(position[not_nan_position], dtype=cp.float32),
@@ -221,7 +212,8 @@ def fit_multiunit_likelihood_integer_gpu(position,
     log_mean_rates = []
     encoding_marks = []
     encoding_positions = []
-    summed_ground_process_intensity = np.zeros((place_bin_centers.shape[0],))
+    summed_ground_process_intensity = cp.zeros((place_bin_centers.shape[0],),
+                                               dtype=cp.float32)
 
     for multiunit in np.moveaxis(multiunits, -1, 0):
 
@@ -238,7 +230,8 @@ def fit_multiunit_likelihood_integer_gpu(position,
                         bin_distances=bin_diffusion_distances
                     ), dtype=cp.float32))
             else:
-                log_marginal_density = cp.zeros((place_bin_centers.shape[0],))
+                log_marginal_density = cp.zeros(
+                    (place_bin_centers.shape[0],), dtype=cp.float32)
                 log_marginal_density[gpu_is_track_interior] = estimate_log_position_density(
                     interior_place_bin_centers,
                     cp.asarray(position[is_spike & not_nan_position],
@@ -246,9 +239,8 @@ def fit_multiunit_likelihood_integer_gpu(position,
                     position_std,
                     block_size=block_size)
 
-        summed_ground_process_intensity += cp.exp(
-            estimate_log_intensity(
-                log_marginal_density, log_occupancy, log_mean_rates[-1]))
+        summed_ground_process_intensity += estimate_intensity(
+            log_marginal_density, log_occupancy, log_mean_rates[-1])
 
         is_mark_features = np.any(~np.isnan(multiunit), axis=0)
         encoding_marks.append(
@@ -276,25 +268,25 @@ def fit_multiunit_likelihood_integer_gpu(position,
     }
 
 
-def estimate_multiunit_likelihood_integer_gpu(multiunits,
-                                              encoding_marks,
-                                              mark_std,
-                                              place_bin_centers,
-                                              encoding_positions,
-                                              position_std,
-                                              log_occupancy,
-                                              log_mean_rates,
-                                              summed_ground_process_intensity,
-                                              bin_diffusion_distances,
-                                              edges,
-                                              max_mark_diff_value=6000,
-                                              set_diag_zero=False,
-                                              is_track_interior=None,
-                                              time_bin_size=1,
-                                              block_size=100,
-                                              ignore_no_spike=False,
-                                              disable_progress_bar=True,
-                                              use_diffusion_distance=False):
+def estimate_multiunit_likelihood_integer_gpu2(multiunits,
+                                               encoding_marks,
+                                               mark_std,
+                                               place_bin_centers,
+                                               encoding_positions,
+                                               position_std,
+                                               log_occupancy,
+                                               log_mean_rates,
+                                               summed_ground_process_intensity,
+                                               bin_diffusion_distances,
+                                               edges,
+                                               max_mark_diff_value=6000,
+                                               set_diag_zero=False,
+                                               is_track_interior=None,
+                                               time_bin_size=1,
+                                               block_size=100,
+                                               ignore_no_spike=False,
+                                               disable_progress_bar=True,
+                                               use_diffusion_distance=False):
     '''
 
     Parameters
