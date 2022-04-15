@@ -104,7 +104,7 @@ def estimate_log_position_density(place_bin_centers, positions, position_std,
 
 
 @cuda.jit()
-def logsumexp_over_bins(log_mark_distances, log_position_distances, output):
+def log_mean_over_bins(log_mark_distances, log_position_distances, output):
     """
 
     Parameters
@@ -118,25 +118,31 @@ def logsumexp_over_bins(log_mark_distances, log_position_distances, output):
 
     """
     decoding_ind, pos_bin_ind = cuda.grid(2)
+    n_encoding_spikes = log_position_distances.shape[0]
 
     if (decoding_ind < output.shape[0]) and (pos_bin_ind < output.shape[1]):
 
         # find maximum
-        max_exp = log_mark_distances[decoding_ind,
-                                     0] + log_position_distances[0, pos_bin_ind]
-        for encoding_ind in range(1, log_position_distances.shape[0]):
-            candidate_max = log_mark_distances[decoding_ind, encoding_ind] + \
-                log_position_distances[encoding_ind, pos_bin_ind]
+        max_exp = (log_mark_distances[decoding_ind, 0] +
+                   log_position_distances[0, pos_bin_ind])
+
+        for encoding_ind in range(1, n_encoding_spikes):
+            candidate_max = (log_mark_distances[decoding_ind, encoding_ind] +
+                             log_position_distances[encoding_ind, pos_bin_ind])
             if candidate_max > max_exp:
                 max_exp = candidate_max
 
         # logsumexp
         tmp = 0.0
-        for encoding_ind in range(log_position_distances.shape[0]):
+        for encoding_ind in range(n_encoding_spikes):
             tmp += math.exp(log_mark_distances[decoding_ind, encoding_ind] +
-                            log_position_distances[encoding_ind, pos_bin_ind] - max_exp)
+                            log_position_distances[encoding_ind, pos_bin_ind] -
+                            max_exp)
 
         output[decoding_ind, pos_bin_ind] = math.log(tmp) + max_exp
+
+        # divide by n_spikes to get the mean
+        output[decoding_ind, pos_bin_ind] -= math.log(n_encoding_spikes)
 
 
 def estimate_log_joint_mark_intensity(decoding_marks,
@@ -171,8 +177,9 @@ def estimate_log_joint_mark_intensity(decoding_marks,
     blocks_per_grid = (math.ceil(n_decoding_spikes / threads_per_block[0]),
                        math.ceil(n_position_bins / threads_per_block[1]))
     pdf = cp.empty((n_decoding_spikes, n_position_bins), dtype=cp.float32)
-    logsumexp_over_bins[blocks_per_grid, threads_per_block](
+    log_mean_over_bins[blocks_per_grid, threads_per_block](
         log_mark_distances, log_position_distances, pdf)
+
     return cp.asnumpy(estimate_log_intensity(
         pdf,
         log_occupancy,
