@@ -170,7 +170,7 @@ def estimate_log_joint_mark_intensity(decoding_marks,
 
     blocks_per_grid = (math.ceil(n_decoding_spikes / threads_per_block[0]),
                        math.ceil(n_position_bins / threads_per_block[1]))
-    pdf = cp.empty((n_decoding_spikes, n_position_bins))
+    pdf = cp.empty((n_decoding_spikes, n_position_bins), dtype=cp.float32)
     logsumexp_over_bins[blocks_per_grid, threads_per_block](
         log_mark_distances, log_position_distances, pdf)
     return cp.asnumpy(estimate_log_intensity(
