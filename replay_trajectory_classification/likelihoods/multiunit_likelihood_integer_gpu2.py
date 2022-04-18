@@ -156,7 +156,7 @@ try:
         log_normal_pdf_lookup = (
             -cp.log(mark_std) -
             0.5 * cp.log(2 * cp.pi) -
-            0.5 * (cp.arange(-max_mark_diff_value, max_mark_diff_value) /
+            0.5 * (cp.arange(-max_mark_diff_value, max_mark_diff_value, dtype=cp.float32) /
                    mark_std)**2
         )
 
