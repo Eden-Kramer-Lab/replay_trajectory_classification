@@ -107,10 +107,15 @@ try:
         output : cupy.ndarray, shape (n_decoding_spikes, n_position_bins)
 
         """
-        decoding_ind, pos_bin_ind = cuda.grid(2)
+        thread_id = cuda.grid(1)
+
+        n_decoding_spikes, n_position_bins = output.shape
         n_encoding_spikes = log_position_distances.shape[0]
 
-        if (decoding_ind < output.shape[0]) and (pos_bin_ind < output.shape[1]):
+        decoding_ind = thread_id // n_position_bins
+        pos_bin_ind = thread_id % n_position_bins
+
+        if (decoding_ind < n_decoding_spikes) and (pos_bin_ind < n_position_bins):
 
             # find maximum
             max_exp = (log_mark_distances[decoding_ind, 0] +
@@ -162,11 +167,9 @@ try:
                 + max_mark_diff_value]
 
         n_position_bins = log_position_distances.shape[1]
-
-        blocks_per_grid = (math.ceil(n_decoding_spikes / threads_per_block[0]),
-                           math.ceil(n_position_bins / threads_per_block[1]))
         pdf = cp.empty((n_decoding_spikes, n_position_bins), dtype=cp.float32)
-        log_mean_over_bins[blocks_per_grid, threads_per_block](
+
+        log_mean_over_bins.forall(pdf.size)(
             log_mark_distances, log_position_distances, pdf)
 
         return cp.asnumpy(estimate_log_intensity(
