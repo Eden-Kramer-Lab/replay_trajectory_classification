@@ -68,7 +68,7 @@ export PATH="$HOME/miniconda/bin:$PATH"
 hash -r
 ```
 
-2. Go to the local repository on your computer (cd `.../replay_trajectory_classification`) and install the anaconda environment for the repository. Type into bash:
+2. Go to the local repository on your computer (`cd replay_trajectory_classification`) and install the anaconda environment for the repository. Type into bash:
 ```bash
 conda update -n base conda # make sure conda is up to date
 conda env create -f environment.yml # create a conda environment
