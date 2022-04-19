@@ -1,7 +1,14 @@
-# replay_trajectory_classification
+# replay_trajectory_classification #
 [![DOI](https://zenodo.org/badge/177004334.svg)](https://zenodo.org/badge/latestdoi/177004334)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Eden-Kramer-Lab/replay_trajectory_classification/master)
 [![PR Test](https://github.com/Eden-Kramer-Lab/replay_trajectory_classification/actions/workflows/PR-test.yml/badge.svg)](https://github.com/Eden-Kramer-Lab/replay_trajectory_classification/actions/workflows/PR-test.yml)
+
+
+[**Tutorials**](#tutorials)
+| [**Installation**](#installation)
+| [**References**](#references)
+
+## What is replay_trajectory_classification? ##
 
 `replay_trajectory_classification` is a python package for decoding spatial position represented by neural activity and categorizing the type of trajectory.
 
@@ -9,6 +16,7 @@
   <img src="fra_11_04_0001.gif" height="400"></img>
 </p>
 
+### Advantages over other algorithms ###
 It has several advantages over decoders typically used to characterize hippocampal replay:
 1. It allows for moment-by-moment estimation of position using small temporal time bins which allow for rapid movement of neural position and makes fewer assumptions about what downstream cells can integrate.
 2. The decoded trajectories can change direction and are not restricted to constant velocity trajectories.
@@ -18,6 +26,8 @@ It has several advantages over decoders typically used to characterize hippocamp
 6. Ability to decode 2D position
 7. Easily installable, documented code with tutorials on how to use the code (see below)
 
+
+### References ###
 For further details, please see our [eLife paper](https://doi.org/10.7554/eLife.64505):
 > Denovellis, E.L., Gillespie, A.K., Coulter, M.E., Sosa, M., Chung, J.E., Eden, U.T., and Frank, L.M. (2021). Hippocampal replay of experience at real-world speeds. ELife 10, e64505.
 
