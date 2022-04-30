@@ -2,6 +2,7 @@ import numpy as np
 from replay_trajectory_classification.core import scaled_likelihood
 from replay_trajectory_classification.likelihoods.multiunit_likelihood import (
     estimate_intensity, poisson_mark_log_likelihood)
+from scipy.signal import convolve
 from scipy.special import cotdg
 from scipy.stats import rv_histogram
 from skimage.transform import radon
@@ -140,7 +141,7 @@ def detect_line_with_radon(
         n_nearby_bins = int(nearby_positions_max / 2 // dp)
         filt = np.ones(2 * n_nearby_bins + 1)
         posterior = np.apply_along_axis(
-            lambda time_bin: np.convolve(time_bin, filt, mode="same"),
+            lambda time_bin: convolve(time_bin, filt, mode="same"),
             axis=1, arr=posterior
         )
     else:
