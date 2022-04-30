@@ -146,7 +146,8 @@ try:
                                           log_occupancy,
                                           log_mean_rate,
                                           max_mark_diff_value=6000,
-                                          threads_per_block=(32, 32)):
+                                          threads_per_block=(32, 32),
+                                          set_diag_zero=False):
 
         n_encoding_spikes, n_marks = encoding_marks.shape
         n_decoding_spikes = decoding_marks.shape[0]
@@ -165,6 +166,11 @@ try:
                 (cp.expand_dims(decoding_marks[:, mark_ind], axis=1) -
                  cp.expand_dims(encoding_marks[:, mark_ind], axis=0))
                 + max_mark_diff_value]
+
+        if set_diag_zero:
+            diag_ind = cp.diag_indices_from(log_mark_distances)
+            log_mark_distances[diag_ind] = cp.nan_to_num(
+                cp.log(0).astype(cp.float32))
 
         n_position_bins = log_position_distances.shape[1]
         pdf = cp.empty((n_decoding_spikes, n_position_bins), dtype=cp.float32)
@@ -406,6 +412,7 @@ try:
                     log_mean_rate,
                     max_mark_diff_value=max_mark_diff_value,
                     threads_per_block=threads_per_block,
+                    set_diag_zero=set_diag_zero
                 )
             log_likelihood[np.ix_(is_spike, is_track_interior)] += np.nan_to_num(
                 log_joint_mark_intensity)
