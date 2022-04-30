@@ -83,7 +83,7 @@ def get_track_interior(position, bins):
         # adjust for boundary edges in 2D
         is_maze[-1] = False
         is_maze[:, -1] = False
-    return is_maze.astype(np.bool)
+    return is_maze.astype(bool)
 
 
 def get_track_segments_from_graph(track_graph):
@@ -252,8 +252,11 @@ def extract_bin_info_from_track_graph(
         .drop(columns="pos")
     )
     node_linear_position, _, _ = _calculate_linear_position(
-        track_graph, np.asarray(nodes_df.loc[:, ["x_position", "y_position"]]),
-        nodes_df.edge_id, edge_order, edge_spacing)
+        track_graph,
+        np.asarray(nodes_df.loc[:, ["x_position", "y_position"]]),
+        np.asarray(nodes_df.edge_id),
+        edge_order,
+        edge_spacing)
     nodes_df["linear_position"] = node_linear_position
     nodes_df = nodes_df.rename_axis(index="node_id")
     edge_avg_linear_position = nodes_df.groupby(
@@ -316,7 +319,7 @@ def get_track_grid(track_graph, edge_order, edge_spacing, place_bin_size):
         n_edges = len(edge_order)
         edge_spacing = [edge_spacing, ] * (n_edges - 1)
 
-    is_track_interior = np.ones_like(place_bin_centers, dtype=np.bool)
+    is_track_interior = np.ones_like(place_bin_centers, dtype=bool)
     not_track = change_edge_ind[np.asarray(edge_spacing) > 0]
     is_track_interior[not_track] = False
 
