@@ -157,7 +157,8 @@ try:
             )
 
         if set_diag_zero:
-            diag_ind = cp.diag_indices_from(mark_distance)
+            diag_ind = (cp.arange(n_decoding_spikes),
+                        cp.arange(n_decoding_spikes))
             mark_distance[diag_ind] = 0.0
 
         if position_distance is None:

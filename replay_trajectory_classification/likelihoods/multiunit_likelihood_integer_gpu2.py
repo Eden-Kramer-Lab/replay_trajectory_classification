@@ -168,7 +168,8 @@ try:
                 + max_mark_diff_value]
 
         if set_diag_zero:
-            diag_ind = cp.diag_indices_from(log_mark_distances)
+            diag_ind = (cp.arange(n_decoding_spikes),
+                        cp.arange(n_decoding_spikes))
             log_mark_distances[diag_ind] = cp.nan_to_num(
                 cp.log(0).astype(cp.float32))
 

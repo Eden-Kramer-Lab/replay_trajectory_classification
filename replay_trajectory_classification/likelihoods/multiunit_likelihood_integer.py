@@ -157,7 +157,8 @@ def estimate_log_joint_mark_intensity(decoding_marks,
         )
 
     if set_diag_zero:
-        diag_ind = np.diag_indices_from(mark_distance)
+        diag_ind = (np.arange(n_decoding_spikes),
+                    np.arange(n_decoding_spikes))
         mark_distance[diag_ind] = 0.0
 
     if position_distance is None:
