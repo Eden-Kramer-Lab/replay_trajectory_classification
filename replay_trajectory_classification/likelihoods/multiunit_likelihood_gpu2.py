@@ -259,7 +259,7 @@ try:
             encoding_marks.append(
                 cp.asarray(multiunit[
                     np.ix_(is_spike & not_nan_position, is_mark_features)],
-                    dtype=cp.int16))
+                    dtype=cp.float32))
             encoding_positions.append(position[is_spike & not_nan_position])
 
         summed_ground_process_intensity = cp.asnumpy(
@@ -344,7 +344,7 @@ try:
             is_spike = np.any(~np.isnan(multiunit), axis=1)
             is_mark_features = np.any(~np.isnan(multiunit), axis=0)
             decoding_marks = cp.asarray(
-                multiunit[np.ix_(is_spike, is_mark_features)], dtype=cp.int16)
+                multiunit[np.ix_(is_spike, is_mark_features)], dtype=cp.float32)
             n_decoding_marks = decoding_marks.shape[0]
             log_joint_mark_intensity = np.zeros(
                 (n_decoding_marks, n_position_bins), dtype=np.float32)
