@@ -209,7 +209,7 @@ try:
         if use_diffusion_distance:
             occupancy = cp.asarray(
                 estimate_diffusion_position_density(
-                    position,
+                    position[not_nan_position],
                     edges,
                     bin_distances=bin_diffusion_distances,
                 ), dtype=cp.float32)
