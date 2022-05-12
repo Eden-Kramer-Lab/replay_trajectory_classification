@@ -2,9 +2,9 @@ import math
 
 import numpy as np
 from numba import cuda
-from replay_trajectory_classification.bins import (atleast_2d,
-                                                   diffuse_each_bin,
-                                                   get_bin_ind)
+from replay_trajectory_classification.bins import atleast_2d
+from replay_trajectory_classification.likelihoods.diffusion import (
+    diffuse_each_bin, estimate_diffusion_position_density)
 from tqdm.autonotebook import tqdm
 
 try:
@@ -24,8 +24,8 @@ try:
         return cp.squeeze(logsumexp(x, axis=axis) - cp.log(x.shape[axis]))
 
     @cp.fuse()
-    def log_gaussian_pdf(x, mean, sigma):
-        return -cp.log(sigma) - 0.5 * cp.log(2 * cp.pi) - 0.5 * ((x - mean) / sigma)**2
+    def log_gaussian_pdf(x, sigma):
+        return -cp.log(sigma) - 0.5 * cp.log(2 * cp.pi) - 0.5 * (x / sigma)**2
 
     @cp.fuse()
     def estimate_log_intensity(log_density, log_occupancy, log_mean_rate):
@@ -58,7 +58,7 @@ try:
 
         for position_ind in range(n_position_dims):
             log_position_distance += log_gaussian_pdf(
-                cp.expand_dims(place_bin_centers[:, position_ind], axis=0),
+                cp.expand_dims(place_bin_centers[:, position_ind], axis=0) -
                 cp.expand_dims(positions[:, position_ind], axis=1),
                 position_std)
 
@@ -154,12 +154,9 @@ try:
         log_mark_distances = cp.zeros(
             (n_decoding_spikes, n_encoding_spikes), dtype=cp.float32)
 
-        log_normal_pdf_lookup = (
-            -cp.log(mark_std) -
-            0.5 * cp.log(2 * cp.pi) -
-            0.5 * (cp.arange(-max_mark_diff_value, max_mark_diff_value, dtype=cp.float32) /
-                   mark_std)**2
-        )
+        log_normal_pdf_lookup = cp.asarray(log_gaussian_pdf(
+            cp.arange(-max_mark_diff_value, max_mark_diff_value), mark_std),
+            dtype=cp.float32)
 
         for mark_ind in range(n_marks):
             log_mark_distances += log_normal_pdf_lookup[
@@ -425,79 +422,6 @@ try:
 
         return log_likelihood
 
-    def estimate_diffusion_position_distance(
-            positions,
-            edges,
-            is_track_interior=None,
-            is_track_boundary=None,
-            position_std=3.0,
-            bin_distances=None,
-    ):
-        '''
-
-        Parameters
-        ----------
-        positions : ndarray, shape (n_time, n_position_dims)
-        position_std : float
-
-        Returns
-        -------
-        position_distance : ndarray, shape (n_time, n_position_bins)
-
-        '''
-        if bin_distances is None:
-            n_time = positions.shape[0]
-
-            dx = edges[0][1] - edges[0][0]
-            dy = edges[1][1] - edges[1][0]
-
-            bin_distances = diffuse_each_bin(
-                is_track_interior,
-                is_track_boundary,
-                dx,
-                dy,
-                std=position_std,
-            ).reshape((n_time, -1), order='F')
-
-        bin_ind = get_bin_ind(positions, [edge[1:-1] for edge in edges])
-        linear_ind = np.ravel_multi_index(
-            bin_ind, [len(edge) - 1 for edge in edges], order='F')
-        return bin_distances[linear_ind]
-
-    def estimate_diffusion_position_density(
-            positions,
-            edges,
-            is_track_interior=None,
-            is_track_boundary=None,
-            position_std=3.0,
-            bin_distances=None,
-            block_size=100):
-        '''
-
-        Parameters
-        ----------
-        place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
-        positions : ndarray, shape (n_time, n_position_dims)
-        position_std : float
-
-        Returns
-        -------
-        position_density : ndarray, shape (n_position_bins,)
-
-        '''
-        n_time = positions.shape[0]
-
-        if block_size is None:
-            block_size = n_time
-
-        return np.mean(estimate_diffusion_position_distance(
-            positions,
-            edges,
-            is_track_interior=is_track_interior,
-            is_track_boundary=is_track_boundary,
-            position_std=position_std,
-            bin_distances=bin_distances,
-        ), axis=0)
 except ImportError:
     def estimate_multiunit_likelihood_integer_gpu2(*args, **kwargs):
         print('Cupy is not installed or no GPU detected...')
