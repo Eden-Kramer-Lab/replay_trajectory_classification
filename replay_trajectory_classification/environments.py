@@ -32,6 +32,8 @@ class Environment:
         The default, None, is equivalent to passing a tuple of
         `n_position_dims` None values.
     infer_track_interior : bool, optional
+    fill_holes : bool, optional
+        Fill holes when inferring the track
 
     """
     environment_name: str = ''
@@ -42,6 +44,7 @@ class Environment:
     is_track_interior: np.ndarray = None
     position_range: np.ndarray = None
     infer_track_interior: bool = True
+    fill_holes: bool = False
 
     def __eq__(self, other):
         return self.environment_name == other
@@ -59,7 +62,7 @@ class Environment:
 
             if self.is_track_interior is None and self.infer_track_interior:
                 self.is_track_interior_ = get_track_interior(
-                    position, self.edges_)
+                    position, self.edges_, self.fill_holes)
             elif self.is_track_interior is None and not self.infer_track_interior:
                 self.is_track_interior_ = np.ones(
                     self.centers_shape_, dtype=np.bool)

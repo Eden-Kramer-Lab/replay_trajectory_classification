@@ -59,7 +59,7 @@ def get_grid(position, bin_size=2.5, position_range=None,
     return edges, place_bin_edges, place_bin_centers, centers_shape
 
 
-def get_track_interior(position, bins):
+def get_track_interior(position, bins, fill_holes=False):
     '''
 
     position : ndarray, shape (n_time, n_position_dims)
@@ -75,10 +75,10 @@ def get_track_interior(position, bins):
     is_maze = (bin_counts > 0).astype(int)
     n_position_dims = position.shape[1]
     if n_position_dims > 1:
-        structure = np.ones([1] * n_position_dims)
+        structure = ndimage.generate_binary_structure(n_position_dims, 1)
         is_maze = ndimage.binary_closing(is_maze, structure=structure)
-        is_maze = ndimage.binary_fill_holes(is_maze)
-        is_maze = ndimage.binary_dilation(is_maze, structure=structure)
+        if fill_holes:
+            is_maze = ndimage.binary_fill_holes(is_maze)
 
         # adjust for boundary edges in 2D
         is_maze[-1] = False
