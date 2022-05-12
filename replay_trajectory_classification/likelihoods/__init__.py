@@ -46,3 +46,11 @@ _ClUSTERLESS_ALGORITHMS = {
         fit_multiunit_likelihood_gpu2,
         estimate_multiunit_likelihood_gpu2),
 }
+
+_SORTED_SPIKES_ALGORITHMS = {
+    'spiking_likelihood_glm': (estimate_place_fields,
+                               estimate_spiking_likelihood),
+    'spiking_likelihood_kde': (estimate_place_fields_kde,
+                               estimate_spiking_likelihood_kde)
+
+}

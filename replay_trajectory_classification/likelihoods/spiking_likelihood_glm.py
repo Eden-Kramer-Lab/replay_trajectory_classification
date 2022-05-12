@@ -139,6 +139,9 @@ def estimate_place_fields(position,
                           spikes,
                           place_bin_centers,
                           place_bin_edges,
+                          edges=None,
+                          is_track_boundary=None,
+                          is_track_interior=None,
                           penalty=1E-1,
                           knot_spacing=10):
     '''Gives the conditional intensity of the neurons' spiking with respect to

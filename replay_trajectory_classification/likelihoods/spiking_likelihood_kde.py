@@ -116,6 +116,7 @@ def estimate_place_fields_kde(position,
                               is_track_boundary=None,
                               is_track_interior=None,
                               edges=None,
+                              place_bin_edges=None,
                               use_diffusion_distance=True,
                               block_size=None):
     '''Gives the conditional intensity of the neurons' spiking with respect to
@@ -129,7 +130,6 @@ def estimate_place_fields_kde(position,
 
     position = atleast_2d(position).astype(np.float32)
     place_bin_centers = atleast_2d(place_bin_centers).astype(np.float32)
-    is_track_interior = np.asarray(is_track_interior.ravel(order='F'))
     not_nan_position = np.all(~np.isnan(position), axis=1)
 
     if use_diffusion_distance:
@@ -156,14 +156,16 @@ def estimate_place_fields_kde(position,
     else:
         occupancy = np.zeros(
             (place_bin_centers.shape[0],), dtype=np.float32)
-        occupancy[is_track_interior] = estimate_position_density(
-            place_bin_centers[is_track_interior],
+        occupancy[is_track_interior.ravel(order='F')] = estimate_position_density(
+            place_bin_centers[is_track_interior.ravel(order='F')],
             position[not_nan_position],
             position_std, block_size=block_size)
         place_fields = np.stack(
             [get_firing_rate(
-                is_spike, position, place_bin_centers, is_track_interior,
-                not_nan_position, occupancy, position_std)
+                is_spike, position, place_bin_centers,
+                is_track_interior.ravel(
+                    order='F'), not_nan_position, occupancy,
+                position_std)
              for is_spike in np.asarray(spikes, dtype=bool).T], axis=1)
 
     DIMS = ['position', 'neuron']

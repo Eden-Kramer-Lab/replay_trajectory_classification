@@ -17,8 +17,7 @@ from replay_trajectory_classification.environments import Environment
 from replay_trajectory_classification.initial_conditions import \
     UniformInitialConditions
 from replay_trajectory_classification.likelihoods import (
-    _ClUSTERLESS_ALGORITHMS, estimate_place_fields,
-    estimate_spiking_likelihood)
+    _SORTED_SPIKES_ALGORITHMS, _ClUSTERLESS_ALGORITHMS)
 from replay_trajectory_classification.misc import NumbaKDE
 from sklearn.base import BaseEstimator
 
@@ -31,6 +30,12 @@ _DEFAULT_CLUSTERLESS_MODEL_KWARGS = {
     'model_kwargs': {
         'bandwidth': np.array([24.0, 24.0, 24.0, 24.0, 6.0, 6.0])
     }
+}
+
+_DEFAULT_SORTED_SPIKES_MODEL_KWARGS = {
+    'position_std': 6.0,
+    'use_diffusion_distance': False,
+    'block_size': None,
 }
 
 
@@ -133,14 +138,15 @@ class _DecoderBase(BaseEstimator):
 
 
 class SortedSpikesDecoder(_DecoderBase):
-    def __init__(self,
-                 environment=Environment(environment_name=''),
-                 transition_type=RandomWalk(),
-                 initial_conditions_type=UniformInitialConditions(),
-                 infer_track_interior=True,
-                 knot_spacing=10,
-                 spike_model_penalty=1E1,
-                 ):
+    def __init__(
+        self,
+        environment=Environment(environment_name=''),
+        transition_type=RandomWalk(),
+        initial_conditions_type=UniformInitialConditions(),
+        infer_track_interior=True,
+        sorted_spikes_algorithm='spiking_likelihood_kde',
+        sorted_spikes_algorithm_params=_DEFAULT_SORTED_SPIKES_MODEL_KWARGS,
+    ):
         '''
 
         Attributes
@@ -162,21 +168,27 @@ class SortedSpikesDecoder(_DecoderBase):
                          transition_type,
                          initial_conditions_type,
                          infer_track_interior)
-        self.knot_spacing = knot_spacing
-        self.spike_model_penalty = spike_model_penalty
+        self.sorted_spikes_algorithm = sorted_spikes_algorithm
+        self.sorted_spikes_algorithm_params = sorted_spikes_algorithm_params
 
     def fit_place_fields(self, position, spikes, is_training=None):
         logger.info('Fitting place fields...')
         if is_training is None:
             is_training = np.ones((position.shape[0],), dtype=np.bool)
         is_training = np.asarray(is_training).squeeze()
-        self.place_fields_ = estimate_place_fields(
-            position[is_training],
-            spikes[is_training],
-            self.environment.place_bin_centers_,
-            self.environment.place_bin_edges_,
-            penalty=self.spike_model_penalty,
-            knot_spacing=self.knot_spacing)
+        kwargs = self.sorted_spikes_algorithm_params
+        if kwargs is None:
+            kwargs = {}
+        self.place_fields_ = _SORTED_SPIKES_ALGORITHMS[
+            self.sorted_spikes_algorithm][0](
+                position[is_training],
+                spikes[is_training],
+                place_bin_centers=self.environment.place_bin_centers_,
+                place_bin_edges=self.environment.place_bin_edges_,
+                edges=self.environment.edges_,
+                is_track_interior=self.environment.is_track_interior_,
+                is_track_boundary=self.environment.is_track_boundary_,
+                **kwargs)
 
     def plot_place_fields(self, sampling_frequency=1, col_wrap=5):
         '''Plots the fitted 2D place fields for each neuron.
@@ -192,12 +204,12 @@ class SortedSpikesDecoder(_DecoderBase):
 
         '''
         try:
-            g = (self.place_fields_.unstack('position') * sampling_frequency
+            g = (self.place_fields_.unstack('position').where(self.environment.is_track_interior_) * sampling_frequency
                  ).plot(x='x_position', y='y_position', col='neuron',
-                        hue='encoding_group', col_wrap=col_wrap)
+                        col_wrap=col_wrap)
         except ValueError:
             g = (self.place_fields_ * sampling_frequency).plot(
-                x='position', col='neuron', hue='encoding_group',
+                x='position', col='neuron',
                 col_wrap=col_wrap)
 
         return g
@@ -254,7 +266,7 @@ class SortedSpikesDecoder(_DecoderBase):
         results = {}
         logger.info('Estimating likelihood...')
         results['likelihood'] = scaled_likelihood(
-            estimate_spiking_likelihood(
+            _SORTED_SPIKES_ALGORITHMS[self.sorted_spikes_algorithm][1](
                 spikes, np.asarray(self.place_fields_)))
 
         logger.info('Estimating causal posterior...')

@@ -22,8 +22,7 @@ from replay_trajectory_classification.environments import Environment
 from replay_trajectory_classification.initial_conditions import \
     UniformInitialConditions
 from replay_trajectory_classification.likelihoods import (
-    _ClUSTERLESS_ALGORITHMS, estimate_place_fields,
-    estimate_spiking_likelihood)
+    _SORTED_SPIKES_ALGORITHMS, _ClUSTERLESS_ALGORITHMS)
 from replay_trajectory_classification.misc import NumbaKDE
 from replay_trajectory_classification.observation_model import ObservationModel
 from sklearn.base import BaseEstimator
@@ -37,6 +36,12 @@ _DEFAULT_CLUSTERLESS_MODEL_KWARGS = {
     'model_kwargs': {
         'bandwidth': np.array([24.0, 24.0, 24.0, 24.0, 6.0, 6.0])
     }
+}
+
+_DEFAULT_SORTED_SPIKES_MODEL_KWARGS = {
+    'position_std': 6.0,
+    'use_diffusion_distance': False,
+    'block_size': None,
 }
 
 _DEFAULT_CONTINUOUS_TRANSITIONS = (
@@ -501,30 +506,32 @@ class SortedSpikesClassifier(_ClassifierBase):
         The initial conditions class instance to fit
     infer_track_interior : bool, optional
         Whether to infer the valid position bins
-    knot_spacing : float, optional
-        How far apart the spline knots are in position
-    spike_model_penalty : float, optional
-        L2 penalty (ridge) for the size of the regression coefficients
+    clusterless_algorithm : str
+        The type of clusterless algorithm. See _ClUSTERLESS_ALGORITHMS for keys
+    clusterless_algorithm_params : dict
+        Parameters for the clusterless algorithms.
 
     '''
 
-    def __init__(self,
-                 environments=_DEFAULT_ENVIRONMENT,
-                 observation_models=None,
-                 continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
-                 discrete_transition_type=DiagonalDiscrete(0.98),
-                 initial_conditions_type=UniformInitialConditions(),
-                 infer_track_interior=True,
-                 knot_spacing=10,
-                 spike_model_penalty=1E1):
+    def __init__(
+        self,
+        environments=_DEFAULT_ENVIRONMENT,
+        observation_models=None,
+        continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
+        discrete_transition_type=DiagonalDiscrete(0.98),
+        initial_conditions_type=UniformInitialConditions(),
+        infer_track_interior=True,
+        sorted_spikes_algorithm='spiking_likelihood_kde',
+        sorted_spikes_algorithm_params=_DEFAULT_SORTED_SPIKES_MODEL_KWARGS,
+    ):
         super().__init__(environments,
                          observation_models,
                          continuous_transition_types,
                          discrete_transition_type,
                          initial_conditions_type,
                          infer_track_interior)
-        self.knot_spacing = knot_spacing
-        self.spike_model_penalty = spike_model_penalty
+        self.sorted_spikes_algorithm = sorted_spikes_algorithm
+        self.sorted_spikes_algorithm_params = sorted_spikes_algorithm_params
 
     def fit_place_fields(self,
                          position,
@@ -546,6 +553,10 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         is_training = np.asarray(is_training).squeeze()
 
+        kwargs = self.sorted_spikes_algorithm_params
+        if kwargs is None:
+            kwargs = {}
+
         self.place_fields_ = {}
         for obs in np.unique(self.observation_models):
             environment = self.environments[
@@ -555,13 +566,16 @@ class SortedSpikesClassifier(_ClassifierBase):
             is_environment = (environment_labels == obs.environment_name)
             likelihood_name = (obs.environment_name, obs.encoding_group)
 
-            self.place_fields_[likelihood_name] = estimate_place_fields(
+            self.place_fields_[likelihood_name] = _SORTED_SPIKES_ALGORITHMS[
+                self.sorted_spikes_algorithm][0](
                 position=position[is_training & is_encoding & is_environment],
                 spikes=spikes[is_training & is_encoding & is_environment],
                 place_bin_centers=environment.place_bin_centers_,
                 place_bin_edges=environment.place_bin_edges_,
-                penalty=self.spike_model_penalty,
-                knot_spacing=self.knot_spacing)
+                edges=environment.edges_,
+                is_track_interior=environment.is_track_interior_,
+                is_track_boundary=environment.is_track_boundary_,
+                **kwargs)
 
     def plot_place_fields(self, sampling_frequency=1, figsize=(10, 7)):
         try:
@@ -664,7 +678,8 @@ class SortedSpikesClassifier(_ClassifierBase):
             env_ind = self.environments.index(env_name)
             is_track_interior = (
                 self.environments[env_ind].is_track_interior_.ravel(order='F'))
-            likelihood[(env_name, enc_group)] = estimate_spiking_likelihood(
+            likelihood[(env_name, enc_group)] = _SORTED_SPIKES_ALGORITHMS[
+                self.sorted_spikes_algorithm][1](
                 spikes,
                 place_fields.values,
                 is_track_interior)
