@@ -46,7 +46,7 @@ class RandomWalk:
     environment_name: str = ''
     movement_var: float = 6.0
     movement_mean: float = 0.0
-    use_diffusion: bool = True
+    use_diffusion: bool = False
 
     def make_state_transition(self, environments: tuple):
         self.environment = environments[
