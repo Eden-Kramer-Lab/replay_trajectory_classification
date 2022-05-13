@@ -1,3 +1,8 @@
+"""More numerically stable KDE done in log space but slower right now because
+of lack of matrix multiplication
+"""
+
+
 import math
 
 import numpy as np
