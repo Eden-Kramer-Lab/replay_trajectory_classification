@@ -24,7 +24,8 @@ try:
         elif not np.isfinite(a_max):
             a_max = 0
 
-        return cp.log(cp.sum(cp.exp(a - a_max), axis=axis, keepdims=True)) + a_max
+        return cp.log(cp.sum(cp.exp(a - a_max), axis=axis, keepdims=True)
+                      ) + a_max
 
     def log_mean(x, axis):
         return cp.squeeze(logsumexp(x, axis=axis) - cp.log(x.shape[axis]))
@@ -70,8 +71,8 @@ try:
 
         return log_position_distance
 
-    def estimate_log_position_density(place_bin_centers, positions, position_std,
-                                      block_size=100):
+    def estimate_log_position_density(
+            place_bin_centers, positions, position_std, block_size=100):
         '''
 
         Parameters
@@ -94,8 +95,10 @@ try:
         position_density = cp.empty((n_position_bins,))
         for start_ind in range(0, n_position_bins, block_size):
             block_inds = slice(start_ind, start_ind + block_size)
-            position_density[block_inds] = log_mean(estimate_log_position_distance(
-                place_bin_centers[block_inds], positions, position_std), axis=0)
+            position_density[block_inds] = log_mean(
+                estimate_log_position_distance(
+                    place_bin_centers[block_inds], positions, position_std),
+                axis=0)
 
         return position_density
 

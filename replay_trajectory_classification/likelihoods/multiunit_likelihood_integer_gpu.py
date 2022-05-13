@@ -12,7 +12,8 @@ try:
     def gaussian_pdf(x, mean, sigma):
         '''Compute the value of a Gaussian probability density function at x with
         given mean and sigma.'''
-        return cp.exp(-0.5 * ((x - mean) / sigma)**2) / (sigma * cp.sqrt(2.0 * cp.pi))
+        return cp.exp(-0.5 * ((x - mean) / sigma)**2) / (
+            sigma * cp.sqrt(2.0 * cp.pi))
 
     def estimate_position_distance(place_bin_centers, positions, position_std):
         '''
@@ -69,7 +70,8 @@ try:
         for start_ind in range(0, n_position_bins, block_size):
             block_inds = slice(start_ind, start_ind + block_size)
             position_density[block_inds] = cp.mean(estimate_position_distance(
-                place_bin_centers[block_inds], positions, position_std), axis=0)
+                place_bin_centers[block_inds], positions, position_std), axis=0
+            )
         return position_density
 
     def estimate_log_intensity(density, occupancy, mean_rate):
@@ -276,8 +278,8 @@ try:
                         position_std,
                         block_size=block_size)
 
-            summed_ground_process_intensity += (
-                estimate_intensity(marginal_density, occupancy, mean_rates[-1]))
+            summed_ground_process_intensity += estimate_intensity(
+                marginal_density, occupancy, mean_rates[-1])
 
             is_mark_features = np.any(~np.isnan(multiunit), axis=0)
             encoding_marks.append(
@@ -304,25 +306,27 @@ try:
             **kwargs,
         }
 
-    def estimate_multiunit_likelihood_integer_gpu(multiunits,
-                                                  encoding_marks,
-                                                  mark_std,
-                                                  place_bin_centers,
-                                                  encoding_positions,
-                                                  position_std,
-                                                  occupancy,
-                                                  mean_rates,
-                                                  summed_ground_process_intensity,
-                                                  bin_diffusion_distances,
-                                                  edges,
-                                                  max_mark_value=6000,
-                                                  set_diag_zero=False,
-                                                  is_track_interior=None,
-                                                  time_bin_size=1,
-                                                  block_size=100,
-                                                  ignore_no_spike=False,
-                                                  disable_progress_bar=True,
-                                                  use_diffusion_distance=False):
+    def estimate_multiunit_likelihood_integer_gpu(
+            multiunits,
+            encoding_marks,
+            mark_std,
+            place_bin_centers,
+            encoding_positions,
+            position_std,
+            occupancy,
+            mean_rates,
+            summed_ground_process_intensity,
+            bin_diffusion_distances,
+            edges,
+            max_mark_value=6000,
+            set_diag_zero=False,
+            is_track_interior=None,
+            time_bin_size=1,
+            block_size=100,
+            ignore_no_spike=False,
+            disable_progress_bar=True,
+            use_diffusion_distance=False
+    ):
         '''
 
         Parameters
@@ -348,11 +352,13 @@ try:
 
         n_time = multiunits.shape[0]
         if ignore_no_spike:
-            log_likelihood = (-time_bin_size * summed_ground_process_intensity *
-                              np.zeros((n_time, 1), dtype=np.float32))
+            log_likelihood = (
+                -time_bin_size * summed_ground_process_intensity *
+                np.zeros((n_time, 1), dtype=np.float32))
         else:
-            log_likelihood = (-time_bin_size * summed_ground_process_intensity *
-                              np.ones((n_time, 1), dtype=np.float32))
+            log_likelihood = (
+                -time_bin_size * summed_ground_process_intensity *
+                np.ones((n_time, 1), dtype=np.float32))
 
         multiunits = np.moveaxis(multiunits, -1, 0)
         n_position_bins = is_track_interior.sum()
