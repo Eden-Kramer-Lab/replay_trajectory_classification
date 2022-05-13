@@ -1,350 +1,402 @@
-import math
-
 import numpy as np
-from numba import cuda
-from numba.types import float32
 from replay_trajectory_classification.bins import atleast_2d
+from replay_trajectory_classification.likelihoods.diffusion import (
+    diffuse_each_bin, estimate_diffusion_position_density,
+    estimate_diffusion_position_distance)
+from tqdm.autonotebook import tqdm
 
-# Precompute this constant as a float32.  Numba will inline it at compile time.
-SQRT_2PI = np.float32((2 * math.pi)**0.5)
-EPS = np.spacing(1)
+try:
+    import cupy as cp
 
+    @cp.fuse
+    def gaussian_pdf(x, mean, sigma):
+        '''Compute the value of a Gaussian probability density function at x with
+        given mean and sigma.'''
+        return cp.exp(-0.5 * ((x - mean) / sigma)**2) / (
+            sigma * cp.sqrt(2.0 * cp.pi))
 
-@cuda.jit(device=True)
-def gaussian_pdf(x, mean, sigma):
-    '''Compute the value of a Gaussian probability density function at x with
-    given mean and sigma.'''
-    return math.exp(-0.5 * ((x - mean) / sigma)**2) / (sigma * SQRT_2PI)
-
-
-@cuda.jit
-def kde(eval_points, samples, bandwidths, out):
-    """
-
-    Parameters
-    ----------
-    eval_points : ndarray, shape (n_eval_points, n_bandwidths)
-    samples : ndarray, shape (n_samples, n_bandwidths)
-    bandwidths : ndarray, shape (n_bandwidths,)
-    out : ndarray, shape (n_eval_points,)
-
-    """
-    n_bandwidths = len(bandwidths)
-    n_samples = len(samples)
-    n_eval_points = len(eval_points)
-
-    for thread_id in range(cuda.grid(1), n_eval_points, cuda.gridsize(1)):
-        sum_kernel = float32(0.0)
-        for sample_ind in range(n_samples):
-            product_kernel = float32(1.0)
-            for bandwidth_ind in range(n_bandwidths):
-                product_kernel *= gaussian_pdf(
-                    eval_points[thread_id, bandwidth_ind],
-                    samples[sample_ind, bandwidth_ind],
-                    bandwidths[bandwidth_ind]
-                )
-            sum_kernel += product_kernel
-
-        out[thread_id] = sum_kernel / n_samples
+    def estimate_position_distance(place_bin_centers, positions, position_std):
+        '''
 
 
-def get_marks_by_place_bin_centers(marks, place_bin_centers):
-    """
 
-    Parameters
-    ----------
-    marks : ndarray, shape (n_spikes, n_features)
-    place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
+        Parameters
+        ----------
+        place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
+        positions : ndarray, shape (n_time, n_position_dims)
+        position_std : float
 
-    Returns
-    -------
-    marks_by_place_bin_centers : ndarray, shape (n_spikes * n_position_bins,
-                                                 n_features + n_position_dims)
+        Returns
+        -------
+        position_distance : ndarray, shape (n_time, n_position_bins)
 
-    """
-    n_spikes = marks.shape[0]
-    n_place_bin_centers = place_bin_centers.shape[0]
-    return np.concatenate(
-        (np.tile(marks, reps=(n_place_bin_centers, 1)),
-         np.repeat(place_bin_centers, n_spikes, axis=0)), axis=1)
+        '''
+        n_time, n_position_dims = positions.shape
+        n_position_bins = place_bin_centers.shape[0]
 
+        position_distance = cp.ones(
+            (n_time, n_position_bins), dtype=cp.float32)
 
-def estimate_log_intensity(density, occupancy, mean_rate):
-    '''
+        for position_ind in range(n_position_dims):
+            position_distance *= gaussian_pdf(
+                cp.expand_dims(place_bin_centers[:, position_ind], axis=0),
+                cp.expand_dims(positions[:, position_ind], axis=1),
+                position_std)
 
-    Parameters
-    ----------
-    density : ndarray, shape (n_bins,)
-    occupancy : ndarray, shape (n_bins,)
-    mean_rate : float
+        return position_distance
 
-    Returns
-    -------
-    intensity : ndarray, shape (n_bins,)
+    def estimate_position_density(place_bin_centers, positions, position_std,
+                                  block_size=100):
+        '''
 
-    '''
-    return np.log(mean_rate) + np.log(density) - np.log(occupancy)
+        Parameters
+        ----------
+        place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
+        positions : ndarray, shape (n_time, n_position_dims)
+        position_std : float
 
+        Returns
+        -------
+        position_density : ndarray, shape (n_position_bins,)
 
-def estimate_pdf(
-    decoding_marks, encoding_marks, mark_std,
-    place_bin_centers, encoding_positions, position_std, stream=0
-):
-    '''
+        '''
+        n_time = positions.shape[0]
+        n_position_bins = place_bin_centers.shape[0]
 
-    Parameters
-    ----------
-    decoding_marks : ndarray, shape (n_decoding_spikes, n_marks)
-    encoding_marks : ndarray, shape (n_encoding_spikes, n_marks)
-    mark_std : float
-    place_bin_centers : ndarray, shape (n_bins, n_position_dims)
-    encoding_positions : ndarray, shape (n_encoding_spikes, n_position_dims)
-    position_std : float
-    stream : numba.cuda.stream, optional
+        if block_size is None:
+            block_size = n_time
 
-    Returns
-    -------
-    joint_mark_intensity : ndarray, shape (n_decoding_spikes, n_bins)
+        position_density = cp.empty((n_position_bins,))
+        for start_ind in range(0, n_position_bins, block_size):
+            block_inds = slice(start_ind, start_ind + block_size)
+            position_density[block_inds] = cp.mean(estimate_position_distance(
+                place_bin_centers[block_inds], positions, position_std),
+                axis=0)
+        return position_density
 
-    '''
-    decoding_marks = np.atleast_2d(decoding_marks)
+    def estimate_log_intensity(density, occupancy, mean_rate):
+        return cp.log(mean_rate) + cp.log(density) - cp.log(occupancy)
 
-    # Copy the arrays to the GPU
-    eval_points = cuda.to_device(
-        get_marks_by_place_bin_centers(decoding_marks, place_bin_centers)
-        .astype(np.float32),
-        stream=stream)
-    encoding_samples = cuda.to_device(
-        np.concatenate((encoding_marks, encoding_positions), axis=1)
-        .astype(np.float32), stream=stream)
+    def estimate_intensity(density, occupancy, mean_rate):
+        '''
 
-    n_marks = decoding_marks.shape[1]
-    n_position_dims = place_bin_centers.shape[1]
-    bandwidths = cuda.to_device(
-        np.concatenate(
-            ([mark_std] * n_marks,
-             [position_std] * n_position_dims,
-             )
-        ).astype(np.float32), stream=stream)
-    n_eval_points = len(eval_points)
-    # Allocate memory on the GPU for the result
-    pdf = cuda.device_array(
-        shape=(n_eval_points,), dtype=np.float32, stream=stream)
+        Parameters
+        ----------
+        density : ndarray, shape (n_bins,)
+        occupancy : ndarray, shape (n_bins,)
+        mean_rate : float
 
-    # Run KDE
-    kde.forall(n_eval_points, stream=stream)(
-        eval_points, encoding_samples, bandwidths, pdf)
+        Returns
+        -------
+        intensity : ndarray, shape (n_bins,)
 
-    return pdf
+        '''
+        return cp.exp(estimate_log_intensity(density, occupancy, mean_rate))
 
+    def estimate_log_joint_mark_intensity(decoding_marks,
+                                          encoding_marks,
+                                          mark_std,
+                                          occupancy,
+                                          mean_rate,
+                                          place_bin_centers=None,
+                                          encoding_positions=None,
+                                          position_std=None,
+                                          max_mark_value=6000,
+                                          set_diag_zero=False,
+                                          position_distance=None):
+        """
 
-def estimate_multiunit_likelihood_gpu(multiunits,
-                                      encoding_marks,
-                                      mark_std,
-                                      place_bin_centers,
-                                      encoding_positions,
-                                      position_std,
-                                      occupancy,
-                                      mean_rates,
-                                      summed_ground_process_intensity,
-                                      is_track_interior=None,
-                                      is_track_boundary=None,
-                                      edges=None,
-                                      time_bin_size=1,
-                                      n_streams=2):
-    '''
+        Parameters
+        ----------
+        decoding_marks : ndarray, shape (n_decoding_spikes, n_features)
+        encoding_marks : ndarray, shape (n_encoding_spikes, n_features)
+        mark_std : float or ndarray, shape (n_features,)
+        occupancy : ndarray, shape (n_position_bins,)
+        mean_rate : float
+        place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
+        encoding_positions : ndarray, shape (n_decoding_spikes, n_position_dims)
+        position_std : float
+        is_track_interior : None or ndarray, shape (n_position_bins,)
+        max_mark_value : int
+        set_diag_zero : bool
 
-    Parameters
-    ----------
-    multiunits : ndarray, shape (n_time, n_marks, n_electrodes)
-    encoding_marks : list of ndarrays, len (n_electrodes,)
-    mark_std : float
-    place_bin_centers : ndarray, shape (n_bins, n_position_dims)
-    encoding_positions : list of ndarrays, len (n_electrodes,)
-    position_std : float
-    occupancy : ndarray, (n_bins,)
-    mean_rates : list, len (n_electrodes,)
-    summed_ground_process_intensity : ndarray, shape (n_bins,)
+        Returns
+        -------
+        log_joint_mark_intensity : ndarray, shape (n_decoding_spikes, n_position_bins)
 
-    Returns
-    -------
-    log_likelihood : ndarray, shape (n_time, n_bins)
+        """
+        n_encoding_spikes, n_marks = encoding_marks.shape
+        n_decoding_spikes = decoding_marks.shape[0]
+        mark_distance = cp.ones(
+            (n_decoding_spikes, n_encoding_spikes), dtype=cp.float32)
 
-    '''
+        for mark_ind in range(n_marks):
+            mark_distance *= gaussian_pdf(
+                cp.expand_dims(decoding_marks[:, mark_ind], axis=1),
+                cp.expand_dims(encoding_marks[:, mark_ind], axis=0),
+                mark_std)
 
-    if is_track_interior is None:
-        is_track_interior = np.ones((place_bin_centers.shape[0],),
-                                    dtype=np.bool)
-    else:
-        is_track_interior = is_track_interior.ravel(order='F')
+        if set_diag_zero:
+            diag_ind = (cp.arange(n_decoding_spikes),
+                        cp.arange(n_decoding_spikes))
+            mark_distance[diag_ind] = 0.0
 
-    n_time = multiunits.shape[0]
-    log_likelihood = (-time_bin_size * summed_ground_process_intensity *
-                      np.ones((n_time, 1)))
-    n_electrodes = multiunits.shape[-1]
-    multiunits = np.moveaxis(multiunits, -1, 0)
-    streams = [cuda.stream() for _ in range(min(n_streams, n_electrodes))]
-    pdfs = []
-    is_spikes = []
+        if position_distance is None:
+            position_distance = estimate_position_distance(
+                place_bin_centers, encoding_positions, position_std
+            ).astype(cp.float32)
 
-    for elec_ind, (multiunit, enc_marks, enc_pos) in enumerate(zip(
-            multiunits, encoding_marks, encoding_positions)):
-        nan_multiunit = np.isnan(multiunit)
-        is_spike = np.any(~nan_multiunit, axis=1)
-        nan_mark_dims = np.all(nan_multiunit, axis=0)
-
-        is_spikes.append(is_spike)
-        n_spikes = is_spike.sum()
-        if n_spikes > 0:
-            pdfs.append(estimate_pdf(
-                multiunit[np.ix_(is_spike, ~nan_mark_dims)],
-                enc_marks,
-                mark_std,
-                place_bin_centers[is_track_interior],
-                enc_pos,
-                position_std,
-                stream=streams[elec_ind % n_streams]
-            ))
-        else:
-            pdfs.append([])
-
-    n_interior_place_bins = is_track_interior.sum()
-    for elec_ind, (pdf, mean_rate, is_spike) in enumerate(
-            zip(pdfs, mean_rates, is_spikes)):
-        n_spikes = is_spike.sum()
-        if n_spikes > 0:
-            # Copy results from GPU to CPU and
-            # reshape to (n_decoding_spikes, n_interior_place_bins)
-            pdf = (pdf
-                   .copy_to_host(stream=streams[elec_ind % n_streams])
-                   .reshape((n_spikes, n_interior_place_bins), order='F'))
-            log_intensity = np.nan_to_num(estimate_log_intensity(
-                pdf,
-                occupancy[is_track_interior],
+        return cp.asnumpy(
+            estimate_log_intensity(
+                mark_distance @ position_distance / n_encoding_spikes,
+                occupancy,
                 mean_rate))
-            log_likelihood[np.ix_(
-                is_spike, is_track_interior)] += log_intensity
 
-    log_likelihood[:, ~is_track_interior] = np.nan
+    def fit_multiunit_likelihood_gpu(position,
+                                     multiunits,
+                                     place_bin_centers,
+                                     mark_std,
+                                     position_std,
+                                     is_track_boundary=None,
+                                     is_track_interior=None,
+                                     edges=None,
+                                     block_size=100,
+                                     use_diffusion_distance=False,
+                                     **kwargs):
+        '''
 
-    return log_likelihood
+        Parameters
+        ----------
+        position : ndarray, shape (n_time, n_position_dims)
+        multiunits : ndarray, shape (n_time, n_marks, n_electrodes)
+        place_bin_centers : ndarray, shape ( n_bins, n_position_dims)
+        model : sklearn model
+        model_kwargs : dict
+        occupancy_model : sklearn model
+        occupancy_kwargs : dict
+        is_track_interior : None or ndarray, shape (n_bins,)
 
+        Returns
+        -------
+        joint_pdf_models : list of sklearn models, shape (n_electrodes,)
+        ground_process_intensities : list of ndarray, shape (n_electrodes,)
+        occupancy : ndarray, (n_bins, n_position_dims)
+        mean_rates : ndarray, (n_electrodes,)
 
-def estimate_position_density(place_bin_centers, positions, position_std):
-    # Copy the arrays to the device
-    eval_points = cuda.to_device(place_bin_centers.astype(np.float32))
-    samples = cuda.to_device(positions.astype(np.float32))
-    n_position_dims = positions.shape[1]
-    bandwidths = cuda.to_device(
-        np.asarray([position_std] * n_position_dims).astype(np.float32))
+        '''
+        if is_track_interior is None:
+            is_track_interior = np.ones((place_bin_centers.shape[0],),
+                                        dtype=np.bool)
 
-    # Allocate memory on the device for the result
-    n_eval_points = len(eval_points)
-    out = cuda.device_array((n_eval_points,), dtype=np.float32)
+        position = atleast_2d(position)
+        place_bin_centers = atleast_2d(place_bin_centers)
+        interior_place_bin_centers = cp.asarray(
+            place_bin_centers[is_track_interior.ravel(order='F')],
+            dtype=cp.float32)
+        gpu_is_track_interior = cp.asarray(is_track_interior.ravel(order='F'))
 
-    kde.forall(n_eval_points)(
-        eval_points, samples, bandwidths, out)
+        not_nan_position = np.all(~np.isnan(position), axis=1)
 
-    return out.copy_to_host()
+        if use_diffusion_distance & (position.shape[1] > 1):
+            n_total_bins = np.prod(is_track_interior.shape)
+            bin_diffusion_distances = diffuse_each_bin(
+                is_track_interior,
+                is_track_boundary,
+                dx=edges[0][1] - edges[0][0],
+                dy=edges[1][1] - edges[1][0],
+                std=position_std,
+            ).reshape((n_total_bins, -1), order='F')
+        else:
+            bin_diffusion_distances = None
 
+        if use_diffusion_distance & (position.shape[1] > 1):
+            occupancy = cp.asarray(
+                estimate_diffusion_position_density(
+                    position[not_nan_position],
+                    edges,
+                    bin_distances=bin_diffusion_distances,
+                ), dtype=cp.float32)
+        else:
+            occupancy = cp.zeros(
+                (place_bin_centers.shape[0],), dtype=cp.float32)
+            occupancy[gpu_is_track_interior] = estimate_position_density(
+                interior_place_bin_centers,
+                cp.asarray(position[not_nan_position], dtype=cp.float32),
+                position_std, block_size=block_size)
 
-def estimate_intensity(density, occupancy, mean_rate):
-    '''
+        mean_rates = []
+        summed_ground_process_intensity = cp.zeros(
+            (place_bin_centers.shape[0],), dtype=cp.float32)
+        encoding_marks = []
+        encoding_positions = []
 
-    Parameters
-    ----------
-    density : ndarray, shape (n_bins,)
-    occupancy : ndarray, shape (n_bins,)
-    mean_rate : float
+        for multiunit in np.moveaxis(multiunits, -1, 0):
 
-    Returns
-    -------
-    intensity : ndarray, shape (n_bins,)
+            # ground process intensity
+            is_spike = np.any(~np.isnan(multiunit), axis=1)
+            mean_rates.append(is_spike.mean())
 
-    '''
-    return np.exp(estimate_log_intensity(density, occupancy, mean_rate))
+            if is_spike.sum() > 0:
+                if use_diffusion_distance & (position.shape[1] > 1):
+                    marginal_density = cp.asarray(
+                        estimate_diffusion_position_density(
+                            position[is_spike & not_nan_position],
+                            edges,
+                            bin_distances=bin_diffusion_distances
+                        ), dtype=cp.float32)
+                else:
+                    marginal_density = cp.zeros(
+                        (place_bin_centers.shape[0],), dtype=cp.float32)
+                    marginal_density[gpu_is_track_interior] = estimate_position_density(
+                        interior_place_bin_centers,
+                        cp.asarray(
+                            position[is_spike & not_nan_position],
+                            dtype=cp.float32),
+                        position_std,
+                        block_size=block_size)
 
+            summed_ground_process_intensity += estimate_intensity(
+                marginal_density, occupancy, mean_rates[-1])
 
-def fit_multiunit_likelihood_gpu(position,
-                                 multiunits,
-                                 place_bin_centers,
-                                 mark_std,
-                                 position_std,
-                                 is_track_interior=None,
-                                 **kwargs):
-    '''
+            is_mark_features = np.any(~np.isnan(multiunit), axis=0)
+            encoding_marks.append(
+                cp.asarray(multiunit[
+                    np.ix_(is_spike & not_nan_position, is_mark_features)],
+                    dtype=cp.float32))
+            encoding_positions.append(position[is_spike & not_nan_position])
 
-    Parameters
-    ----------
-    position : ndarray, shape (n_time, n_position_dims)
-    multiunits : ndarray, shape (n_time, n_marks, n_electrodes)
-    place_bin_centers : ndarray, shape ( n_bins, n_position_dims)
-    mark_std : float
-    position_std : float
-    is_track_interior : None or ndarray, shape (n_bins,)
+        summed_ground_process_intensity = cp.asnumpy(
+            summed_ground_process_intensity) + np.spacing(1)
 
-    Returns
-    -------
-    encoding_model : dict
+        return {
+            'encoding_marks': encoding_marks,
+            'encoding_positions': encoding_positions,
+            'summed_ground_process_intensity': summed_ground_process_intensity,
+            'occupancy': occupancy,
+            'mean_rates': mean_rates,
+            'mark_std': mark_std,
+            'position_std': position_std,
+            'block_size': block_size,
+            'bin_diffusion_distances': bin_diffusion_distances,
+            'use_diffusion_distance': use_diffusion_distance,
+            'edges': edges,
+            **kwargs,
+        }
 
-    '''
-    if is_track_interior is None:
-        is_track_interior = np.ones((place_bin_centers.shape[0],),
-                                    dtype=np.bool)
-    else:
-        is_track_interior = is_track_interior.ravel(order='F')
+    def estimate_multiunit_likelihood_gpu(multiunits,
+                                          encoding_marks,
+                                          mark_std,
+                                          place_bin_centers,
+                                          encoding_positions,
+                                          position_std,
+                                          occupancy,
+                                          mean_rates,
+                                          summed_ground_process_intensity,
+                                          bin_diffusion_distances,
+                                          edges,
+                                          max_mark_value=6000,
+                                          set_diag_zero=False,
+                                          is_track_interior=None,
+                                          time_bin_size=1,
+                                          block_size=100,
+                                          ignore_no_spike=False,
+                                          disable_progress_bar=True,
+                                          use_diffusion_distance=False):
+        '''
 
-    position = atleast_2d(position)
-    place_bin_centers = atleast_2d(place_bin_centers)
+        Parameters
+        ----------
+        multiunits : ndarray, shape (n_time, n_marks, n_electrodes)
+        place_bin_centers : ndarray, (n_bins, n_position_dims)
+        joint_pdf_models : list of sklearn models, shape (n_electrodes,)
+        ground_process_intensities : list of ndarray, shape (n_electrodes,)
+        occupancy : ndarray, (n_bins, n_position_dims)
+        mean_rates : ndarray, (n_electrodes,)
 
-    not_nan_position = np.all(~np.isnan(position), axis=1)
+        Returns
+        -------
+        log_likelihood : (n_time, n_bins)
 
-    occupancy = np.zeros((place_bin_centers.shape[0],), dtype=np.float32)
-    occupancy[is_track_interior] = estimate_position_density(
-        place_bin_centers[is_track_interior],
-        position[not_nan_position],
-        position_std)
+        '''
 
-    mean_rates = []
-    ground_process_intensities = []
-    encoding_marks = []
-    encoding_positions = []
+        if is_track_interior is None:
+            is_track_interior = np.ones((place_bin_centers.shape[0],),
+                                        dtype=np.bool)
+        else:
+            is_track_interior = is_track_interior.ravel(order='F')
 
-    for multiunit in np.moveaxis(multiunits, -1, 0):
+        n_time = multiunits.shape[0]
+        if ignore_no_spike:
+            log_likelihood = (
+                -time_bin_size * summed_ground_process_intensity *
+                np.zeros((n_time, 1), dtype=np.float32))
+        else:
+            log_likelihood = (
+                -time_bin_size * summed_ground_process_intensity *
+                np.ones((n_time, 1), dtype=np.float32))
 
-        # ground process intensity
-        nan_multiunit = np.isnan(multiunit)
-        is_spike = np.any(~nan_multiunit, axis=1)
-        nan_mark_dims = np.all(nan_multiunit, axis=0)
+        multiunits = np.moveaxis(multiunits, -1, 0)
+        n_position_bins = is_track_interior.sum()
+        interior_place_bin_centers = cp.asarray(
+            place_bin_centers[is_track_interior], dtype=cp.float32)
+        gpu_is_track_interior = cp.asarray(is_track_interior)
+        interior_occupancy = occupancy[gpu_is_track_interior]
 
-        mean_rates.append(is_spike.mean())
-        marginal_density = np.zeros(
-            (place_bin_centers.shape[0],), dtype=np.float32)
+        for multiunit, enc_marks, enc_pos, mean_rate in zip(
+                tqdm(multiunits, desc='n_electrodes',
+                     disable=disable_progress_bar),
+                encoding_marks, encoding_positions, mean_rates):
+            is_spike = np.any(~np.isnan(multiunit), axis=1)
+            is_mark_features = np.any(~np.isnan(multiunit), axis=0)
+            decoding_marks = cp.asarray(
+                multiunit[np.ix_(is_spike, is_mark_features)],
+                dtype=cp.float32)
+            n_decoding_marks = decoding_marks.shape[0]
+            log_joint_mark_intensity = np.zeros(
+                (n_decoding_marks, n_position_bins), dtype=np.float32)
 
-        if is_spike.sum() > 0:
-            marginal_density[is_track_interior] = estimate_position_density(
-                place_bin_centers[is_track_interior],
-                position[is_spike & not_nan_position], position_std)
+            if block_size is None:
+                block_size = n_decoding_marks
 
-        ground_process_intensities.append(
-            estimate_intensity(marginal_density, occupancy, mean_rates[-1])
-            + EPS)
+            if use_diffusion_distance & (place_bin_centers.shape[1] > 1):
+                position_distance = cp.asarray(
+                    estimate_diffusion_position_distance(
+                        enc_pos,
+                        edges,
+                        bin_distances=bin_diffusion_distances,
+                    )[:, is_track_interior], dtype=cp.float32)
+            else:
+                position_distance = estimate_position_distance(
+                    interior_place_bin_centers,
+                    cp.asarray(enc_pos, dtype=cp.float32),
+                    position_std
+                ).astype(cp.float32)
 
-        encoding_marks.append(
-            multiunit[np.ix_(is_spike & not_nan_position, ~nan_mark_dims)
-                      ].astype(np.float32))
-        encoding_positions.append(position[is_spike & not_nan_position])
+            for start_ind in range(0, n_decoding_marks, block_size):
+                block_inds = slice(start_ind, start_ind + block_size)
+                log_joint_mark_intensity[block_inds] = estimate_log_joint_mark_intensity(
+                    decoding_marks[block_inds],
+                    enc_marks,
+                    mark_std,
+                    interior_occupancy,
+                    mean_rate,
+                    max_mark_value=max_mark_value,
+                    set_diag_zero=set_diag_zero,
+                    position_distance=position_distance,
+                )
+            log_likelihood[np.ix_(is_spike, is_track_interior)] += np.nan_to_num(
+                log_joint_mark_intensity)
 
-    summed_ground_process_intensity = np.sum(
-        np.stack(ground_process_intensities, axis=0), axis=0, keepdims=True)
+            mempool = cp.get_default_memory_pool()
+            mempool.free_all_blocks()
 
-    return {
-        'encoding_marks': encoding_marks,
-        'encoding_positions': encoding_positions,
-        'summed_ground_process_intensity': summed_ground_process_intensity,
-        'occupancy': occupancy,
-        'mean_rates': mean_rates,
-        'mark_std': mark_std,
-        'position_std': position_std,
-        **kwargs,
-    }
+        log_likelihood[:, ~is_track_interior] = np.nan
+
+        return log_likelihood
+
+except ImportError:
+    def estimate_multiunit_likelihood_gpu2(*args, **kwargs):
+        print('Cupy is not installed or no GPU detected...')
+
+    def fit_multiunit_likelihood_gpu2(*args, **kwargs):
+        print('Cupy is not installed or no GPU detected...')
