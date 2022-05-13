@@ -23,7 +23,6 @@ from replay_trajectory_classification.initial_conditions import \
     UniformInitialConditions
 from replay_trajectory_classification.likelihoods import (
     _SORTED_SPIKES_ALGORITHMS, _ClUSTERLESS_ALGORITHMS)
-from replay_trajectory_classification.misc import NumbaKDE
 from replay_trajectory_classification.observation_model import ObservationModel
 from sklearn.base import BaseEstimator
 
@@ -32,10 +31,8 @@ logger = getLogger(__name__)
 sklearn.set_config(print_changed_only=False)
 
 _DEFAULT_CLUSTERLESS_MODEL_KWARGS = {
-    'model': NumbaKDE,
-    'model_kwargs': {
-        'bandwidth': np.array([24.0, 24.0, 24.0, 24.0, 6.0, 6.0])
-    }
+    'mark_std': 24.0,
+    'position_std': 6.0,
 }
 
 _DEFAULT_SORTED_SPIKES_MODEL_KWARGS = {

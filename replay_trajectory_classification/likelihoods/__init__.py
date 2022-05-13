@@ -22,6 +22,9 @@ _ClUSTERLESS_ALGORITHMS = {
     'multiunit_likelihood': (
         fit_multiunit_likelihood,
         estimate_multiunit_likelihood),
+    'multiunit_likelihood_gpu': (
+        fit_multiunit_likelihood_gpu,
+        estimate_multiunit_likelihood_gpu),
     'multiunit_likelihood_integer': (
         fit_multiunit_likelihood_integer,
         estimate_multiunit_likelihood_integer),
@@ -31,9 +34,6 @@ _ClUSTERLESS_ALGORITHMS = {
     'multiunit_likelihood_integer_gpu_log': (
         fit_multiunit_likelihood_integer_gpu2,
         estimate_multiunit_likelihood_integer_gpu2),
-    'multiunit_likelihood_gpu': (
-        fit_multiunit_likelihood_gpu,
-        estimate_multiunit_likelihood_gpu),
 }
 
 _SORTED_SPIKES_ALGORITHMS = {
