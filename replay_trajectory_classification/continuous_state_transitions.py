@@ -1,10 +1,35 @@
 from dataclasses import dataclass
 
 import numpy as np
-from replay_trajectory_classification.bins import diffuse_each_bin
-from replay_trajectory_classification.state_transition import (
-    _normalize_row_probability, atleast_2d)
+from replay_trajectory_classification.bins import atleast_2d, diffuse_each_bin
 from scipy.stats import multivariate_normal
+
+
+def _normalize_row_probability(x):
+    '''Ensure the state transition matrix rows sum to 1
+    '''
+    x /= x.sum(axis=1, keepdims=True)
+    x[np.isnan(x)] = 0
+    return x
+
+
+def estimate_movement_var(position, sampling_frequency):
+    '''Estimates the movement variance based on position.
+
+    Parameters
+    ----------
+    position : ndarray, shape (n_time, n_position_dim)
+
+    Returns
+    -------
+    movement_std : ndarray, shape (n_position_dim,)
+
+    '''
+    position = atleast_2d(position)
+    is_nan = np.any(np.isnan(position), axis=1)
+    position = position[~is_nan]
+    movement_var = np.cov(np.diff(position, axis=0), rowvar=False)
+    return movement_var * sampling_frequency
 
 
 def _random_walk_on_track_graph(
