@@ -1,18 +1,21 @@
 import numpy as np
 from replay_trajectory_classification.bins import atleast_2d
+from replay_trajectory_classification.likelihoods.diffusion import (
+    diffuse_each_bin, estimate_diffusion_position_density,
+    estimate_diffusion_position_distance)
 from tqdm.autonotebook import tqdm
-
-SQRT_2PI = np.sqrt(2.0 * np.pi)
 
 
 def gaussian_pdf(x, mean, sigma):
     '''Compute the value of a Gaussian probability density function at x with
     given mean and sigma.'''
-    return np.exp(-0.5 * ((x - mean) / sigma)**2) / (sigma * SQRT_2PI)
+    return np.exp(-0.5 * ((x - mean) / sigma)**2) / (sigma * np.sqrt(2.0 * np.pi))
 
 
 def estimate_position_distance(place_bin_centers, positions, position_std):
     '''
+
+
 
     Parameters
     ----------
@@ -28,7 +31,8 @@ def estimate_position_distance(place_bin_centers, positions, position_std):
     n_time, n_position_dims = positions.shape
     n_position_bins = place_bin_centers.shape[0]
 
-    position_distance = np.ones((n_time, n_position_bins))
+    position_distance = np.ones(
+        (n_time, n_position_bins), dtype=np.float32)
 
     for position_ind in range(n_position_dims):
         position_distance *= gaussian_pdf(
@@ -177,7 +181,11 @@ def fit_multiunit_likelihood_integer(position,
                                      place_bin_centers,
                                      mark_std,
                                      position_std,
+                                     is_track_boundary=None,
                                      is_track_interior=None,
+                                     edges=None,
+                                     block_size=100,
+                                     use_diffusion_distance=False,
                                      **kwargs):
     '''
 
@@ -203,24 +211,46 @@ def fit_multiunit_likelihood_integer(position,
     if is_track_interior is None:
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
-    else:
-        is_track_interior = is_track_interior.ravel(order='F')
 
     position = atleast_2d(position)
     place_bin_centers = atleast_2d(place_bin_centers)
     interior_place_bin_centers = np.asarray(
-        place_bin_centers[is_track_interior], dtype=np.float32)
+        place_bin_centers[is_track_interior.ravel(order='F')],
+        dtype=np.float32)
+    gpu_is_track_interior = np.asarray(is_track_interior.ravel(order='F'))
 
     not_nan_position = np.all(~np.isnan(position), axis=1)
 
-    occupancy = np.zeros((place_bin_centers.shape[0],))
-    occupancy[is_track_interior] = estimate_position_density(
-        interior_place_bin_centers,
-        np.asarray(position[not_nan_position], dtype=np.float32),
-        position_std)
+    if use_diffusion_distance & (position.shape[1] > 1):
+        n_total_bins = np.prod(is_track_interior.shape)
+        bin_diffusion_distances = diffuse_each_bin(
+            is_track_interior,
+            is_track_boundary,
+            dx=edges[0][1] - edges[0][0],
+            dy=edges[1][1] - edges[1][0],
+            std=position_std,
+        ).reshape((n_total_bins, -1), order='F')
+    else:
+        bin_diffusion_distances = None
+
+    if use_diffusion_distance & (position.shape[1] > 1):
+        occupancy = np.asarray(
+            estimate_diffusion_position_density(
+                position[not_nan_position],
+                edges,
+                bin_distances=bin_diffusion_distances,
+            ), dtype=np.float32)
+    else:
+        occupancy = np.zeros(
+            (place_bin_centers.shape[0],), dtype=np.float32)
+        occupancy[gpu_is_track_interior] = estimate_position_density(
+            interior_place_bin_centers,
+            np.asarray(position[not_nan_position], dtype=np.float32),
+            position_std, block_size=block_size)
 
     mean_rates = []
-    ground_process_intensities = []
+    summed_ground_process_intensity = np.zeros(
+        (place_bin_centers.shape[0],), dtype=np.float32)
     encoding_marks = []
     encoding_positions = []
 
@@ -229,30 +259,38 @@ def fit_multiunit_likelihood_integer(position,
         # ground process intensity
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         mean_rates.append(is_spike.mean())
-        marginal_density = np.zeros((place_bin_centers.shape[0],))
 
         if is_spike.sum() > 0:
-            marginal_density[is_track_interior] = estimate_position_density(
-                interior_place_bin_centers,
-                np.asarray(
-                    position[is_spike & not_nan_position], dtype=np.float32),
-                position_std)
+            if use_diffusion_distance & (position.shape[1] > 1):
+                marginal_density = np.asarray(
+                    estimate_diffusion_position_density(
+                        position[is_spike & not_nan_position],
+                        edges,
+                        bin_distances=bin_diffusion_distances
+                    ), dtype=np.float32)
+            else:
+                marginal_density = np.zeros(
+                    (place_bin_centers.shape[0],), dtype=np.float32)
+                marginal_density[gpu_is_track_interior] = estimate_position_density(
+                    interior_place_bin_centers,
+                    np.asarray(
+                        position[is_spike & not_nan_position],
+                        dtype=np.float32),
+                    position_std,
+                    block_size=block_size)
 
-        ground_process_intensities.append(
-            estimate_intensity(marginal_density, np.asarray(
-                occupancy, dtype=np.float32), mean_rates[-1]))
+        summed_ground_process_intensity += (
+            estimate_intensity(marginal_density, occupancy, mean_rates[-1]))
+
         is_mark_features = np.any(~np.isnan(multiunit), axis=0)
         encoding_marks.append(
-            np.asarray(
-                multiunit[np.ix_(is_spike & not_nan_position,
-                                 is_mark_features)],
+            np.asarray(multiunit[
+                np.ix_(is_spike & not_nan_position, is_mark_features)],
                 dtype=np.int16))
-        encoding_positions.append(np.asarray(
-            position[is_spike & not_nan_position], dtype=np.float32))
+        encoding_positions.append(position[is_spike & not_nan_position])
 
-    summed_ground_process_intensity = np.sum(
-        np.stack(ground_process_intensities, axis=0), axis=0, keepdims=True)
-    summed_ground_process_intensity += np.spacing(1)
+    summed_ground_process_intensity = summed_ground_process_intensity + \
+        np.spacing(1)
 
     return {
         'encoding_marks': encoding_marks,
@@ -262,6 +300,10 @@ def fit_multiunit_likelihood_integer(position,
         'mean_rates': mean_rates,
         'mark_std': mark_std,
         'position_std': position_std,
+        'block_size': block_size,
+        'bin_diffusion_distances': bin_diffusion_distances,
+        'use_diffusion_distance': use_diffusion_distance,
+        'edges': edges,
         **kwargs,
     }
 
@@ -275,12 +317,16 @@ def estimate_multiunit_likelihood_integer(multiunits,
                                           occupancy,
                                           mean_rates,
                                           summed_ground_process_intensity,
+                                          bin_diffusion_distances,
+                                          edges,
                                           max_mark_value=6000,
                                           set_diag_zero=False,
                                           is_track_interior=None,
                                           time_bin_size=1,
                                           block_size=100,
-                                          disable_progress_bar=True):
+                                          ignore_no_spike=False,
+                                          disable_progress_bar=True,
+                                          use_diffusion_distance=False):
     '''
 
     Parameters
@@ -305,14 +351,19 @@ def estimate_multiunit_likelihood_integer(multiunits,
         is_track_interior = is_track_interior.ravel(order='F')
 
     n_time = multiunits.shape[0]
-    log_likelihood = (-time_bin_size * summed_ground_process_intensity *
-                      np.ones((n_time, 1), dtype=np.float32))
+    if ignore_no_spike:
+        log_likelihood = (-time_bin_size * summed_ground_process_intensity *
+                          np.zeros((n_time, 1), dtype=np.float32))
+    else:
+        log_likelihood = (-time_bin_size * summed_ground_process_intensity *
+                          np.ones((n_time, 1), dtype=np.float32))
 
     multiunits = np.moveaxis(multiunits, -1, 0)
     n_position_bins = is_track_interior.sum()
     interior_place_bin_centers = np.asarray(
         place_bin_centers[is_track_interior], dtype=np.float32)
-    interior_occupancy = occupancy[is_track_interior]
+    gpu_is_track_interior = np.asarray(is_track_interior)
+    interior_occupancy = occupancy[gpu_is_track_interior]
 
     for multiunit, enc_marks, enc_pos, mean_rate in zip(
             tqdm(multiunits, desc='n_electrodes',
@@ -329,11 +380,19 @@ def estimate_multiunit_likelihood_integer(multiunits,
         if block_size is None:
             block_size = n_decoding_marks
 
-        position_distance = estimate_position_distance(
-            interior_place_bin_centers,
-            enc_pos,
-            position_std
-        ).astype(np.float32)
+        if use_diffusion_distance & (place_bin_centers.shape[1] > 1):
+            position_distance = np.asarray(
+                estimate_diffusion_position_distance(
+                    enc_pos,
+                    edges,
+                    bin_distances=bin_diffusion_distances,
+                )[:, is_track_interior], dtype=np.float32)
+        else:
+            position_distance = estimate_position_distance(
+                interior_place_bin_centers,
+                np.asarray(enc_pos, dtype=np.float32),
+                position_std
+            ).astype(np.float32)
 
         for start_ind in range(0, n_decoding_marks, block_size):
             block_inds = slice(start_ind, start_ind + block_size)
