@@ -8,7 +8,7 @@ import numpy as np
 from replay_trajectory_classification import ClusterlessDecoder
 from replay_trajectory_classification.clusterless_simulation import \
     make_simulated_run_data
-from replay_trajectory_classification.state_transition import \
+from replay_trajectory_classification.continuous_state_transitions import \
     estimate_movement_var
 
 # Enable logging
