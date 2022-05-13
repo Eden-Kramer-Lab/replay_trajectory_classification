@@ -1,6 +1,6 @@
 import numpy as np
-from replay_trajectory_classification.environment import (diffuse_each_bin,
-                                                          get_bin_ind)
+from replay_trajectory_classification.environments import (diffuse_each_bin,
+                                                           get_bin_ind)
 
 
 def estimate_diffusion_position_distance(
