@@ -117,7 +117,7 @@ def estimate_place_fields_kde(position,
                               is_track_interior=None,
                               edges=None,
                               place_bin_edges=None,
-                              use_diffusion_distance=True,
+                              use_diffusion_distance=False,
                               block_size=None):
     '''Gives the conditional intensity of the neurons' spiking with respect to
     position.
@@ -132,7 +132,7 @@ def estimate_place_fields_kde(position,
     place_bin_centers = atleast_2d(place_bin_centers).astype(np.float32)
     not_nan_position = np.all(~np.isnan(position), axis=1)
 
-    if use_diffusion_distance:
+    if use_diffusion_distance & (position.shape[1] > 1):
         n_total_bins = np.prod(is_track_interior.shape)
         bin_diffusion_distances = diffuse_each_bin(
             is_track_interior,

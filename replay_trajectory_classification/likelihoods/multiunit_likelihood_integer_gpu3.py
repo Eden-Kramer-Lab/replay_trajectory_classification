@@ -4,7 +4,8 @@ import numpy as np
 from numba import cuda
 from replay_trajectory_classification.bins import atleast_2d
 from replay_trajectory_classification.likelihoods.diffusion import (
-    diffuse_each_bin, estimate_diffusion_position_density)
+    diffuse_each_bin, estimate_diffusion_position_density,
+    estimate_diffusion_position_distance)
 from tqdm.autonotebook import tqdm
 
 try:
@@ -216,7 +217,7 @@ try:
 
         not_nan_position = np.all(~np.isnan(position), axis=1)
 
-        if use_diffusion_distance:
+        if use_diffusion_distance & (position.shape[1] > 1):
             n_total_bins = np.prod(is_track_interior.shape)
             bin_diffusion_distances = diffuse_each_bin(
                 is_track_interior,
@@ -228,7 +229,7 @@ try:
         else:
             bin_diffusion_distances = None
 
-        if use_diffusion_distance:
+        if use_diffusion_distance & (position.shape[1] > 1):
             log_occupancy = cp.log(cp.asarray(
                 estimate_diffusion_position_density(
                     position[not_nan_position],
@@ -256,7 +257,7 @@ try:
             log_mean_rates.append(np.log(is_spike.mean()))
 
             if is_spike.sum() > 0:
-                if use_diffusion_distance:
+                if use_diffusion_distance & (position.shape[1] > 1):
                     log_marginal_density = cp.log(cp.asarray(
                         estimate_diffusion_position_density(
                             position[is_spike & not_nan_position],
@@ -374,7 +375,7 @@ try:
             if block_size is None:
                 block_size = n_decoding_marks
 
-            if use_diffusion_distance:
+            if use_diffusion_distance & (place_bin_centers.shape[1] > 1):
                 log_position_distances = cp.log(cp.asarray(
                     estimate_diffusion_position_distance(
                         enc_pos,
