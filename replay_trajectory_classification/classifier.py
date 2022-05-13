@@ -7,14 +7,14 @@ import numpy as np
 import seaborn as sns
 import sklearn
 import xarray as xr
-from replay_trajectory_classification.bins import atleast_2d, get_centers
 from replay_trajectory_classification.continuous_state_transitions import (
     EmpiricalMovement, RandomWalk, Uniform)
 from replay_trajectory_classification.core import (_acausal_classify,
                                                    _acausal_classify_gpu,
                                                    _causal_classify,
                                                    _causal_classify_gpu,
-                                                   check_converged, mask,
+                                                   atleast_2d, check_converged,
+                                                   get_centers, mask,
                                                    scaled_likelihood)
 from replay_trajectory_classification.discrete_state_transitions import (
     DiagonalDiscrete, estimate_discrete_state_transition)

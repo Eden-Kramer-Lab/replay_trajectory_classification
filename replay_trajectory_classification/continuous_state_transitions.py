@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
 import numpy as np
-from replay_trajectory_classification.bins import atleast_2d, diffuse_each_bin
+from replay_trajectory_classification.core import atleast_2d
+from replay_trajectory_classification.environment import diffuse_each_bin
 from scipy.stats import multivariate_normal
 
 

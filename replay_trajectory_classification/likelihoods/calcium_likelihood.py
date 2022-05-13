@@ -7,7 +7,7 @@ import xarray as xr
 from dask.distributed import Client, get_client
 from patsy import build_design_matrices, dmatrix
 from regularized_glm import penalized_IRLS
-from replay_trajectory_classification.bins import get_n_bins
+from replay_trajectory_classification.environment import get_n_bins
 from statsmodels.api import families
 
 

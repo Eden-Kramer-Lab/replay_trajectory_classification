@@ -1,5 +1,5 @@
 import numpy as np
-from replay_trajectory_classification.bins import atleast_2d
+from replay_trajectory_classification.core import atleast_2d
 from scipy.stats import multivariate_normal
 
 

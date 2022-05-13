@@ -2,6 +2,14 @@ import numpy as np
 from numba import njit
 
 
+def atleast_2d(x):
+    return np.atleast_2d(x).T if x.ndim < 2 else x
+
+
+def get_centers(edge):
+    return edge[:-1] + np.diff(edge) / 2
+
+
 @njit(nogil=True, fastmath=True)
 def logsumexp(a):
     a_max = np.max(a)

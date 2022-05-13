@@ -5,14 +5,14 @@ import joblib
 import numpy as np
 import sklearn
 import xarray as xr
-from replay_trajectory_classification.bins import atleast_2d, get_centers
 from replay_trajectory_classification.continuous_state_transitions import (
     EmpiricalMovement, RandomWalk)
 from replay_trajectory_classification.core import (_acausal_decode,
                                                    _acausal_decode_gpu,
                                                    _causal_decode,
-                                                   _causal_decode_gpu, mask,
-                                                   scaled_likelihood)
+                                                   _causal_decode_gpu,
+                                                   atleast_2d, get_centers,
+                                                   mask, scaled_likelihood)
 from replay_trajectory_classification.environments import Environment
 from replay_trajectory_classification.initial_conditions import \
     UniformInitialConditions

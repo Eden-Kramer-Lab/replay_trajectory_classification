@@ -7,7 +7,7 @@ import math
 
 import numpy as np
 from numba import cuda
-from replay_trajectory_classification.bins import atleast_2d
+from replay_trajectory_classification.core import atleast_2d
 from replay_trajectory_classification.likelihoods.diffusion import (
     diffuse_each_bin, estimate_diffusion_position_density,
     estimate_diffusion_position_distance)
