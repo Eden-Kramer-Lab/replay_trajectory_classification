@@ -77,7 +77,7 @@ def _acausal_decode(causal_posterior, state_transition):
     acausal_posterior = np.zeros_like(causal_posterior)
     acausal_posterior[-1] = causal_posterior[-1].copy()
     n_time, n_bins = causal_posterior.shape[0], causal_posterior.shape[-2]
-    weights = np.zeros((n_bins, 1))
+    weights = np.zeros((n_bins, 1), dtype=np.float32)
 
     eps = np.spacing(1, dtype=np.float32)
 
