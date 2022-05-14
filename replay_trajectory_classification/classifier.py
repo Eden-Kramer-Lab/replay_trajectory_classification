@@ -93,10 +93,10 @@ class _ClassifierBase(BaseEstimator):
                 self.environments, environment_names_to_state))
 
         self.initial_conditions_ = np.zeros((n_states, self.max_pos_bins_, 1),
-                                            dtype=np.float64)
+                                            dtype=np.float32)
         for state_ind, ic in enumerate(initial_conditions):
-            self.initial_conditions_[state_ind,
-                                     :ic.shape[0]] = ic[..., np.newaxis]
+            self.initial_conditions_[state_ind, :ic.shape[0]] = (
+                ic[..., np.newaxis].astype(np.float32))
 
     def fit_continuous_state_transition(
             self,

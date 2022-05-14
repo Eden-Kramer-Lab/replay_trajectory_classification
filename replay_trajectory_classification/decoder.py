@@ -58,7 +58,7 @@ class _DecoderBase(BaseEstimator):
         self.initial_conditions_ = (
             self.initial_conditions_type.make_initial_conditions(
                 [self.environment],
-                [self.environment.environment_name])[0])
+                [self.environment.environment_name])[0].astype(np.float32))
 
     def fit_state_transition(
             self, position, is_training=None, transition_type=RandomWalk()):
