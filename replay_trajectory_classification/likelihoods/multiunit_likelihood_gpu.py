@@ -126,6 +126,7 @@ try:
 
         """
         n_encoding_spikes, n_marks = encoding_marks.shape
+
         n_decoding_spikes = decoding_marks.shape[0]
         mark_distance = cp.ones(
             (n_decoding_spikes, n_encoding_spikes), dtype=cp.float32)
@@ -395,8 +396,8 @@ try:
         return log_likelihood
 
 except ImportError:
-    def estimate_multiunit_likelihood_gpu2(*args, **kwargs):
+    def estimate_multiunit_likelihood_gpu(*args, **kwargs):
         print('Cupy is not installed or no GPU detected...')
 
-    def fit_multiunit_likelihood_gpu2(*args, **kwargs):
+    def fit_multiunit_likelihood_gpu(*args, **kwargs):
         print('Cupy is not installed or no GPU detected...')

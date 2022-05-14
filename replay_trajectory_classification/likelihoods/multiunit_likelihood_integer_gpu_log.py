@@ -432,8 +432,8 @@ try:
         return log_likelihood
 
 except ImportError:
-    def estimate_multiunit_likelihood_integer_gpu2(*args, **kwargs):
+    def estimate_multiunit_likelihood_integer_gpu_log(*args, **kwargs):
         print('Cupy is not installed or no GPU detected...')
 
-    def fit_multiunit_likelihood_integer_gpu2(*args, **kwargs):
+    def fit_multiunit_likelihood_integer_gpu_log(*args, **kwargs):
         print('Cupy is not installed or no GPU detected...')
