@@ -47,6 +47,7 @@ class Environment:
     position_range: np.ndarray = None
     infer_track_interior: bool = True
     fill_holes: bool = False
+    dilate: bool = False
 
     def __eq__(self, other):
         return self.environment_name == other
@@ -64,7 +65,7 @@ class Environment:
 
             if self.is_track_interior is None and self.infer_track_interior:
                 self.is_track_interior_ = get_track_interior(
-                    position, self.edges_, self.fill_holes)
+                    position, self.edges_, self.fill_holes, self.dilate)
             elif self.is_track_interior is None and not self.infer_track_interior:
                 self.is_track_interior_ = np.ones(
                     self.centers_shape_, dtype=np.bool)
@@ -164,7 +165,7 @@ def get_grid(position, bin_size=2.5, position_range=None,
     return edges, place_bin_edges, place_bin_centers, centers_shape
 
 
-def get_track_interior(position, bins, fill_holes=False):
+def get_track_interior(position, bins, fill_holes=False, dilate=False):
     '''
 
     position : ndarray, shape (n_time, n_position_dims)
@@ -185,6 +186,8 @@ def get_track_interior(position, bins, fill_holes=False):
         if fill_holes:
             is_maze = ndimage.binary_fill_holes(is_maze)
 
+        if dilate:
+            is_maze = ndimage.binary_dilation(is_maze)
         # adjust for boundary edges in 2D
         is_maze[-1] = False
         is_maze[:, -1] = False
