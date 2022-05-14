@@ -262,7 +262,7 @@ class _ClassifierBase(BaseEstimator):
         else:
             results['likelihood'] = np.full(
                 (n_time, n_states, self.max_pos_bins_, 1), np.nan,
-                dtype=np.float64)
+                dtype=np.float32)
 
         for state_ind, obs in enumerate(self.observation_models):
             likelihood_name = (obs.environment_name, obs.encoding_group)
@@ -286,7 +286,7 @@ class _ClassifierBase(BaseEstimator):
             if not use_gpu:
                 results['causal_posterior'] = np.full(
                     (n_time, n_states, n_position_bins, 1), np.nan,
-                    dtype=np.float64)
+                    dtype=np.float32)
                 (results['causal_posterior'][:, :, is_track_interior],
                  data_log_likelihood) = (
                     _causal_classify(
@@ -311,7 +311,7 @@ class _ClassifierBase(BaseEstimator):
                 if not use_gpu:
                     results['acausal_posterior'] = np.full(
                         (n_time, n_states, n_position_bins, 1), np.nan,
-                        dtype=np.float64)
+                        dtype=np.float32)
                     results['acausal_posterior'][:, :, is_track_interior] = (
                         _acausal_classify(
                             results['causal_posterior'][:,
