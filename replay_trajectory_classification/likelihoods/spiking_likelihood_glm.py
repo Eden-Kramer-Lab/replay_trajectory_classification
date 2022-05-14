@@ -13,6 +13,18 @@ from statsmodels.api import families
 
 
 def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
+    """Creates a design matrix for regression with a position spline basis.
+
+    Parameters
+    ----------
+    position : np.ndarray, shape (n_time, n_position_dims)
+    place_bin_edges : np.ndarray, shape (n_bins, n_position_dims)
+
+    Returns
+    -------
+    design_matrix : statsmodels.DesignMatrix
+
+    """
     inner_knots = []
     for pos, edges in zip(position.T, place_bin_edges.T):
         n_points = get_n_bins(edges, bin_size=knot_spacing)
@@ -36,6 +48,7 @@ def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
 
 
 def make_spline_predict_matrix(design_info, place_bin_centers):
+    """Make a design matrix for position bins"""
     predict_data = {}
     for ind in range(place_bin_centers.shape[1]):
         predict_data[f'x{ind}'] = place_bin_centers[:, ind]
@@ -44,6 +57,7 @@ def make_spline_predict_matrix(design_info, place_bin_centers):
 
 
 def get_firing_rate(design_matrix, results, sampling_frequency=1):
+    """Predicts the firing rate given fitted model coefficents."""
     if np.any(np.isnan(results.coefficients)):
         n_time = design_matrix.shape[0]
         rate = np.zeros((n_time,))
@@ -56,6 +70,24 @@ def get_firing_rate(design_matrix, results, sampling_frequency=1):
 
 @dask.delayed
 def fit_glm(response, design_matrix, penalty=None, tolerance=1E-5):
+    """Fits a L2-penalized GLM.
+
+    Parameters
+    ----------
+    response : np.ndarray, shape (n_time,)
+        Calcium activity trace
+    design_matrix : np.ndarray, shape (n_time, n_coefficients)
+    penalty : None or float
+        L2 penalty on regression. If None, penalty is smallest possible.
+    tolerance : float
+        Smallest difference between iterations to consider model fitting
+        converged.
+
+    Returns
+    -------
+    results : tuple
+
+    """
     if penalty is not None:
         penalty = np.ones((design_matrix.shape[1],)) * penalty
         penalty[0] = 0.0  # don't penalize the intercept
@@ -71,9 +103,9 @@ def poisson_log_likelihood(spikes, conditional_intensity):
 
     Parameters
     ----------
-    spikes : ndarray, shape (n_time,)
+    spikes : np.ndarray, shape (n_time,)
         Indicator of spike or no spike at current time.
-    conditional_intensity : ndarray, shape (n_place_bins,)
+    conditional_intensity : np.ndarray, shape (n_place_bins,)
         Instantaneous probability of observing a spike
 
     Returns
@@ -89,14 +121,14 @@ def poisson_log_likelihood(spikes, conditional_intensity):
 
 
 def combined_likelihood(spikes, conditional_intensity):
-    '''
+    """Combines the likelihoods of all the cells.
 
     Parameters
     ----------
-    spikes : ndarray, shape (n_time, n_neurons)
-    conditional_intensity : ndarray, shape (n_bins, n_neurons)
+    spikes : np.ndarray, shape (n_time, n_neurons)
+    conditional_intensity : np.ndarray, shape (n_bins, n_neurons)
 
-    '''
+    """
     n_time = spikes.shape[0]
     n_bins = conditional_intensity.shape[0]
     log_likelihood = np.zeros((n_time, n_bins))
@@ -109,18 +141,18 @@ def combined_likelihood(spikes, conditional_intensity):
 
 def estimate_spiking_likelihood(spikes, conditional_intensity,
                                 is_track_interior=None):
-    '''
+    """
 
     Parameters
     ----------
-    spikes : ndarray, shape (n_time, n_neurons)
-    conditional_intensity : ndarray, shape (n_bins, n_neurons)
-    is_track_interior : None or ndarray, optional, shape (n_x_position_bins,
-                                                          n_y_position_bins)
+    spikes : np.ndarray, shape (n_time, n_neurons)
+    conditional_intensity : np.ndarray, shape (n_bins, n_neurons)
+    is_track_interior : None or np.ndarray, optional, shape (n_x_position_bins,
+                                                             n_y_position_bins)
     Returns
     -------
-    likelihood : ndarray, shape (n_time, n_bins)
-    '''
+    likelihood : np.ndarray, shape (n_time, n_bins)
+    """
     if is_track_interior is not None:
         is_track_interior = is_track_interior.ravel(order='F')
     else:
@@ -144,23 +176,27 @@ def estimate_place_fields(position,
                           is_track_interior=None,
                           penalty=1E-1,
                           knot_spacing=10):
-    '''Gives the conditional intensity of the neurons' spiking with respect to
+    """Gives the conditional intensity of the neurons' spiking with respect to
     position.
 
     Parameters
     ----------
-    position : ndarray, shape (n_time, n_position_dims)
-    spikes : ndarray, shape (n_time, n_neurons)
-    place_bin_centers : ndarray, shape (n_bins, n_position_dims)
-    place_bin_edges : ndarray, shape (n_bins + 1, n_position_dims)
-    penalty : float, optional
+    position : np.ndarray, shape (n_time, n_position_dims)
+    spikes : np.ndarray, shape (n_time, n_neurons)
+    place_bin_centers : np.ndarray, shape (n_bins, n_position_dims)
+    place_bin_edges : np.ndarray, shape (n_bins + 1, n_position_dims)
+    is_track_boundary : None or np.ndarray
+    is_track_interior : None or np.ndarray
+    penalty : None or float, optional
+        L2 penalty on regression. If None, penalty is smallest possible.
     knot_spacing : int, optional
+        Spacing of position knots. Controls how smooth the firing rate is.
 
     Returns
     -------
-    conditional_intensity : ndarray, shape (n_bins, n_neurons)
+    conditional_intensity : np.ndarray, shape (n_bins, n_neurons)
 
-    '''
+    """
     if np.any(np.ptp(place_bin_edges, axis=0) <= knot_spacing):
         logging.warning("Range of position is smaller than knot spacing.")
     design_matrix = make_spline_design_matrix(

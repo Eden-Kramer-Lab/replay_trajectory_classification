@@ -7,25 +7,25 @@ from scipy.stats import multivariate_normal
 
 
 def _normalize_row_probability(x):
-    '''Ensure the state transition matrix rows sum to 1
-    '''
+    """Ensure the state transition matrix rows sum to 1
+    """
     x /= x.sum(axis=1, keepdims=True)
     x[np.isnan(x)] = 0
     return x
 
 
 def estimate_movement_var(position, sampling_frequency):
-    '''Estimates the movement variance based on position.
+    """Estimates the movement variance based on position.
 
     Parameters
     ----------
-    position : ndarray, shape (n_time, n_position_dim)
+    position : np.ndarray, shape (n_time, n_position_dim)
 
     Returns
     -------
-    movement_std : ndarray, shape (n_position_dim,)
+    movement_std : np.ndarray, shape (n_position_dim,)
 
-    '''
+    """
     position = atleast_2d(position)
     is_nan = np.any(np.isnan(position), axis=1)
     position = position[~is_nan]
@@ -68,6 +68,8 @@ class RandomWalk:
         How far the animal is can move in one time bin during normal
         movement.
     movement_mean : float, optional
+    use_diffusion : bool, optional
+        Use diffusion to respect the geometry of the environment
     """
     environment_name: str = ''
     movement_var: float = 6.0

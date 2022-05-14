@@ -1,3 +1,4 @@
+"""Functions for common 'Bayesian' decoding algorithms."""
 import numpy as np
 from replay_trajectory_classification.core import scaled_likelihood
 from replay_trajectory_classification.likelihoods.multiunit_likelihood import (

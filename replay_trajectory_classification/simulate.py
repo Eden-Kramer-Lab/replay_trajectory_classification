@@ -31,38 +31,38 @@ def simulate_linear_distance_with_pauses(time, track_height, running_speed=15,
 
 
 def simulate_poisson_spikes(rate, sampling_frequency):
-    '''Given a rate, returns a time series of spikes.
+    """Given a rate, returns a time series of spikes.
 
     Parameters
     ----------
-    rate : ndarray, shape (n_time,)
+    rate : np.ndarray, shape (n_time,)
     sampling_frequency : float
 
     Returns
     -------
-    spikes : ndarray, shape (n_time,)
+    spikes : np.ndarray, shape (n_time,)
 
-    '''
+    """
     return 1.0 * (np.random.poisson(rate / sampling_frequency) > 0)
 
 
 def simulate_place_field_firing_rate(means, position, max_rate=15,
                                      variance=10, is_condition=None):
-    '''Simulates the firing rate of a neuron with a place field at `means`.
+    """Simulates the firing rate of a neuron with a place field at `means`.
 
     Parameters
     ----------
-    means : ndarray, shape (n_position_dims,)
-    position : ndarray, shape (n_time, n_position_dims)
+    means : np.ndarray, shape (n_position_dims,)
+    position : np.ndarray, shape (n_time, n_position_dims)
     max_rate : float, optional
     variance : float, optional
-    is_condition : None or ndarray, (n_time,)
+    is_condition : None or np.ndarray, (n_time,)
 
     Returns
     -------
-    firing_rate : ndarray, shape (n_time,)
+    firing_rate : np.ndarray, shape (n_time,)
 
-    '''
+    """
     if is_condition is None:
         is_condition = np.ones(position.shape[0], dtype=bool)
     position = atleast_2d(position)
@@ -77,22 +77,22 @@ def simulate_place_field_firing_rate(means, position, max_rate=15,
 def simulate_neuron_with_place_field(means, position, max_rate=15, variance=36,
                                      sampling_frequency=500,
                                      is_condition=None):
-    '''Simulates the spiking of a neuron with a place field at `means`.
+    """Simulates the spiking of a neuron with a place field at `means`.
 
     Parameters
     ----------
-    means : ndarray, shape (n_position_dims,)
-    position : ndarray, shape (n_time, n_position_dims)
+    means : np.ndarray, shape (n_position_dims,)
+    position : np.ndarray, shape (n_time, n_position_dims)
     max_rate : float, optional
     variance : float, optional
     sampling_frequency : float, optional
-    is_condition : None or ndarray, (n_time,)
+    is_condition : None or np.ndarray, (n_time,)
 
     Returns
     -------
-    spikes : ndarray, shape (n_time,)
+    spikes : np.ndarray, shape (n_time,)
 
-    '''
+    """
     firing_rate = simulate_place_field_firing_rate(
         means, position, max_rate, variance, is_condition)
     return simulate_poisson_spikes(firing_rate, sampling_frequency)
@@ -103,20 +103,20 @@ def simulate_multiunit_with_place_fields(place_means, position, mark_spacing=5,
                                          mark_variance=1.0, max_rate=100,
                                          sampling_frequency=1000,
                                          is_condition=None):
-    '''Simulates a multiunit with neurons at `place_means`
+    """Simulates a multiunit with neurons at `place_means`
 
     Parameters
     ----------
-    place_means : ndarray, shape (n_neurons, n_position_dims)
-    position : ndarray, shape (n_time, n_position_dims)
+    place_means : np.ndarray, shape (n_neurons, n_position_dims)
+    position : np.ndarray, shape (n_time, n_position_dims)
     mark_spacing : int, optional
     n_mark_dims : int, optional
 
     Returns
     -------
-    multiunit : ndarray, shape (n_time, n_mark_dims)
+    multiunit : np.ndarray, shape (n_time, n_mark_dims)
 
-    '''
+    """
     n_neurons = place_means.shape[0]
     mark_centers = np.arange(0, n_neurons * mark_spacing, mark_spacing)
     n_time = position.shape[0]

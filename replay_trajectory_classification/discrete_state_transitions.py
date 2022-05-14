@@ -110,12 +110,28 @@ class UserDefinedDiscrete:
 
 
 def expected_duration(discrete_state_transition, sampling_frequency=1):
+    """The average duration of each discrete state if it follows
+    a geometric distribution.
+
+    Use `sampling_frequency` to convert duration to seconds. Time is in
+    number of samples by default.
+
+    Parameters
+    ----------
+    discrete_state_transition : np.ndarray, shape (n_states, n_states)
+    sampling_frequency : int, optional
+
+    Returns
+    -------
+    duration : np.ndarray, shape (n_states)
+
+    """
     self_transitions = np.diag(discrete_state_transition)
     return (1 / (1 - self_transitions)) / sampling_frequency
 
 
 def estimate_discrete_state_transition(classifier, results):
-    '''Updates the discrete_state_transition based on the probability of each
+    """Updates the discrete_state_transition based on the probability of each
     state.
 
     Parameters
@@ -132,7 +148,7 @@ def estimate_discrete_state_transition(classifier, results):
     $$
     Pr(I_{k} = i, I_{k+1} = j \mid O_{1:T}) = \frac{Pr(I_{k+1} = j \mid I_{k} = i) Pr(I_{k} = i \mid O_{1:k})}{Pr(I_{k+1} = j \mid O_{1:k})} Pr(I_{k+1} = j \mid O_{1:T})
     $$
-    '''
+    """
     EPS = 1e-32
     try:
         causal_prob = np.log(

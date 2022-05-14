@@ -1,3 +1,5 @@
+"""State space models that decode trajectories from population spiking"""
+
 from copy import deepcopy
 from logging import getLogger
 
@@ -201,7 +203,7 @@ class SortedSpikesDecoder(_DecoderBase):
         sorted_spikes_algorithm='spiking_likelihood_kde',
         sorted_spikes_algorithm_params=_DEFAULT_SORTED_SPIKES_MODEL_KWARGS,
     ):
-        '''
+        """
 
         Attributes
         ----------
@@ -217,7 +219,7 @@ class SortedSpikesDecoder(_DecoderBase):
             How far apart the spline knots are in position
         spike_model_penalty : float, optional
             L2 penalty (ridge) for the size of the regression coefficients
-        '''
+        """
         super().__init__(environment,
                          transition_type,
                          initial_conditions_type,
@@ -245,7 +247,7 @@ class SortedSpikesDecoder(_DecoderBase):
                 **kwargs)
 
     def plot_place_fields(self, sampling_frequency=1, col_wrap=5):
-        '''Plots the fitted 2D place fields for each neuron.
+        """Plots the fitted 2D place fields for each neuron.
 
         Parameters
         ----------
@@ -256,7 +258,7 @@ class SortedSpikesDecoder(_DecoderBase):
         -------
         g : xr.plot.FacetGrid instance
 
-        '''
+        """
         try:
             g = (self.place_fields_.unstack('position').where(self.environment.is_track_interior_) * sampling_frequency
                  ).plot(x='x_position', y='y_position', col='neuron',
@@ -269,20 +271,20 @@ class SortedSpikesDecoder(_DecoderBase):
         return g
 
     def fit(self, position, spikes, is_training=None):
-        '''
+        """
 
         Parameters
         ----------
-        position : ndarray, shape (n_time, n_position_dims)
-        spikes : ndarray, shape (n_time, n_neurons)
-        is_training : None or bool ndarray, shape (n_time), optional
+        position : np.ndarray, shape (n_time, n_position_dims)
+        spikes : np.ndarray, shape (n_time, n_neurons)
+        is_training : None or bool np.ndarray, shape (n_time), optional
             Time bins to be used for encoding.
 
         Returns
         -------
         self
 
-        '''
+        """
         position = atleast_2d(np.asarray(position))
         spikes = np.asarray(spikes)
         self.fit_environment(position)
@@ -295,11 +297,11 @@ class SortedSpikesDecoder(_DecoderBase):
 
     def predict(self, spikes, time=None, is_compute_acausal=True,
                 use_gpu=False):
-        '''
+        """
 
         Parameters
         ----------
-        spikes : ndarray, shape (n_time, n_neurons)
+        spikes : np.ndarray, shape (n_time, n_neurons)
         time : ndarray or None, shape (n_time,), optional
         is_compute_acausal : bool, optional
         use_gpu : bool, optional
@@ -309,7 +311,7 @@ class SortedSpikesDecoder(_DecoderBase):
         -------
         results : xarray.Dataset
 
-        '''
+        """
         spikes = np.asarray(spikes)
         n_time = spikes.shape[0]
 
@@ -323,7 +325,7 @@ class SortedSpikesDecoder(_DecoderBase):
 
 
 class ClusterlessDecoder(_DecoderBase):
-    '''
+    """
 
     Attributes
     ----------
@@ -339,7 +341,7 @@ class ClusterlessDecoder(_DecoderBase):
         The type of clusterless algorithm. See _ClUSTERLESS_ALGORITHMS for keys
     clusterless_algorithm_params : dict
         Parameters for the clusterless algorithms.
-    '''
+    """
 
     def __init__(self,
                  environment=Environment(environment_name=''),
@@ -357,7 +359,7 @@ class ClusterlessDecoder(_DecoderBase):
         self.clusterless_algorithm_params = clusterless_algorithm_params
 
     def fit_multiunits(self, position, multiunits, is_training=None):
-        '''
+        """
 
         Parameters
         ----------
@@ -365,7 +367,7 @@ class ClusterlessDecoder(_DecoderBase):
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
         is_training : None or array_like, shape (n_time,)
 
-        '''
+        """
         logger.info('Fitting multiunits...')
         if is_training is None:
             is_training = np.ones((position.shape[0],), dtype=np.bool)
@@ -386,7 +388,7 @@ class ClusterlessDecoder(_DecoderBase):
         )
 
     def fit(self, position, multiunits, is_training=None):
-        '''
+        """
 
         Parameters
         ----------
@@ -398,7 +400,7 @@ class ClusterlessDecoder(_DecoderBase):
         -------
         self
 
-        '''
+        """
         position = atleast_2d(np.asarray(position))
         multiunits = np.asarray(multiunits)
 
@@ -412,12 +414,12 @@ class ClusterlessDecoder(_DecoderBase):
 
     def predict(self, multiunits, time=None, is_compute_acausal=True,
                 use_gpu=False):
-        '''
+        """
 
         Parameters
         ----------
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
-        time : None or ndarray, shape (n_time,)
+        time : None or np.ndarray, shape (n_time,)
         is_compute_acausal : bool, optional
             Use future information to compute the posterior.
         use_gpu : bool, optional
@@ -427,7 +429,7 @@ class ClusterlessDecoder(_DecoderBase):
         -------
         results : xarray.Dataset
 
-        '''
+        """
         multiunits = np.asarray(multiunits)
         is_track_interior = self.environment.is_track_interior_.ravel(
             order='F')
