@@ -131,11 +131,11 @@ try:
         mark_distance = cp.ones(
             (n_decoding_spikes, n_encoding_spikes), dtype=cp.float32)
 
-        for mark_ind in range(n_marks):
+        for mark_ind, std in enumerate(mark_std):
             mark_distance *= gaussian_pdf(
                 cp.expand_dims(decoding_marks[:, mark_ind], axis=1),
                 cp.expand_dims(encoding_marks[:, mark_ind], axis=0),
-                mark_std)
+                std)
 
         if set_diag_zero:
             diag_ind = (cp.arange(n_decoding_spikes),
@@ -230,6 +230,10 @@ try:
             (place_bin_centers.shape[0],), dtype=cp.float32)
         encoding_marks = []
         encoding_positions = []
+
+        n_marks = multiunits.shape[1]
+        if isinstance(mark_std, (int, float)):
+            mark_std = [mark_std] * n_marks
 
         for multiunit in np.moveaxis(multiunits, -1, 0):
 
