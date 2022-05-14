@@ -94,6 +94,63 @@ class _DecoderBase(BaseEstimator):
     def copy(self):
         return deepcopy(self)
 
+    def _get_results(
+        self,
+        results,
+        n_time,
+        time=None,
+        is_compute_acausal=True,
+        use_gpu=False,
+    ):
+
+        is_track_interior = self.environment.is_track_interior_.ravel(
+            order='F')
+        n_position_bins = is_track_interior.shape[0]
+        st_interior_ind = np.ix_(is_track_interior, is_track_interior)
+
+        logger.info('Estimating causal posterior...')
+        if not use_gpu:
+            results['causal_posterior'] = np.full(
+                (n_time, n_position_bins), np.nan, dtype=np.float64)
+            (results['causal_posterior'][:, is_track_interior],
+             data_log_likelihood) = _causal_decode(
+                self.initial_conditions_[is_track_interior].astype(np.float64),
+                self.state_transition_[st_interior_ind].astype(np.float64),
+                results['likelihood'][:, is_track_interior].astype(np.float64))
+        else:
+            results['causal_posterior'] = np.full(
+                (n_time, n_position_bins), np.nan, dtype=np.float32)
+            (results['causal_posterior'][:, is_track_interior],
+             data_log_likelihood) = _causal_decode_gpu(
+                self.initial_conditions_[is_track_interior],
+                self.state_transition_[st_interior_ind],
+                results['likelihood'][:, is_track_interior])
+
+        if is_compute_acausal:
+            logger.info('Estimating acausal posterior...')
+            if not use_gpu:
+                results['acausal_posterior'] = np.full(
+                    (n_time, n_position_bins, 1), np.nan, dtype=np.float64)
+                results['acausal_posterior'][:, is_track_interior] = (
+                    _acausal_decode(
+                        results['causal_posterior'][
+                            :, is_track_interior, np.newaxis].astype(np.float64),
+                        self.state_transition_[st_interior_ind].astype(np.float64)))
+            else:
+                results['acausal_posterior'] = np.full(
+                    (n_time, n_position_bins, 1), np.nan, dtype=np.float32)
+                results['acausal_posterior'][:, is_track_interior] = (
+                    _acausal_decode_gpu(
+                        results['causal_posterior'][
+                            :, is_track_interior, np.newaxis],
+                        self.state_transition_[st_interior_ind]))
+
+        if time is None:
+            time = np.arange(n_time)
+
+        return self.convert_results_to_xarray(
+            results, time, data_log_likelihood)
+
     def convert_results_to_xarray(self, results, time, data_log_likelihood):
         n_position_dims = self.environment.place_bin_centers_.shape[1]
         n_time = time.shape[0]
@@ -254,56 +311,15 @@ class SortedSpikesDecoder(_DecoderBase):
 
         '''
         spikes = np.asarray(spikes)
-        is_track_interior = self.environment.is_track_interior_.ravel(
-            order='F')
         n_time = spikes.shape[0]
-        n_position_bins = is_track_interior.shape[0]
-        st_interior_ind = np.ix_(is_track_interior, is_track_interior)
 
-        results = {}
         logger.info('Estimating likelihood...')
+        results = {}
         results['likelihood'] = scaled_likelihood(
             _SORTED_SPIKES_ALGORITHMS[self.sorted_spikes_algorithm][1](
                 spikes, np.asarray(self.place_fields_)))
-
-        logger.info('Estimating causal posterior...')
-        results['causal_posterior'] = np.full(
-            (n_time, n_position_bins), np.nan, dtype=np.float32)
-        if not use_gpu:
-            (results['causal_posterior'][:, is_track_interior],
-             log_data_likelihood) = _causal_decode(
-                self.initial_conditions_[is_track_interior].astype(np.float64),
-                self.state_transition_[st_interior_ind].astype(np.float64),
-                results['likelihood'][:, is_track_interior].astype(np.float64))
-        else:
-            (results['causal_posterior'][:, is_track_interior],
-             log_data_likelihood) = _causal_decode_gpu(
-                self.initial_conditions_[is_track_interior],
-                self.state_transition_[st_interior_ind],
-                results['likelihood'][:, is_track_interior])
-
-        if is_compute_acausal:
-            logger.info('Estimating acausal posterior...')
-            results['acausal_posterior'] = np.full(
-                (n_time, n_position_bins, 1), np.nan, dtype=np.float32)
-            if not use_gpu:
-                results['acausal_posterior'][:, is_track_interior] = (
-                    _acausal_decode(
-                        results['causal_posterior'][
-                            :, is_track_interior, np.newaxis].astype(np.float64),
-                        self.state_transition_[st_interior_ind].astype(np.float64)))
-            else:
-                results['acausal_posterior'][:, is_track_interior] = (
-                    _acausal_decode_gpu(
-                        results['causal_posterior'][
-                            :, is_track_interior, np.newaxis],
-                        self.state_transition_[st_interior_ind]))
-
-        if time is None:
-            time = np.arange(n_time)
-
-        return self.convert_results_to_xarray(
-            results, time, log_data_likelihood)
+        return self._get_results(
+            results, n_time, time, is_compute_acausal, use_gpu)
 
 
 class ClusterlessDecoder(_DecoderBase):
@@ -416,11 +432,9 @@ class ClusterlessDecoder(_DecoderBase):
         is_track_interior = self.environment.is_track_interior_.ravel(
             order='F')
         n_time = multiunits.shape[0]
-        n_position_bins = is_track_interior.shape[0]
-        st_interior_ind = np.ix_(is_track_interior, is_track_interior)
 
-        results = {}
         logger.info('Estimating likelihood...')
+        results = {}
         results['likelihood'] = scaled_likelihood(
             _ClUSTERLESS_ALGORITHMS[self.clusterless_algorithm][1](
                 multiunits=multiunits,
@@ -428,45 +442,6 @@ class ClusterlessDecoder(_DecoderBase):
                 is_track_interior=is_track_interior,
                 **self.encoding_model_
             ))
-        logger.info('Estimating causal posterior...')
-        if not use_gpu:
-            results['causal_posterior'] = np.full(
-                (n_time, n_position_bins), np.nan, dtype=np.float64)
-            (results['causal_posterior'][:, is_track_interior],
-             data_log_likelihood) = _causal_decode(
-                self.initial_conditions_[is_track_interior].astype(np.float64),
-                self.state_transition_[st_interior_ind].astype(np.float64),
-                results['likelihood'][:, is_track_interior].astype(np.float64))
-        else:
-            results['causal_posterior'] = np.full(
-                (n_time, n_position_bins), np.nan, dtype=np.float32)
-            (results['causal_posterior'][:, is_track_interior],
-             data_log_likelihood) = _causal_decode_gpu(
-                self.initial_conditions_[is_track_interior],
-                self.state_transition_[st_interior_ind],
-                results['likelihood'][:, is_track_interior])
 
-        if is_compute_acausal:
-            logger.info('Estimating acausal posterior...')
-            if not use_gpu:
-                results['acausal_posterior'] = np.full(
-                    (n_time, n_position_bins, 1), np.nan, dtype=np.float64)
-                results['acausal_posterior'][:, is_track_interior] = (
-                    _acausal_decode(
-                        results['causal_posterior'][
-                            :, is_track_interior, np.newaxis].astype(np.float64),
-                        self.state_transition_[st_interior_ind].astype(np.float64)))
-            else:
-                results['acausal_posterior'] = np.full(
-                    (n_time, n_position_bins, 1), np.nan, dtype=np.float32)
-                results['acausal_posterior'][:, is_track_interior] = (
-                    _acausal_decode_gpu(
-                        results['causal_posterior'][
-                            :, is_track_interior, np.newaxis],
-                        self.state_transition_[st_interior_ind]))
-
-        if time is None:
-            time = np.arange(n_time)
-
-        return self.convert_results_to_xarray(
-            results, time, data_log_likelihood)
+        return self._get_results(
+            results, n_time, time, is_compute_acausal, use_gpu)
