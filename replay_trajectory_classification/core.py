@@ -79,12 +79,14 @@ def _acausal_decode(causal_posterior, state_transition):
     n_time, n_bins = causal_posterior.shape[0], causal_posterior.shape[-2]
     weights = np.zeros((n_bins, 1))
 
+    eps = np.spacing(1, dtype=np.float32)
+
     for time_ind in np.arange(n_time - 2, -1, -1):
         acausal_prior = (
             state_transition.T @ causal_posterior[time_ind])
         log_ratio = (
-            np.log(acausal_posterior[time_ind + 1, ..., 0] + np.spacing(1)) -
-            np.log(acausal_prior[..., 0] + np.spacing(1)))
+            np.log(acausal_posterior[time_ind + 1, ..., 0] + eps) -
+            np.log(acausal_prior[..., 0] + eps))
         weights[..., 0] = np.exp(log_ratio) @ state_transition
 
         acausal_posterior[time_ind] = normalize_to_probability(
@@ -156,6 +158,7 @@ def _acausal_classify(causal_posterior, continuous_state_transition,
     acausal_posterior = np.zeros_like(causal_posterior)
     acausal_posterior[-1] = causal_posterior[-1].copy()
     n_time, n_states, n_bins, _ = causal_posterior.shape
+    eps = np.spacing(1, dtype=causal_posterior.dtype)
 
     for k in np.arange(n_time - 2, -1, -1):
         # Prediction Step -- p(x_{k+1}, I_{k+1} | y_{1:k})
@@ -170,8 +173,8 @@ def _acausal_classify(causal_posterior, continuous_state_transition,
         # Backwards Update
         weights = np.zeros((n_states, n_bins, 1))
         ratio = np.exp(
-            np.log(acausal_posterior[k + 1] + np.spacing(1)) -
-            np.log(prior + np.spacing(1)))
+            np.log(acausal_posterior[k + 1] + eps) -
+            np.log(prior + eps))
         for state_k in np.arange(n_states):
             for state_k_1 in np.arange(n_states):
                 weights[state_k] += (
@@ -205,7 +208,8 @@ def scaled_likelihood(log_likelihood, axis=1):
 
     # Maximum likelihood is always 1
     likelihood = np.exp(log_likelihood - max_log_likelihood)
-    likelihood += np.spacing(1)  # avoid zero likelihood
+    # avoid zero likelihood
+    likelihood += np.spacing(1, dtype=likelihood.dtype)
     return likelihood
 
 
@@ -297,13 +301,14 @@ try:
         acausal_posterior[-1] = causal_posterior[-1]
         n_time, n_bins = causal_posterior.shape[0], causal_posterior.shape[-2]
         weights = cp.zeros((n_bins, 1))
+        eps = np.spacing(1, dtype=np.float32)
 
         for time_ind in np.arange(n_time - 2, -1, -1):
             acausal_prior = (
                 state_transition.T @ causal_posterior[time_ind])
             log_ratio = (
-                cp.log(acausal_posterior[time_ind + 1, ..., 0] + np.spacing(1)) -
-                cp.log(acausal_prior[..., 0] + np.spacing(1)))
+                cp.log(acausal_posterior[time_ind + 1, ..., 0] + eps) -
+                cp.log(acausal_prior[..., 0] + eps))
             weights[..., 0] = cp.exp(log_ratio) @ state_transition
 
             acausal_posterior[time_ind] = weights * causal_posterior[time_ind]
@@ -386,6 +391,7 @@ try:
         acausal_posterior = cp.zeros_like(causal_posterior)
         acausal_posterior[-1] = causal_posterior[-1]
         n_time, n_states, n_bins, _ = causal_posterior.shape
+        eps = np.spacing(1, dtype=np.float32)
 
         for k in np.arange(n_time - 2, -1, -1):
             # Prediction Step -- p(x_{k+1}, I_{k+1} | y_{1:k})
@@ -400,8 +406,8 @@ try:
             # Backwards Update
             weights = cp.zeros((n_states, n_bins, 1))
             ratio = cp.exp(
-                cp.log(acausal_posterior[k + 1] + np.spacing(1)) -
-                cp.log(prior + np.spacing(1)))
+                cp.log(acausal_posterior[k + 1] + eps) -
+                cp.log(prior + eps))
             for state_k in np.arange(n_states):
                 for state_k_1 in np.arange(n_states):
                     weights[state_k] += (
