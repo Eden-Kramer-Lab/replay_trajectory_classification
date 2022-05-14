@@ -77,9 +77,9 @@ def _acausal_decode(causal_posterior, state_transition):
     acausal_posterior = np.zeros_like(causal_posterior)
     acausal_posterior[-1] = causal_posterior[-1].copy()
     n_time, n_bins = causal_posterior.shape[0], causal_posterior.shape[-2]
-    weights = np.zeros((n_bins, 1), dtype=np.float32)
+    weights = np.zeros((n_bins, 1))
 
-    eps = np.spacing(1, dtype=np.float32)
+    eps = np.spacing(1)
 
     for time_ind in np.arange(n_time - 2, -1, -1):
         acausal_prior = (
@@ -158,7 +158,7 @@ def _acausal_classify(causal_posterior, continuous_state_transition,
     acausal_posterior = np.zeros_like(causal_posterior)
     acausal_posterior[-1] = causal_posterior[-1].copy()
     n_time, n_states, n_bins, _ = causal_posterior.shape
-    eps = np.spacing(1, dtype=causal_posterior.dtype)
+    eps = np.spacing(1)
 
     for k in np.arange(n_time - 2, -1, -1):
         # Prediction Step -- p(x_{k+1}, I_{k+1} | y_{1:k})

@@ -269,13 +269,13 @@ class SortedSpikesDecoder(_DecoderBase):
 
         logger.info('Estimating causal posterior...')
         results['causal_posterior'] = np.full(
-            (n_time, n_position_bins), np.nan)
+            (n_time, n_position_bins), np.nan, dtype=np.float32)
         if not use_gpu:
             (results['causal_posterior'][:, is_track_interior],
              log_data_likelihood) = _causal_decode(
-                self.initial_conditions_[is_track_interior],
-                self.state_transition_[st_interior_ind],
-                results['likelihood'][:, is_track_interior])
+                self.initial_conditions_[is_track_interior].astype(np.float64),
+                self.state_transition_[st_interior_ind].astype(np.float64),
+                results['likelihood'][:, is_track_interior].astype(np.float64))
         else:
             (results['causal_posterior'][:, is_track_interior],
              log_data_likelihood) = _causal_decode_gpu(
@@ -286,13 +286,13 @@ class SortedSpikesDecoder(_DecoderBase):
         if is_compute_acausal:
             logger.info('Estimating acausal posterior...')
             results['acausal_posterior'] = np.full(
-                (n_time, n_position_bins, 1), np.nan)
+                (n_time, n_position_bins, 1), np.nan, dtype=np.float32)
             if not use_gpu:
                 results['acausal_posterior'][:, is_track_interior] = (
                     _acausal_decode(
                         results['causal_posterior'][
-                            :, is_track_interior, np.newaxis],
-                        self.state_transition_[st_interior_ind]))
+                            :, is_track_interior, np.newaxis].astype(np.float64),
+                        self.state_transition_[st_interior_ind].astype(np.float64)))
             else:
                 results['acausal_posterior'][:, is_track_interior] = (
                     _acausal_decode_gpu(
@@ -432,12 +432,12 @@ class ClusterlessDecoder(_DecoderBase):
         logger.info('Estimating causal posterior...')
         if not use_gpu:
             results['causal_posterior'] = np.full(
-                (n_time, n_position_bins), np.nan, dtype=np.float32)
+                (n_time, n_position_bins), np.nan, dtype=np.float64)
             (results['causal_posterior'][:, is_track_interior],
              data_log_likelihood) = _causal_decode(
-                self.initial_conditions_[is_track_interior],
-                self.state_transition_[st_interior_ind],
-                results['likelihood'][:, is_track_interior])
+                self.initial_conditions_[is_track_interior].astype(np.float64),
+                self.state_transition_[st_interior_ind].astype(np.float64),
+                results['likelihood'][:, is_track_interior].astype(np.float64))
         else:
             results['causal_posterior'] = np.full(
                 (n_time, n_position_bins), np.nan, dtype=np.float32)
@@ -451,12 +451,12 @@ class ClusterlessDecoder(_DecoderBase):
             logger.info('Estimating acausal posterior...')
             if not use_gpu:
                 results['acausal_posterior'] = np.full(
-                    (n_time, n_position_bins, 1), np.nan, dtype=np.float32)
+                    (n_time, n_position_bins, 1), np.nan, dtype=np.float64)
                 results['acausal_posterior'][:, is_track_interior] = (
                     _acausal_decode(
                         results['causal_posterior'][
-                            :, is_track_interior, np.newaxis],
-                        self.state_transition_[st_interior_ind]))
+                            :, is_track_interior, np.newaxis].astype(np.float64),
+                        self.state_transition_[st_interior_ind].astype(np.float64)))
             else:
                 results['acausal_posterior'] = np.full(
                     (n_time, n_position_bins, 1), np.nan, dtype=np.float32)
