@@ -432,7 +432,7 @@ class ClusterlessDecoder(_DecoderBase):
         logger.info('Estimating causal posterior...')
         if not use_gpu:
             results['causal_posterior'] = np.full(
-                (n_time, n_position_bins), np.nan, dtype=np.float64)
+                (n_time, n_position_bins), np.nan, dtype=np.float32)
             (results['causal_posterior'][:, is_track_interior],
              data_log_likelihood) = _causal_decode(
                 self.initial_conditions_[is_track_interior],
@@ -451,7 +451,7 @@ class ClusterlessDecoder(_DecoderBase):
             logger.info('Estimating acausal posterior...')
             if not use_gpu:
                 results['acausal_posterior'] = np.full(
-                    (n_time, n_position_bins, 1), np.nan, dtype=np.float64)
+                    (n_time, n_position_bins, 1), np.nan, dtype=np.float32)
                 results['acausal_posterior'][:, is_track_interior] = (
                     _acausal_decode(
                         results['causal_posterior'][
