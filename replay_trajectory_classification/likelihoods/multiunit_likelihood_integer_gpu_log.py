@@ -60,14 +60,17 @@ try:
         n_time, n_position_dims = positions.shape
         n_position_bins = place_bin_centers.shape[0]
 
+        if isinstance(position_std, (int, float)):
+            position_std = [position_std] * n_position_dims
+
         log_position_distance = cp.zeros(
             (n_time, n_position_bins), dtype=cp.float32)
 
-        for position_ind in range(n_position_dims):
+        for position_ind, std in enumerate(position_std):
             log_position_distance += log_gaussian_pdf(
                 cp.expand_dims(place_bin_centers[:, position_ind], axis=0) -
                 cp.expand_dims(positions[:, position_ind], axis=1),
-                position_std)
+                std)
 
         return log_position_distance
 

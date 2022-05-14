@@ -36,11 +36,14 @@ def estimate_position_distance(place_bin_centers, positions, position_std):
     position_distance = np.ones(
         (n_time, n_position_bins), dtype=np.float32)
 
-    for position_ind in range(n_position_dims):
+    if isinstance(position_std, (int, float)):
+        position_std = [position_std] * n_position_dims
+
+    for position_ind, std in enumerate(position_std):
         position_distance *= gaussian_pdf(
             np.expand_dims(place_bin_centers[:, position_ind], axis=0),
             np.expand_dims(positions[:, position_ind], axis=1),
-            position_std)
+            std)
 
     return position_distance
 
