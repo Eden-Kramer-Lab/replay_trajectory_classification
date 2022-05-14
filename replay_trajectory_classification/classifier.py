@@ -128,13 +128,10 @@ class _ClassifierBase(BaseEstimator):
                     continuous_state_transition[-1].append(
                         transition.make_state_transition(
                             self.environments, position, is_training,
-                            encoding_group_labels, environment_labels
-                        ).astype(np.float32)
-                    )
+                            encoding_group_labels, environment_labels))
                 else:
                     continuous_state_transition[-1].append(
-                        transition.make_state_transition(self.environments)
-                        .astype(np.float32))
+                        transition.make_state_transition(self.environments))
 
         n_states = len(self.continuous_transition_types)
         self.continuous_state_transition_ = np.zeros(

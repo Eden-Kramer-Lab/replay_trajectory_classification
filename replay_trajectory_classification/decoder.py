@@ -72,12 +72,11 @@ class _DecoderBase(BaseEstimator):
             self.state_transition_ = (
                 self.transition_type.make_state_transition(
                     (self.environment,), position, is_training,
-                    encoding_group_labels, environment_labels=None)
-                .astype(np.float32))
+                    encoding_group_labels, environment_labels=None))
         else:
             self.state_transition_ = (
                 self.transition_type.make_state_transition(
-                    (self.environment,)).astype(np.float32))
+                    (self.environment,)))
 
     def fit(self):
         raise NotImplementedError
