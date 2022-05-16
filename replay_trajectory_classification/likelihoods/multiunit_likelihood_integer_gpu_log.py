@@ -365,7 +365,7 @@ try:
                                                       time_bin_size=1,
                                                       block_size=100,
                                                       ignore_no_spike=False,
-                                                      disable_progress_bar=True,
+                                                      disable_progress_bar=False,
                                                       use_diffusion_distance=False):
         """Estimates the likelihood of position bins given multiunit marks.
 
