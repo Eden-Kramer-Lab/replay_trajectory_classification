@@ -5,6 +5,7 @@ import xarray as xr
 from replay_trajectory_classification.core import atleast_2d
 from replay_trajectory_classification.likelihoods.diffusion import (
     diffuse_each_bin, estimate_diffusion_position_density)
+from tqdm.auto import tqdm
 
 
 def gaussian_pdf(x, mean, sigma):
@@ -238,7 +239,7 @@ def combined_likelihood(spikes, conditional_intensity):
     n_bins = conditional_intensity.shape[0]
     log_likelihood = np.zeros((n_time, n_bins))
 
-    for is_spike, ci in zip(spikes.T, conditional_intensity.T):
+    for is_spike, ci in zip(tqdm(spikes.T), conditional_intensity.T):
         log_likelihood += poisson_log_likelihood(is_spike, ci)
 
     return log_likelihood
