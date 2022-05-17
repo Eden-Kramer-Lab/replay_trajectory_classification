@@ -124,7 +124,6 @@ try:
                                       edges=None,
                                       place_bin_edges=None,
                                       use_diffusion_distance=False,
-                                      disable_progress_bar=False,
                                       block_size=None):
         """Gives the conditional intensity of the neurons' spiking with respect to
         position.
@@ -177,8 +176,7 @@ try:
                 [get_diffusion_firing_rate(
                     is_spike, position, edges, bin_diffusion_distances,
                     occupancy, not_nan_position)
-                 for is_spike in tqdm(
-                     spikes.T, disable_progress_bar=disable_progress_bar)
+                 for is_spike in tqdm(spikes.T)
                  ], axis=1)
         else:
             occupancy = np.zeros(
@@ -194,8 +192,7 @@ try:
                         is_track_interior.ravel(
                             order='F'), not_nan_position, occupancy,
                         position_std)
-                    for is_spike in tqdm(
-                        spikes.T, disable_progress_bar=disable_progress_bar)
+                    for is_spike in tqdm(spikes.T)
                 ], axis=1)
 
         DIMS = ['position', 'neuron']
@@ -266,6 +263,7 @@ try:
         likelihood : np.ndarray, shape (n_time, n_bins)
         """
         spikes = np.asarray(spikes, dtype=np.float32)
+
         if is_track_interior is not None:
             is_track_interior = is_track_interior.ravel(order='F')
         else:
