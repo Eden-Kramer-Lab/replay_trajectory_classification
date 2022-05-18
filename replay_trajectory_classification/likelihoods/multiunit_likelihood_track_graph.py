@@ -12,8 +12,8 @@ SQRT_2PI = np.sqrt(2.0 * np.pi)
 @numba.vectorize(['float64(float64, float64)'], nopython=True,
                  cache=True)
 def gaussian_kernel(distance, sigma):
-    '''Compute the value of a Gaussian probability density function at x with
-    given mean and sigma.'''
+    """Compute the value of a Gaussian probability density function at x with
+    given mean and sigma."""
     return math.exp(-0.5 * (distance / sigma)**2) / (sigma * SQRT_2PI)
 
 

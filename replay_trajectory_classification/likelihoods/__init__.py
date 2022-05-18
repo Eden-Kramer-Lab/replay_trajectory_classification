@@ -11,12 +11,14 @@ from .multiunit_likelihood_integer_gpu import (
     estimate_multiunit_likelihood_integer_gpu,
     fit_multiunit_likelihood_integer_gpu)
 from .multiunit_likelihood_integer_gpu_log import (
-    estimate_multiunit_likelihood_integer_gpu2,
-    fit_multiunit_likelihood_integer_gpu2)
+    estimate_multiunit_likelihood_integer_gpu_log,
+    fit_multiunit_likelihood_integer_gpu_log)
 from .spiking_likelihood_glm import (estimate_place_fields,
                                      estimate_spiking_likelihood)
 from .spiking_likelihood_kde import (estimate_place_fields_kde,
                                      estimate_spiking_likelihood_kde)
+from .spiking_likelihood_kde_gpu import (estimate_place_fields_kde_gpu,
+                                         estimate_spiking_likelihood_kde_gpu)
 
 _ClUSTERLESS_ALGORITHMS = {
     'multiunit_likelihood': (
@@ -32,14 +34,15 @@ _ClUSTERLESS_ALGORITHMS = {
         fit_multiunit_likelihood_integer_gpu,
         estimate_multiunit_likelihood_integer_gpu),
     'multiunit_likelihood_integer_gpu_log': (
-        fit_multiunit_likelihood_integer_gpu2,
-        estimate_multiunit_likelihood_integer_gpu2),
+        fit_multiunit_likelihood_integer_gpu_log,
+        estimate_multiunit_likelihood_integer_gpu_log),
 }
 
 _SORTED_SPIKES_ALGORITHMS = {
     'spiking_likelihood_glm': (estimate_place_fields,
                                estimate_spiking_likelihood),
     'spiking_likelihood_kde': (estimate_place_fields_kde,
-                               estimate_spiking_likelihood_kde)
-
+                               estimate_spiking_likelihood_kde),
+    'spiking_likelihood_kde_gpu': (estimate_place_fields_kde_gpu,
+                                   estimate_spiking_likelihood_kde_gpu)
 }

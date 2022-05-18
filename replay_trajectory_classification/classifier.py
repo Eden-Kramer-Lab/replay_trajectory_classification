@@ -1,3 +1,6 @@
+"""State space models that classify trajectories as well as decode the
+trajectory from population spiking
+"""
 from copy import deepcopy
 from logging import getLogger
 
@@ -287,8 +290,10 @@ class _ClassifierBase(BaseEstimator):
                 (results['causal_posterior'][:, :, is_track_interior],
                  data_log_likelihood) = (
                     _causal_classify(
-                        self.initial_conditions_[:, is_track_interior].astype(np.float64),
-                        self.continuous_state_transition_[st_interior_ind].astype(np.float64),
+                        self.initial_conditions_[
+                            :, is_track_interior].astype(np.float64),
+                        self.continuous_state_transition_[
+                            st_interior_ind].astype(np.float64),
                         self.discrete_state_transition_.astype(np.float64),
                         results['likelihood'][:, :, is_track_interior].astype(np.float64)))
             else:
@@ -298,8 +303,10 @@ class _ClassifierBase(BaseEstimator):
                 (results['causal_posterior'][:, :, is_track_interior],
                  data_log_likelihood) = (
                     _causal_classify_gpu(
-                        self.initial_conditions_[:, is_track_interior].astype(np.float32),
-                        self.continuous_state_transition_[st_interior_ind].astype(np.float32),
+                        self.initial_conditions_[
+                            :, is_track_interior].astype(np.float32),
+                        self.continuous_state_transition_[
+                            st_interior_ind].astype(np.float32),
                         self.discrete_state_transition_.astype(np.float32),
                         results['likelihood'][:, :, is_track_interior].astype(np.float32)))
 
@@ -311,8 +318,10 @@ class _ClassifierBase(BaseEstimator):
                         dtype=np.float32)
                     results['acausal_posterior'][:, :, is_track_interior] = (
                         _acausal_classify(
-                            results['causal_posterior'][:, :, is_track_interior].astype(np.float64),
-                            self.continuous_state_transition_[st_interior_ind].astype(np.float64),
+                            results['causal_posterior'][:, :,
+                                                        is_track_interior].astype(np.float64),
+                            self.continuous_state_transition_[
+                                st_interior_ind].astype(np.float64),
                             self.discrete_state_transition_.astype(np.float64)))
                 else:
                     results['acausal_posterior'] = np.full(
@@ -320,8 +329,10 @@ class _ClassifierBase(BaseEstimator):
                         dtype=np.float32)
                     results['acausal_posterior'][:, :, is_track_interior] = (
                         _acausal_classify_gpu(
-                            results['causal_posterior'][:, :, is_track_interior].astype(np.float32),
-                            self.continuous_state_transition_[st_interior_ind].astype(np.float32),
+                            results['causal_posterior'][:, :,
+                                                        is_track_interior].astype(np.float32),
+                            self.continuous_state_transition_[
+                                st_interior_ind].astype(np.float32),
                             self.discrete_state_transition_.astype(np.float32)))
 
             if time is None:
@@ -487,7 +498,7 @@ class _ClassifierBase(BaseEstimator):
 
 
 class SortedSpikesClassifier(_ClassifierBase):
-    '''
+    """
 
     Attributes
     ----------
@@ -501,12 +512,12 @@ class SortedSpikesClassifier(_ClassifierBase):
         The initial conditions class instance to fit
     infer_track_interior : bool, optional
         Whether to infer the valid position bins
-    clusterless_algorithm : str
-        The type of clusterless algorithm. See _ClUSTERLESS_ALGORITHMS for keys
-    clusterless_algorithm_params : dict
-        Parameters for the clusterless algorithms.
+    sorted_spikes_algorithm : str
+        The type of algorithm. See _SORTED_SPIKES_ALGORITHMS for keys
+    sorted_spikes_algorithm_params : dict
+        Parameters for the algorithm.
 
-    '''
+    """
 
     def __init__(
         self,
@@ -605,24 +616,25 @@ class SortedSpikesClassifier(_ClassifierBase):
             encoding_group_labels=None,
             environment_labels=None,
             ):
-        '''
+        """Fit the spatial grid, initial conditions, place field model, and
+        transition matrices.
 
         Parameters
         ----------
-        position : ndarray, shape (n_time, n_position_dims)
-        spikes : ndarray, shape (n_time, n_neurons)
-        is_training : None or bool ndarray, shape (n_time), optional
+        position : np.ndarray, shape (n_time, n_position_dims)
+        spikes : np.ndarray, shape (n_time, n_neurons)
+        is_training : None or bool np.ndarray, shape (n_time), optional
             Time bins to be used for encoding.
-        encoding_group_labels : None or ndarray, shape (n_time,)
+        encoding_group_labels : None or np.ndarray, shape (n_time,)
             Label for the corresponding encoding group for each time point
-        environment_labels : None or ndarray, shape (n_time,)
+        environment_labels : None or np.ndarray, shape (n_time,)
             Label for the corresponding environment for each time point
 
         Returns
         -------
         self
 
-        '''
+        """
         position = atleast_2d(np.asarray(position))
         spikes = np.asarray(spikes)
         self.fit_environments(position, environment_labels)
@@ -647,11 +659,11 @@ class SortedSpikesClassifier(_ClassifierBase):
                 use_gpu=False,
                 state_names=None,
                 store_likelihood=False):
-        '''
+        """Run the state space model on spikes.
 
         Parameters
         ----------
-        spikes : ndarray, shape (n_time, n_neurons)
+        spikes : np.ndarray, shape (n_time, n_neurons)
         time : ndarray or None, shape (n_time,), optional
         is_compute_acausal : bool, optional
         use_gpu : bool, optional
@@ -662,7 +674,7 @@ class SortedSpikesClassifier(_ClassifierBase):
         -------
         results : xarray.Dataset
 
-        '''
+        """
         spikes = np.asarray(spikes)
         n_time = spikes.shape[0]
 
@@ -686,7 +698,7 @@ class SortedSpikesClassifier(_ClassifierBase):
 
 
 class ClusterlessClassifier(_ClassifierBase):
-    '''
+    """
 
     Attributes
     ----------
@@ -705,7 +717,7 @@ class ClusterlessClassifier(_ClassifierBase):
     clusterless_algorithm_params : dict
         Parameters for the clusterless algorithms.
 
-    '''
+    """
 
     def __init__(self,
                  environments=_DEFAULT_ENVIRONMENT,
@@ -733,19 +745,19 @@ class ClusterlessClassifier(_ClassifierBase):
                        is_training=None,
                        encoding_group_labels=None,
                        environment_labels=None):
-        '''
+        """Fit the clusterless place field model.
 
         Parameters
         ----------
         position : array_like, shape (n_time, n_position_dims)
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
         is_training : None or array_like, shape (n_time,)
-        encoding_group_labels : None or ndarray, shape (n_time,)
+        encoding_group_labels : None or np.ndarray, shape (n_time,)
             Label for the corresponding encoding group for each time point
-        environment_labels : None or ndarray, shape (n_time,)
+        environment_labels : None or np.ndarray, shape (n_time,)
             Label for the corresponding environment for each time point
 
-        '''
+        """
         logger.info('Fitting multiunits...')
         n_time = position.shape[0]
         if is_training is None:
@@ -794,23 +806,24 @@ class ClusterlessClassifier(_ClassifierBase):
             encoding_group_labels=None,
             environment_labels=None,
             ):
-        '''
+        """Fit the spatial grid, initial conditions, place field model, and
+        transition matrices.
 
         Parameters
         ----------
         position : array_like, shape (n_time, n_position_dims)
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
         is_training : None or array_like, shape (n_time,)
-        encoding_group_labels : None or ndarray, shape (n_time,)
+        encoding_group_labels : None or np.ndarray, shape (n_time,)
             Label for the corresponding encoding group for each time point
-        environment_labels : None or ndarray, shape (n_time,)
+        environment_labels : None or np.ndarray, shape (n_time,)
             Label for the corresponding environment for each time point
 
         Returns
         -------
         self
 
-        '''
+        """
         position = atleast_2d(np.asarray(position))
         multiunits = np.asarray(multiunits)
 
@@ -834,12 +847,12 @@ class ClusterlessClassifier(_ClassifierBase):
 
     def predict(self, multiunits, time=None, is_compute_acausal=True,
                 use_gpu=False, state_names=None, store_likelihood=False):
-        '''
+        """Run the state space model.
 
         Parameters
         ----------
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
-        time : None or ndarray, shape (n_time,)
+        time : None or np.ndarray, shape (n_time,)
         is_compute_acausal : bool, optional
             Use future information to compute the posterior.
         use_gpu : bool, optional
@@ -852,7 +865,7 @@ class ClusterlessClassifier(_ClassifierBase):
         -------
         results : xarray.Dataset
 
-        '''
+        """
         multiunits = np.asarray(multiunits)
         n_time = multiunits.shape[0]
 

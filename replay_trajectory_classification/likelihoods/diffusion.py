@@ -11,18 +11,19 @@ def estimate_diffusion_position_distance(
         position_std=3.0,
         bin_distances=None,
 ):
-    '''
+    """Estimates a distance between a given position and all position bins
+    using a diffusion.
 
     Parameters
     ----------
-    positions : ndarray, shape (n_time, n_position_dims)
+    positions : np.ndarray, shape (n_time, n_position_dims)
     position_std : float
 
     Returns
     -------
-    position_distance : ndarray, shape (n_time, n_position_bins)
+    position_distance : np.ndarray, shape (n_time, n_position_bins)
 
-    '''
+    """
     if bin_distances is None:
         n_time = positions.shape[0]
 
@@ -51,19 +52,19 @@ def estimate_diffusion_position_density(
         position_std=3.0,
         bin_distances=None,
         block_size=100):
-    '''
+    """Kernel density estimate over all position bins using diffusion.
 
     Parameters
     ----------
-    place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
-    positions : ndarray, shape (n_time, n_position_dims)
+    place_bin_centers : np.ndarray, shape (n_position_bins, n_position_dims)
+    positions : np.ndarray, shape (n_time, n_position_dims)
     position_std : float
 
     Returns
     -------
-    position_density : ndarray, shape (n_position_bins,)
+    position_density : np.ndarray, shape (n_position_bins,)
 
-    '''
+    """
     n_time = positions.shape[0]
 
     if block_size is None:

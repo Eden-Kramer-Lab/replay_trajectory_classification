@@ -17,37 +17,47 @@ MARK_SPACING = 5
 
 def make_simulated_run_data(sampling_frequency=SAMPLING_FREQUENCY,
                             track_height=TRACK_HEIGHT,
-                            running_speed=RUNNING_SPEED, n_runs=N_RUNS,
+                            running_speed=RUNNING_SPEED,
+                            n_runs=N_RUNS,
                             place_field_variance=PLACE_FIELD_VARIANCE,
                             place_field_means=PLACE_FIELD_MEANS,
                             n_tetrodes=N_TETRODES,
                             make_inbound_outbound_neurons=False):
-    '''Make simulated data of a rat running back and forth
+    """Make simulated data of a rat running back and forth
     on a linear maze with unclustered spikes.
 
     Parameters
     ----------
     sampling_frequency : float, optional
     track_height : float, optional
+        Height of the simulated track
     running_speed : float, optional
+        Speed of the simulated animal
     n_runs : int, optional
+        Number of runs across the track the simulated animal will perform
     place_field_variance : float, optional
-    place_field_means : ndarray, shape (n_neurons,), optional
+        Spatial extent of place fields
+    place_field_means : np.ndarray, shape (n_neurons,), optional
+        Center of place fields
+    n_tetrodes : int, optional
+        Total number of tetrodes to simulate
+    make_inbound_outbound_neurons : bool, optional
+        Create neurons with directional place fields
 
     Returns
     -------
-    time : ndarray, shape (n_time,)
-    linear_distance : ndarray, shape (n_time,)
+    time : np.ndarray, shape (n_time,)
+    position : np.ndarray, shape (n_time,)
     sampling_frequency : float
-    multiunits : ndarray, shape (n_time, n_features, n_electrodes)
+    multiunits : np.ndarray, shape (n_time, n_features, n_electrodes)
     multiunits_spikes : ndarray (n_time, n_electrodes)
     place_field_means : ndarray (n_tetrodes, n_place_fields)
-    '''
+    """
     n_samples = int(n_runs * sampling_frequency *
                     2 * track_height / running_speed)
 
     time = simulate_time(n_samples, sampling_frequency)
-    linear_distance = simulate_linear_distance(
+    position = simulate_linear_distance(
         time, track_height, running_speed)
 
     multiunits = []
@@ -55,24 +65,24 @@ def make_simulated_run_data(sampling_frequency=SAMPLING_FREQUENCY,
         for place_means in place_field_means.reshape(((n_tetrodes, -1))):
             multiunits.append(
                 simulate_multiunit_with_place_fields(
-                    place_means, linear_distance, mark_spacing=10,
+                    place_means, position, mark_spacing=10,
                     n_mark_dims=4,
                     sampling_frequency=sampling_frequency))
     else:
-        trajectory_direction = get_trajectory_direction(linear_distance)
+        trajectory_direction = get_trajectory_direction(position)
         for direction in np.unique(trajectory_direction):
             is_condition = trajectory_direction == direction
             for place_means in place_field_means.reshape(((n_tetrodes, -1))):
                 multiunits.append(
                     simulate_multiunit_with_place_fields(
-                        place_means, linear_distance, mark_spacing=10,
+                        place_means, position, mark_spacing=10,
                         n_mark_dims=4,
                         sampling_frequency=sampling_frequency,
                         is_condition=is_condition))
     multiunits = np.stack(multiunits, axis=-1)
     multiunits_spikes = np.any(~np.isnan(multiunits), axis=1)
 
-    return (time, linear_distance, sampling_frequency,
+    return (time, position, sampling_frequency,
             multiunits, multiunits_spikes)
 
 

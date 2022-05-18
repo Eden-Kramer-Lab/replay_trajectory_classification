@@ -7,58 +7,60 @@ from tqdm.autonotebook import tqdm
 
 
 def gaussian_pdf(x, mean, sigma):
-    '''Compute the value of a Gaussian probability density function at x with
-    given mean and sigma.'''
+    """Compute the value of a Gaussian probability density function at x with
+    given mean and sigma."""
     return np.exp(-0.5 * ((x - mean) / sigma)**2) / (
         sigma * np.sqrt(2.0 * np.pi))
 
 
 def estimate_position_distance(place_bin_centers, positions, position_std):
-    '''
-
-
+    """Estimates the Euclidean distance between positions and position bins.
 
     Parameters
     ----------
-    place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
-    positions : ndarray, shape (n_time, n_position_dims)
-    position_std : float
+    place_bin_centers : np.ndarray, shape (n_position_bins, n_position_dims)
+    positions : np.ndarray, shape (n_time, n_position_dims)
+    position_std : array_like, shape (n_position_dims,)
 
     Returns
     -------
-    position_distance : ndarray, shape (n_time, n_position_bins)
+    position_distance : np.ndarray, shape (n_time, n_position_bins)
 
-    '''
+    """
     n_time, n_position_dims = positions.shape
     n_position_bins = place_bin_centers.shape[0]
+
+    if isinstance(position_std, (int, float)):
+        position_std = [position_std] * n_position_dims
 
     position_distance = np.ones(
         (n_time, n_position_bins), dtype=np.float32)
 
-    for position_ind in range(n_position_dims):
+    for position_ind, std in enumerate(position_std):
         position_distance *= gaussian_pdf(
             np.expand_dims(place_bin_centers[:, position_ind], axis=0),
             np.expand_dims(positions[:, position_ind], axis=1),
-            position_std)
+            std)
 
     return position_distance
 
 
 def estimate_position_density(place_bin_centers, positions, position_std,
                               block_size=100):
-    '''
+    """Estimates a kernel density estimate over position bins using
+    Euclidean distances.
 
     Parameters
     ----------
-    place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
-    positions : ndarray, shape (n_time, n_position_dims)
-    position_std : float
+    place_bin_centers : np.ndarray, shape (n_position_bins, n_position_dims)
+    positions : np.ndarray, shape (n_time, n_position_dims)
+    position_std : float or array_like, shape (n_position_dims,)
 
     Returns
     -------
-    position_density : ndarray, shape (n_position_bins,)
+    position_density : np.ndarray, shape (n_position_bins,)
 
-    '''
+    """
     n_time = positions.shape[0]
     n_position_bins = place_bin_centers.shape[0]
 
@@ -74,23 +76,24 @@ def estimate_position_density(place_bin_centers, positions, position_std,
 
 
 def estimate_log_intensity(density, occupancy, mean_rate):
+    """Calculates intensity in log space."""
     return np.log(mean_rate) + np.log(density) - np.log(occupancy)
 
 
 def estimate_intensity(density, occupancy, mean_rate):
-    '''
+    """Calculates intensity.
 
     Parameters
     ----------
-    density : ndarray, shape (n_bins,)
-    occupancy : ndarray, shape (n_bins,)
+    density : np.ndarray, shape (n_bins,)
+    occupancy : np.ndarray, shape (n_bins,)
     mean_rate : float
 
     Returns
     -------
-    intensity : ndarray, shape (n_bins,)
+    intensity : np.ndarray, shape (n_bins,)
 
-    '''
+    """
     return np.exp(estimate_log_intensity(density, occupancy, mean_rate))
 
 
@@ -102,28 +105,33 @@ def estimate_log_joint_mark_intensity(decoding_marks,
                                       place_bin_centers=None,
                                       encoding_positions=None,
                                       position_std=None,
-                                      max_mark_value=6000,
+                                      max_mark_diff=6000,
                                       set_diag_zero=False,
                                       position_distance=None):
-    """
+    """Finds the joint intensity of the marks and positions in log space.
 
     Parameters
     ----------
-    decoding_marks : ndarray, shape (n_decoding_spikes, n_features)
-    encoding_marks : ndarray, shape (n_encoding_spikes, n_features)
-    mark_std : float or ndarray, shape (n_features,)
-    occupancy : ndarray, shape (n_position_bins,)
+    decoding_marks : np.ndarray, shape (n_decoding_spikes, n_features)
+    encoding_marks : np.ndarray, shape (n_encoding_spikes, n_features)
+    mark_std : float or np.ndarray, shape (n_features,)
+    occupancy : np.ndarray, shape (n_position_bins,)
     mean_rate : float
-    place_bin_centers : ndarray, shape (n_position_bins, n_position_dims)
-    encoding_positions : ndarray, shape (n_decoding_spikes, n_position_dims)
-    position_std : float
-    is_track_interior : None or ndarray, shape (n_position_bins,)
-    max_mark_value : int
+    place_bin_centers : None or np.ndarray, shape (n_position_bins, n_position_dims)
+        If None, position distance must be not None
+    encoding_positions : None or np.ndarray, shape (n_decoding_spikes, n_position_dims)
+        If None, position distance must be not None
+    position_std : None or float or array_like, shape (n_position_dims,)
+        If None, position distance must be not None
+    max_mark_diff : int
+        Maximum distance between integer marks.
     set_diag_zero : bool
+    position_distance : np.ndarray, shape (n_encoding_spikes, n_position_bins)
+        Precalculated distance between position and position bins.
 
     Returns
     -------
-    log_joint_mark_intensity : ndarray, shape (n_decoding_spikes, n_position_bins)
+    log_joint_mark_intensity : np.ndarray, shape (n_decoding_spikes, n_position_bins)
 
     """
     n_encoding_spikes, n_marks = encoding_marks.shape
@@ -164,27 +172,30 @@ def fit_multiunit_likelihood(position,
                              block_size=100,
                              use_diffusion_distance=False,
                              **kwargs):
-    '''
+    """Fits the clusterless place field model.
 
     Parameters
     ----------
-    position : ndarray, shape (n_time, n_position_dims)
-    multiunits : ndarray, shape (n_time, n_marks, n_electrodes)
-    place_bin_centers : ndarray, shape ( n_bins, n_position_dims)
-    model : sklearn model
-    model_kwargs : dict
-    occupancy_model : sklearn model
-    occupancy_kwargs : dict
-    is_track_interior : None or ndarray, shape (n_bins,)
+    position : np.ndarray, shape (n_time, n_position_dims)
+    multiunits : np.ndarray, shape (n_time, n_marks, n_electrodes)
+    place_bin_centers : np.ndarray, shape (n_bins, n_position_dims)
+    mark_std : float or array_like, shape (n_marks,)
+        Amount of smoothing for the mark features.  Standard deviation of kernel.
+    position_std : float or array_like, shape (n_position_dims,)
+        Amount of smoothing for position.  Standard deviation of kernel.
+    is_track_boundary : None or np.ndarray, shape (n_bins,)
+    is_track_interior : None or np.ndarray, shape (n_bins,)
+    edges : None or list of np.ndarray
+    block_size : int
+        Size of data to process in chunks
+    use_diffusion_distance : bool
+        Use diffusion to respect the track geometry.
 
     Returns
     -------
-    joint_pdf_models : list of sklearn models, shape (n_electrodes,)
-    ground_process_intensities : list of ndarray, shape (n_electrodes,)
-    occupancy : ndarray, (n_bins, n_position_dims)
-    mean_rates : ndarray, (n_electrodes,)
+    encoding_model : dict
 
-    '''
+    """
     if is_track_interior is None:
         is_track_interior = np.ones((place_bin_centers.shape[0],),
                                     dtype=np.bool)
@@ -300,30 +311,52 @@ def estimate_multiunit_likelihood(multiunits,
                                   summed_ground_process_intensity,
                                   bin_diffusion_distances,
                                   edges,
-                                  max_mark_value=6000,
+                                  max_mark_diff=6000,
                                   set_diag_zero=False,
                                   is_track_interior=None,
                                   time_bin_size=1,
                                   block_size=100,
                                   ignore_no_spike=False,
-                                  disable_progress_bar=True,
+                                  disable_progress_bar=False,
                                   use_diffusion_distance=False):
-    '''
+    """Estimates the likelihood of position bins given multiunit marks.
 
     Parameters
     ----------
-    multiunits : ndarray, shape (n_time, n_marks, n_electrodes)
-    place_bin_centers : ndarray, (n_bins, n_position_dims)
-    joint_pdf_models : list of sklearn models, shape (n_electrodes,)
-    ground_process_intensities : list of ndarray, shape (n_electrodes,)
-    occupancy : ndarray, (n_bins, n_position_dims)
-    mean_rates : ndarray, (n_electrodes,)
+    multiunits : np.ndarray, shape (n_decoding_time, n_marks, n_electrodes)
+    encoding_marks : np.ndarray, shape (n_encoding_spikes, n_marks, n_electrodes)
+    mark_std : list, shape (n_marks,)
+        Amount of smoothing for mark features
+    place_bin_centers : np.ndarray, shape (n_bins, n_position_dims)
+    encoding_positions : np.ndarray, shape (n_encoding_spikes, n_position_dims)
+    position_std : float or array_like, shape (n_position_dims,)
+        Amount of smoothing for position
+    occupancy : np.ndarray, (n_bins,)
+    mean_rates : list, len (n_electrodes,)
+    summed_ground_process_intensity : np.ndarray, shape (n_bins,)
+    bin_diffusion_distances : np.ndarray, shape (n_bins, n_bins)
+    edges : list of np.ndarray
+    max_mark_diff : int
+        Maximum difference between mark features
+    set_diag_zero : bool
+        Remove influence of the same mark in encoding and decoding.
+    is_track_interior : None or np.ndarray, shape (n_bins_x, n_bins_y)
+    time_bin_size : float
+        Size of time steps
+    block_size : int
+        Size of data to process in chunks
+    ignore_no_spike : bool
+        Set contribution of no spikes to zero
+    disable_progress_bar : bool
+        If False, a progress bar will be displayed.
+    use_diffusion_distance : bool
+        Respect track geometry by using diffusion distances
 
     Returns
     -------
     log_likelihood : (n_time, n_bins)
 
-    '''
+    """
 
     if is_track_interior is None:
         is_track_interior = np.ones((place_bin_centers.shape[0],),
@@ -383,7 +416,7 @@ def estimate_multiunit_likelihood(multiunits,
                 mark_std,
                 interior_occupancy,
                 mean_rate,
-                max_mark_value=max_mark_value,
+                max_mark_diff=max_mark_diff,
                 set_diag_zero=set_diag_zero,
                 position_distance=position_distance,
             )

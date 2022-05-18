@@ -12,6 +12,18 @@ from statsmodels.api import families
 
 
 def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
+    """Creates a design matrix for regression with a position spline basis.
+
+    Parameters
+    ----------
+    position : np.ndarray, shape (n_time, n_position_dims)
+    place_bin_edges : np.ndarray, shape (n_bins, n_position_dims)
+
+    Returns
+    -------
+    design_matrix : statsmodels.DesignMatrix
+
+    """
     # TODO: Add history dependence
     inner_knots = []
     for pos, edges in zip(position.T, place_bin_edges.T):
@@ -36,6 +48,7 @@ def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
 
 
 def make_spline_predict_matrix(design_info, place_bin_centers):
+    """Make a design matrix for position bins"""
     predict_data = {}
     for ind in range(place_bin_centers.shape[1]):
         predict_data[f'x{ind}'] = place_bin_centers[:, ind]
@@ -44,6 +57,7 @@ def make_spline_predict_matrix(design_info, place_bin_centers):
 
 
 def get_activity_rate(design_matrix, results):
+    """Predicts the calcium activity trace given fitted model coefficents."""
     rate = (design_matrix @ results.coefficients)
     rate[rate < 0.1] = 0.1
     return rate
@@ -51,6 +65,24 @@ def get_activity_rate(design_matrix, results):
 
 @dask.delayed
 def fit_glm(response, design_matrix, penalty=None, tolerance=1E-5):
+    """Fits a L2-penalized GLM.
+
+    Parameters
+    ----------
+    response : np.ndarray, shape (n_time,)
+        Calcium activity trace
+    design_matrix : np.ndarray, shape (n_time, n_coefficients)
+    penalty : None or float
+        L2 penalty on regression. If None, penalty is smallest possible.
+    tolerance : float
+        Smallest difference between iterations to consider model fitting
+        converged.
+
+    Returns
+    -------
+    results : tuple
+
+    """
     if penalty is not None:
         penalty = np.ones((design_matrix.shape[1],)) * penalty
         penalty[0] = 0.0  # don't penalize the intercept
@@ -90,7 +122,7 @@ def gamma_log_likelihood(calcium_activity, place_field, scale):
 
 
 def combined_likelihood(calcium_activity, place_fields, scales):
-    '''
+    """Combines the likelihoods of all the cells.
 
     Parameters
     ----------
@@ -99,7 +131,7 @@ def combined_likelihood(calcium_activity, place_fields, scales):
     place_fields : np.ndarray, shape (n_bins, n_neurons)
     scales : np.ndarray, shape (n_neurons,)
 
-    '''
+    """
     n_time = calcium_activity.shape[0]
     n_bins = place_fields.shape[0]
     log_likelihood = np.zeros((n_time, n_bins))
@@ -113,19 +145,20 @@ def combined_likelihood(calcium_activity, place_fields, scales):
 
 def estimate_calcium_likelihood(calcium_activity, place_fields, scales,
                                 is_track_interior=None):
-    '''
+    """Find the likelihood given a fitted place field model.
 
     Parameters
     ----------
-    calcium_activity : ndarray, shape (n_time, n_neurons)
+    calcium_activity : np.ndarray, shape (n_time, n_neurons)
         Deconvolved activity rate estimated from the fluorescence level.
-    place_fields : ndarray, shape (n_bins, n_neurons)
-    is_track_interior : None or ndarray, optional, shape (n_x_position_bins,
-                                                          n_y_position_bins)
+    place_fields : np.ndarray, shape (n_bins, n_neurons)
+    scales : np.ndarray, shape (n_neurons,)
+    is_track_interior : None or np.ndarray, optional, shape (n_bins, n_position_dims)
+
     Returns
     -------
-    likelihood : ndarray, shape (n_time, n_bins)
-    '''
+    likelihood : np.ndarray, shape (n_time, n_bins)
+    """
     if is_track_interior is not None:
         is_track_interior = is_track_interior.ravel(order='F')
     else:
@@ -147,24 +180,24 @@ def estimate_calcium_place_fields(position,
                                   place_bin_edges,
                                   penalty=1E-1,
                                   knot_spacing=10):
-    '''Gives the conditional intensity of the neurons' spiking with respect to
+    """Gives the conditional intensity of the neurons' spiking with respect to
     position.
 
     Parameters
     ----------
-    position : ndarray, shape (n_time, n_position_dims)
-    calcium_activity : ndarray, shape (n_time, n_neurons)
+    position : np.ndarray, shape (n_time, n_position_dims)
+    calcium_activity : np.ndarray, shape (n_time, n_neurons)
         Deconvolved activity rate estimated from the fluorescence level.
-    place_bin_centers : ndarray, shape (n_bins, n_position_dims)
-    place_bin_edges : ndarray, shape (n_bins + 1, n_position_dims)
+    place_bin_centers : np.ndarray, shape (n_bins, n_position_dims)
+    place_bin_edges : np.ndarray, shape (n_bins + 1, n_position_dims)
     penalty : float, optional
     knot_spacing : int, optional
 
     Returns
     -------
-    conditional_intensity : ndarray, shape (n_bins, n_neurons)
+    conditional_intensity : np.ndarray, shape (n_bins, n_neurons)
 
-    '''
+    """
     if np.any(np.ptp(place_bin_edges, axis=0) <= knot_spacing):
         logging.warning("Range of position is smaller than knot spacing.")
     design_matrix = make_spline_design_matrix(

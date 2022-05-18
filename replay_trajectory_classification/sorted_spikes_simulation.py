@@ -27,7 +27,7 @@ def make_simulated_run_data(sampling_frequency=SAMPLING_FREQUENCY,
                             place_field_variance=PLACE_FIELD_VARIANCE,
                             place_field_means=PLACE_FIELD_MEANS,
                             make_inbound_outbound_neurons=False):
-    '''Make simulated data of a rat running back and forth
+    """Make simulated data of a rat running back and forth
     on a linear maze with sorted spikes.
 
     Parameters
@@ -37,17 +37,17 @@ def make_simulated_run_data(sampling_frequency=SAMPLING_FREQUENCY,
     running_speed : float, optional
     n_runs : int, optional
     place_field_variance : float, optional
-    place_field_means : ndarray, shape (n_neurons,), optional
+    place_field_means : np.ndarray, shape (n_neurons,), optional
 
     Returns
     -------
-    time : ndarray, shape (n_time,)
-    linear_distance : ndarray, shape (n_time,)
+    time : np.ndarray, shape (n_time,)
+    linear_distance : np.ndarray, shape (n_time,)
     sampling_frequency : float
-    spikes : ndarray, shape (n_time, n_neurons)
-    place_fields : ndarray, shape (n_time, n_neurons)
+    spikes : np.ndarray, shape (n_time, n_neurons)
+    place_fields : np.ndarray, shape (n_time, n_neurons)
 
-    '''
+    """
     n_samples = int(n_runs * sampling_frequency *
                     2 * track_height / running_speed)
 
