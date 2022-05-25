@@ -1,3 +1,5 @@
+"""Estimates a Poisson likelihood using place fields estimated with a KDE
+using GPUs"""
 import numpy as np
 import pandas as pd
 import xarray as xr

@@ -1,7 +1,11 @@
-"""More numerically stable KDE done in log space but slower right now because
-of lack of matrix multiplication. Marks are converted to integers and KDE uses
- hash tables to compute Gaussian kernels.
-"""
+"""Estimates a marked point process likelihood where the marks are
+ features of the spike waveform using GPUs. Mark features are int16.
+
+ This algorithm is more numerically stable KDE done in log space but slower
+ right now because of lack of matrix multiplication.
+
+ Marks are converted to integers and KDE uses hash tables to compute Gaussian
+ kernels."""
 
 
 import math

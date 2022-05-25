@@ -1,3 +1,7 @@
+"""Estimates a marked point process likelihood where the marks are
+ features of the spike waveform. Features are float32."""
+
+
 import numpy as np
 from replay_trajectory_classification.core import atleast_2d
 from replay_trajectory_classification.likelihoods.diffusion import (

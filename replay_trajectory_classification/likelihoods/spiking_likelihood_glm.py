@@ -1,3 +1,5 @@
+"""Estimates a Poisson likelihood using place fields estimated with a GLM
+with a spline basis"""
 import logging
 
 import dask

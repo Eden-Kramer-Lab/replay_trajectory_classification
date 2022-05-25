@@ -1,5 +1,10 @@
-""" Marks are converted to integers and KDE uses hash tables to compute
-Gaussian kernels."""
+"""Estimates a marked point process likelihood where the marks are
+ features of the spike waveform. Mark features are int16.
+
+ Marks are converted to integers and KDE uses hash tables to compute Gaussian
+ kernels."""
+
+
 import numpy as np
 from replay_trajectory_classification.core import atleast_2d
 from replay_trajectory_classification.likelihoods.diffusion import (
