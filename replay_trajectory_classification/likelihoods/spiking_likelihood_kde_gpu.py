@@ -243,8 +243,11 @@ try:
         n_bins = conditional_intensity.shape[0]
         log_likelihood = cp.zeros((n_time, n_bins))
 
+        mempool = cp.get_default_memory_pool()
+
         for is_spike, ci in zip(tqdm(cp.asarray(spikes).T), cp.asarray(conditional_intensity).T):
             log_likelihood += poisson_log_likelihood(is_spike, ci)
+            mempool.free_all_blocks()
 
         return cp.asnumpy(log_likelihood)
 
