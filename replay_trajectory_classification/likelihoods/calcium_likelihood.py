@@ -1,3 +1,11 @@
+"""Calculate a Gamma likelihood for calcium imaging activity traces.
+
+References
+----------
+[1] Farhoodi, S., Plitt, M.H., Giocomo, L., and Eden, U.T. (2020). Estimating Fluctuations in Neural Representations of Uncertain Environments. 20. .
+
+"""
+
 import logging
 
 import dask
