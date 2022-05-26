@@ -2,6 +2,7 @@ numpydoc
 sphinx
 sphinx_rtd_theme
 furo
+sphinxcontrib-napoleon
 sphinx-autodoc-typehints
 nbsphinx
 ipython
@@ -10,4 +11,3 @@ jupyter
 matplotlib
 numpy
 myst_parser
-napoleon
