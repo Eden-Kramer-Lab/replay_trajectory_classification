@@ -10,9 +10,11 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import shutil
+import sys
+
+sys.path.insert(0, os.path.abspath('.'))
 
 
 # -- Project information -----------------------------------------------------
@@ -28,11 +30,8 @@ release = '1.3.2'
 
 
 def copy_tree(src, tar):
-    import os
-    import shutil
     """Copies over notebooks into the documentation folder, so get around an issue where nbsphinx
-    requires notebooks to be in the same folder as the documentation folder
-    """
+    requires notebooks to be in the same folder as the documentation folder"""
     if os.path.exists(tar):
         shutil.rmtree(tar)
     shutil.copytree(src, tar)
