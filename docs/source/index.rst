@@ -1,20 +1,16 @@
-.. replay_trajectory_classification documentation master file, created by
-   sphinx-quickstart on Wed May 25 16:11:49 2022.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to replay_trajectory_classification's documentation!
-============================================================
+..
+   Note: Items in this toctree form the top-level navigation. See `api.rst` for the `autosummary` directive, and for why `api.rst` isn't called directly.
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :hidden:
+
+   Home page <self>
+   Installation <installation>
+   Tutorials <tutorials>
+   API reference <_autosummary/replay_trajectory_classification>
 
 
+replay_trajectory_classification
+================================
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+replay_trajectory_classification is a python package for decoding spatial position represented by neural activity and categorizing the type of trajectory.
