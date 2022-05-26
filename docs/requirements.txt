@@ -1,0 +1,12 @@
+numpydoc
+sphinx
+sphinx_rtd_theme
+furo
+sphinx-autodoc-typehints
+nbsphinx
+ipython
+jupytext
+jupyter
+matplotlib
+numpy
+myst_parser
