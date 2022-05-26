@@ -10,3 +10,4 @@ jupyter
 matplotlib
 numpy
 myst_parser
+napoleon

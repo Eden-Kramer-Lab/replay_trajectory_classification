@@ -48,7 +48,7 @@ copy_tree("../../notebooks/tutorial", "./_copied_over/notebooks")
 extensions = [
     'sphinx.ext.autodoc',  # Core Sphinx library for auto html doc generation from docstrings
     'sphinx.ext.autosummary',  # Create neat summary tables for modules/classes/methods etc
-    'sphinx.ext.napoleon',
+    'sphinxcontrib.napoleon',
     # Link to other project's documentation (see mapping below)
     'sphinx.ext.intersphinx',
     # Add a link to the Python source code for classes, functions etc.
