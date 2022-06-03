@@ -282,4 +282,8 @@ try:
 
         return log_likelihood * mask
 except ImportError:
-    pass
+    def estimate_place_fields_kde_gpu(*args, **kwargs):
+        pass
+
+    def estimate_spiking_likelihood_kde_gpu(*args, **kwargs):
+        pass
