@@ -228,7 +228,7 @@ try:
                                                  is_track_interior=None,
                                                  edges=None,
                                                  block_size=100,
-                                                 use_diffusion_distance=False,
+                                                 use_diffusion=False,
                                                  **kwargs):
         """Fits the clusterless place field model.
 
@@ -246,7 +246,7 @@ try:
         edges : None or list of np.ndarray
         block_size : int
             Size of data to process in chunks
-        use_diffusion_distance : bool
+        use_diffusion : bool
             Use diffusion to respect the track geometry.
 
         Returns
@@ -267,7 +267,7 @@ try:
 
         not_nan_position = np.all(~np.isnan(position), axis=1)
 
-        if use_diffusion_distance & (position.shape[1] > 1):
+        if use_diffusion & (position.shape[1] > 1):
             n_total_bins = np.prod(is_track_interior.shape)
             bin_diffusion_distances = diffuse_each_bin(
                 is_track_interior,
@@ -279,7 +279,7 @@ try:
         else:
             bin_diffusion_distances = None
 
-        if use_diffusion_distance & (position.shape[1] > 1):
+        if use_diffusion & (position.shape[1] > 1):
             log_occupancy = cp.log(cp.asarray(
                 estimate_diffusion_position_density(
                     position[not_nan_position],
@@ -307,7 +307,7 @@ try:
             log_mean_rates.append(np.log(is_spike.mean()))
 
             if is_spike.sum() > 0:
-                if use_diffusion_distance & (position.shape[1] > 1):
+                if use_diffusion & (position.shape[1] > 1):
                     log_marginal_density = cp.log(cp.asarray(
                         estimate_diffusion_position_density(
                             position[is_spike & not_nan_position],
@@ -347,7 +347,7 @@ try:
             'position_std': position_std,
             'block_size': block_size,
             'bin_diffusion_distances': bin_diffusion_distances,
-            'use_diffusion_distance': use_diffusion_distance,
+            'use_diffusion': use_diffusion,
             'edges': edges,
             **kwargs,
         }
@@ -370,7 +370,7 @@ try:
                                                       block_size=100,
                                                       ignore_no_spike=False,
                                                       disable_progress_bar=False,
-                                                      use_diffusion_distance=False):
+                                                      use_diffusion=False):
         """Estimates the likelihood of position bins given multiunit marks.
 
         Parameters
@@ -401,7 +401,7 @@ try:
             Set contribution of no spikes to zero
         disable_progress_bar : bool
             If False, a progress bar will be displayed.
-        use_diffusion_distance : bool
+        use_diffusion : bool
             Respect track geometry by using diffusion distances
 
         Returns
@@ -446,7 +446,7 @@ try:
             if block_size is None:
                 block_size = n_decoding_marks
 
-            if use_diffusion_distance & (place_bin_centers.shape[1] > 1):
+            if use_diffusion & (place_bin_centers.shape[1] > 1):
                 log_position_distances = cp.log(cp.asarray(
                     estimate_diffusion_position_distance(
                         enc_pos,

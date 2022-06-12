@@ -40,7 +40,7 @@ _DEFAULT_CLUSTERLESS_MODEL_KWARGS = {
 
 _DEFAULT_SORTED_SPIKES_MODEL_KWARGS = {
     'position_std': 6.0,
-    'use_diffusion_distance': False,
+    'use_diffusion': False,
     'block_size': None,
 }
 

@@ -127,7 +127,7 @@ def estimate_place_fields_kde(position,
                               is_track_interior=None,
                               edges=None,
                               place_bin_edges=None,
-                              use_diffusion_distance=False,
+                              use_diffusion=False,
                               block_size=None):
     """Gives the conditional intensity of the neurons' spiking with respect to
     position.
@@ -144,7 +144,7 @@ def estimate_place_fields_kde(position,
     is_track_interior : None or np.ndarray, shape (n_bins,)
     edges : None or list of np.ndarray
     place_bin_edges : np.ndarray, shape (n_bins + 1, n_position_dims)
-    use_diffusion_distance : bool
+    use_diffusion : bool
         Respect track geometry by using diffusion distances
     block_size : int
         Size of data to process in chunks
@@ -159,7 +159,7 @@ def estimate_place_fields_kde(position,
     place_bin_centers = atleast_2d(place_bin_centers).astype(np.float32)
     not_nan_position = np.all(~np.isnan(position), axis=1)
 
-    if use_diffusion_distance & (position.shape[1] > 1):
+    if use_diffusion & (position.shape[1] > 1):
         n_total_bins = np.prod(is_track_interior.shape)
         bin_diffusion_distances = diffuse_each_bin(
             is_track_interior,

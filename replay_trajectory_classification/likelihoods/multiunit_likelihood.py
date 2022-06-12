@@ -174,7 +174,7 @@ def fit_multiunit_likelihood(position,
                              is_track_interior=None,
                              edges=None,
                              block_size=100,
-                             use_diffusion_distance=False,
+                             use_diffusion=False,
                              **kwargs):
     """Fits the clusterless place field model.
 
@@ -192,7 +192,7 @@ def fit_multiunit_likelihood(position,
     edges : None or list of np.ndarray
     block_size : int
         Size of data to process in chunks
-    use_diffusion_distance : bool
+    use_diffusion : bool
         Use diffusion to respect the track geometry.
 
     Returns
@@ -213,7 +213,7 @@ def fit_multiunit_likelihood(position,
 
     not_nan_position = np.all(~np.isnan(position), axis=1)
 
-    if use_diffusion_distance & (position.shape[1] > 1):
+    if use_diffusion & (position.shape[1] > 1):
         n_total_bins = np.prod(is_track_interior.shape)
         bin_diffusion_distances = diffuse_each_bin(
             is_track_interior,
@@ -225,7 +225,7 @@ def fit_multiunit_likelihood(position,
     else:
         bin_diffusion_distances = None
 
-    if use_diffusion_distance & (position.shape[1] > 1):
+    if use_diffusion & (position.shape[1] > 1):
         occupancy = np.asarray(
             estimate_diffusion_position_density(
                 position[not_nan_position],
@@ -257,7 +257,7 @@ def fit_multiunit_likelihood(position,
         mean_rates.append(is_spike.mean())
 
         if is_spike.sum() > 0:
-            if use_diffusion_distance & (position.shape[1] > 1):
+            if use_diffusion & (position.shape[1] > 1):
                 marginal_density = np.asarray(
                     estimate_diffusion_position_density(
                         position[is_spike & not_nan_position],
@@ -298,7 +298,7 @@ def fit_multiunit_likelihood(position,
         'position_std': position_std,
         'block_size': block_size,
         'bin_diffusion_distances': bin_diffusion_distances,
-        'use_diffusion_distance': use_diffusion_distance,
+        'use_diffusion': use_diffusion,
         'edges': edges,
         **kwargs,
     }
@@ -322,7 +322,7 @@ def estimate_multiunit_likelihood(multiunits,
                                   block_size=100,
                                   ignore_no_spike=False,
                                   disable_progress_bar=False,
-                                  use_diffusion_distance=False):
+                                  use_diffusion=False):
     """Estimates the likelihood of position bins given multiunit marks.
 
     Parameters
@@ -353,7 +353,7 @@ def estimate_multiunit_likelihood(multiunits,
         Set contribution of no spikes to zero
     disable_progress_bar : bool
         If False, a progress bar will be displayed.
-    use_diffusion_distance : bool
+    use_diffusion : bool
         Respect track geometry by using diffusion distances
 
     Returns
@@ -398,7 +398,7 @@ def estimate_multiunit_likelihood(multiunits,
         if block_size is None:
             block_size = n_decoding_marks
 
-        if use_diffusion_distance & (place_bin_centers.shape[1] > 1):
+        if use_diffusion & (place_bin_centers.shape[1] > 1):
             position_distance = np.asarray(
                 estimate_diffusion_position_distance(
                     enc_pos,
