@@ -143,11 +143,11 @@ def estimate_log_joint_mark_intensity(decoding_marks,
     mark_distance = np.ones(
         (n_decoding_spikes, n_encoding_spikes), dtype=np.float32)
 
-    for mark_ind, std in enumerate(mark_std):
+    for mark_ind in range(n_marks):
         mark_distance *= gaussian_pdf(
             np.expand_dims(decoding_marks[:, mark_ind], axis=1),
             np.expand_dims(encoding_marks[:, mark_ind], axis=0),
-            std)
+            mark_std[mark_ind])
 
     if set_diag_zero:
         diag_ind = (np.arange(n_decoding_spikes),

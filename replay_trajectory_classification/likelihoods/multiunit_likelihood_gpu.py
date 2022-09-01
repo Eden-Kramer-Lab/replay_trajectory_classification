@@ -142,11 +142,11 @@ try:
         mark_distance = cp.ones(
             (n_decoding_spikes, n_encoding_spikes), dtype=cp.float32)
 
-        for mark_ind, std in enumerate(mark_std):
+        for mark_ind in range(n_marks):
             mark_distance *= gaussian_pdf(
                 cp.expand_dims(decoding_marks[:, mark_ind], axis=1),
                 cp.expand_dims(encoding_marks[:, mark_ind], axis=0),
-                std)
+                mark_std[mark_ind])
 
         if set_diag_zero:
             diag_ind = (cp.arange(n_decoding_spikes),
