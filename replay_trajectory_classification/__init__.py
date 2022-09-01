@@ -3,7 +3,7 @@ from replay_trajectory_classification.classifier import (
     ClusterlessClassifier, SortedSpikesClassifier)
 from replay_trajectory_classification.continuous_state_transitions import (
     EmpiricalMovement, Identity, RandomWalk, RandomWalkDirection1,
-    RandomWalkDirection2, Uniform)
+    RandomWalkDirection2, Uniform, estimate_movement_var)
 from replay_trajectory_classification.decoder import (ClusterlessDecoder,
                                                       SortedSpikesDecoder)
 from replay_trajectory_classification.discrete_state_transitions import (
