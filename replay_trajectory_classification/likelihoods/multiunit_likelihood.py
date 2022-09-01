@@ -248,7 +248,9 @@ def fit_multiunit_likelihood(position,
 
     n_marks = multiunits.shape[1]
     if isinstance(mark_std, (int, float)):
-        mark_std = [mark_std] * n_marks
+        mark_std = np.asarray([mark_std] * n_marks)
+    else:
+        mark_std = np.asarray(mark_std)
 
     for multiunit in np.moveaxis(multiunits, -1, 0):
 
@@ -417,7 +419,7 @@ def estimate_multiunit_likelihood(multiunits,
             log_joint_mark_intensity[block_inds] = estimate_log_joint_mark_intensity(
                 decoding_marks[block_inds],
                 enc_marks,
-                mark_std,
+                mark_std[is_mark_features],
                 interior_occupancy,
                 mean_rate,
                 max_mark_diff=max_mark_diff,
