@@ -34,6 +34,7 @@ def _causal_decode(initial_conditions, state_transition, likelihood):
     Returns
     -------
     posterior : np.ndarray, shape (n_time, n_bins)
+    log_data_likelihood : float
 
     """
 
@@ -106,6 +107,7 @@ def _causal_classify(initial_conditions, continuous_state_transition,
     Returns
     -------
     causal_posterior : np.ndarray, shape (n_time, n_states, n_bins, 1)
+    log_data_likelihood : float
 
     """
     n_time, n_states, n_bins, _ = likelihood.shape
