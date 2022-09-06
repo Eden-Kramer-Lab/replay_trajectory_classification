@@ -739,7 +739,7 @@ def run_diffusion(
     Fx = alpha * (dt / dx**2)
     Fy = alpha * (dt / dy**2)
 
-    T = std**2 / (2 * alpha)
+    T = std**2 / (2.0 * alpha)
     n_time = int((T // dt) + 1)
 
     for _ in range(n_time):
@@ -784,7 +784,7 @@ def diffuse_each_bin(
     """
     x_inds, y_inds = np.nonzero(is_track_interior)
     n_interior_bins = len(x_inds)
-    n_bins = is_track_interior.shape[0] * is_track_interior.shape[1]
+    n_bins = is_track_interior.size
     bins_shape = is_track_interior.shape
     diffused_grid = np.zeros((n_bins, *bins_shape))
 
