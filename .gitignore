@@ -61,3 +61,4 @@ coverage.xml
 *.nc
 *.prof
 *.qdrep
+*.pdf
