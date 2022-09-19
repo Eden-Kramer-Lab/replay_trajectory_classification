@@ -243,6 +243,82 @@ class _ClassifierBase(BaseEstimator):
 
         return results, data_log_likelihoods
 
+    @staticmethod
+    def convert_2D_to_1D_results(
+        results2D: xr.Dataset,
+        environment2D: Environment,
+        environment1D: Environment
+    ) -> xr.Dataset:
+        """Projects a 2D position decoding result to a 1D decoding result.
+
+        Parameters
+        ----------
+        results : xarray.core.dataset.Dataset
+        environment2D : replay_trajectory_classification.environments.Environment
+        environment1D : replay_trajectory_classification.environments.Environment
+
+        Returns
+        -------
+        results1D : xarray.core.dataset.Dataset
+
+        Examples
+        --------
+        results = classifier.predict(spikes)
+        environment1D = (
+            Environment(track_graph=track_graph,
+                        place_bin_size=2.0,
+                        edge_order=edge_order,
+                        edge_spacing=edge_spacing)
+            .fit_place_grid())
+        results1D = convert_2D_to_1D_results(
+            results, classifier.environments[0], environment1D)
+        """
+        projected_1D_position = np.asarray(
+            environment1D
+            .place_bin_centers_nodes_df_[['x_position', 'y_position']])
+        bin_centers_2D = environment2D.place_bin_centers_
+        closest_1D_bin_ind = np.asarray(
+            [np.argmin(
+                np.linalg.norm(projected_1D_position - bin_center, axis=1))
+             for bin_center in bin_centers_2D])
+
+        non_position_dims = [
+            n_elements for dim, n_elements in results2D.dims.items()
+            if dim not in ['x_position', 'y_position']]
+        results1D_shape = (*non_position_dims,
+                           environment1D.place_bin_centers_.shape[0])
+        results1D = {variable: np.zeros(results1D_shape)
+                     for variable in results2D.data_vars}
+
+        is_track_interior = environment2D.is_track_interior_.ravel(order='F')
+        interior_bin_ind = np.unravel_index(
+            np.nonzero(is_track_interior)[0], (len(
+                results2D.x_position), len(results2D.y_position)),
+            order='F'
+        )
+
+        for linear_bin_ind, x_ind, y_ind in zip(
+                closest_1D_bin_ind[is_track_interior], *interior_bin_ind):
+            for variable in results2D.data_vars:
+                results1D[variable][:, linear_bin_ind] += (
+                    results2D
+                    .isel(x_position=x_ind, y_position=y_ind)[variable]
+                    .values)
+
+        dims = [dim for dim in results2D.dims
+                if dim not in ['x_position', 'y_position']]
+        coords = {dim: results2D.coords[dim].values for dim in dims}
+
+        dims.append('position')
+        coords['position'] = environment1D.place_bin_centers_.squeeze()
+
+        return xr.Dataset(
+            {key: (dims, value)
+             for key, value in results1D.items()},
+            coords=coords,
+            attrs=results2D.attrs,
+        )
+
     def _get_results(
         self,
         likelihood,
