@@ -660,6 +660,15 @@ class SortedSpikesClassifier(_ClassifierBase):
                 **kwargs)
 
     def plot_place_fields(self, sampling_frequency=1, figsize=(10, 7)):
+        """Plots all place fields.
+
+        Parameters
+        ----------
+        sampling_frequency : int, optional
+            samples per second, by default 1
+        figsize : tuple, optional
+            figure dimensions, by default (10, 7)
+        """
         try:
             for (env, enc) in self.place_fields_:
                 is_track_interior = self.environments[self.environments.index(
