@@ -19,14 +19,15 @@
 </p>
 
 ### Advantages over other algorithms ###
-It has several advantages over decoders typically used to characterize hippocampal replay:
+It has several advantages over decoders typically used to characterize hippocampal data:
 1. It allows for moment-by-moment estimation of position using small temporal time bins which allow for rapid movement of neural position and makes fewer assumptions about what downstream cells can integrate.
 2. The decoded trajectories can change direction and are not restricted to constant velocity trajectories.
 3. The decoder can use spikes from spike-sorted cells or use clusterless spikes and their associated waveform features to decode .
 4. The decoder can categorize the type of neural trajectory and give an estimate of the confidence of the model in the type of trajectory.
 5. Proper handling of complex 1D linearized environments
-6. Ability to decode 2D position
+6. Ability to extract and decode 2D environments
 7. Easily installable, documented code with tutorials on how to use the code (see below)
+8. Fast computation using GPUs. (Note: must install `cupy` to use)
 
 
 ### References ###
