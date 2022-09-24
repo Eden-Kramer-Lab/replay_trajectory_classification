@@ -7,8 +7,7 @@ from scipy.stats import multivariate_normal
 
 
 def _normalize_row_probability(x):
-    """Ensure the state transition matrix rows sum to 1
-    """
+    """Ensure the state transition matrix rows sum to 1"""
     x /= x.sum(axis=1, keepdims=True)
     x[np.isnan(x)] = 0
     return x
@@ -34,12 +33,13 @@ def estimate_movement_var(position, sampling_frequency):
 
 
 def _random_walk_on_track_graph(
-    place_bin_centers, movement_mean, movement_var,
+    place_bin_centers,
+    movement_mean,
+    movement_var,
     place_bin_center_ind_to_node,
-    distance_between_nodes
+    distance_between_nodes,
 ):
-    state_transition = np.zeros(
-        (place_bin_centers.size, place_bin_centers.size))
+    state_transition = np.zeros((place_bin_centers.size, place_bin_centers.size))
     gaussian = multivariate_normal(mean=movement_mean, cov=movement_var)
 
     for bin_ind1, node1 in enumerate(place_bin_center_ind_to_node):
@@ -71,53 +71,52 @@ class RandomWalk:
     use_diffusion : bool, optional
         Use diffusion to respect the geometry of the environment
     """
-    environment_name: str = ''
+
+    environment_name: str = ""
     movement_var: float = 6.0
     movement_mean: float = 0.0
     use_diffusion: bool = False
 
     def make_state_transition(self, environments: tuple):
-        self.environment = environments[
-            environments.index(self.environment_name)]
+        self.environment = environments[environments.index(self.environment_name)]
 
         if self.environment.track_graph is None:
             n_position_dims = self.environment.place_bin_centers_.shape[1]
 
             if (n_position_dims == 1) or not self.use_diffusion:
                 transition_matrix = np.stack(
-                    [multivariate_normal(
-                        mean=center + self.movement_mean,
-                        cov=self.movement_var
-                    ).pdf(self.environment.place_bin_centers_)
-                        for center in self.environment.place_bin_centers_],
-                    axis=1)
+                    [
+                        multivariate_normal(
+                            mean=center + self.movement_mean, cov=self.movement_var
+                        ).pdf(self.environment.place_bin_centers_)
+                        for center in self.environment.place_bin_centers_
+                    ],
+                    axis=1,
+                )
             else:
-                dx = (self.environment.edges_[0][1] -
-                      self.environment.edges_[0][0])
-                dy = (self.environment.edges_[1][1] -
-                      self.environment.edges_[1][0])
-                n_total_bins = np.prod(
-                    self.environment.is_track_interior_.shape)
+                dx = self.environment.edges_[0][1] - self.environment.edges_[0][0]
+                dy = self.environment.edges_[1][1] - self.environment.edges_[1][0]
+                n_total_bins = np.prod(self.environment.is_track_interior_.shape)
                 transition_matrix = diffuse_each_bin(
                     self.environment.is_track_interior_,
                     self.environment.is_track_boundary_,
                     dx,
                     dy,
                     std=np.sqrt(self.movement_var),
-                ).reshape((n_total_bins, -1), order='F')
+                ).reshape((n_total_bins, -1), order="F")
         else:
             place_bin_center_ind_to_node = np.asarray(
-                self.environment.place_bin_centers_nodes_df_.node_id)
+                self.environment.place_bin_centers_nodes_df_.node_id
+            )
             transition_matrix = _random_walk_on_track_graph(
                 self.environment.place_bin_centers_,
                 self.movement_mean,
                 self.movement_var,
                 place_bin_center_ind_to_node,
-                self.environment.distance_between_nodes_
+                self.environment.distance_between_nodes_,
             )
 
-        is_track_interior = self.environment.is_track_interior_.ravel(
-            order='F')
+        is_track_interior = self.environment.is_track_interior_.ravel(order="F")
         transition_matrix[~is_track_interior] = 0.0
         transition_matrix[:, ~is_track_interior] = 0.0
 
@@ -135,25 +134,22 @@ class Uniform:
         Name of second environment to fit if going from one environment to
         another
     """
-    environment_name: str = ''
+
+    environment_name: str = ""
     environment2_name: str = None
 
     def make_state_transition(self, environments: tuple):
-        self.environment1 = environments[
-            environments.index(self.environment_name)]
+        self.environment1 = environments[environments.index(self.environment_name)]
         n_bins1 = self.environment1.place_bin_centers_.shape[0]
-        is_track_interior1 = self.environment1.is_track_interior_.ravel(
-            order='F')
+        is_track_interior1 = self.environment1.is_track_interior_.ravel(order="F")
 
         if self.environment2_name is None:
             n_bins2 = n_bins1
             is_track_interior2 = is_track_interior1.copy()
         else:
-            self.environment2 = environments[
-                environments.index(self.environment2_name)]
+            self.environment2 = environments[environments.index(self.environment2_name)]
             n_bins2 = self.environment2.place_bin_centers_.shape[0]
-            is_track_interior2 = self.environment2.is_track_interior_.ravel(
-                order='F')
+            is_track_interior2 = self.environment2.is_track_interior_.ravel(order="F")
 
         transition_matrix = np.ones((n_bins1, n_bins2))
 
@@ -172,17 +168,16 @@ class Identity:
     environment_name : str, optional
         Name of environment to fit
     """
-    environment_name: str = ''
+
+    environment_name: str = ""
 
     def make_state_transition(self, environments: tuple):
-        self.environment = environments[
-            environments.index(self.environment_name)]
+        self.environment = environments[environments.index(self.environment_name)]
         n_bins = self.environment.place_bin_centers_.shape[0]
 
         transition_matrix = np.identity(n_bins)
 
-        is_track_interior = self.environment.is_track_interior_.ravel(
-            order='F')
+        is_track_interior = self.environment.is_track_interior_.ravel(order="F")
         transition_matrix[~is_track_interior] = 0.0
         transition_matrix[:, ~is_track_interior] = 0.0
 
@@ -206,19 +201,21 @@ class EmpiricalMovement:
         `speedup` times. So `speedup​=20` means 20x faster than the
         animal's movement.
     """
-    environment_name: str = ''
+
+    environment_name: str = ""
     encoding_group: str = None
     speedup: int = 1
 
-    def make_state_transition(self,
-                              environments: tuple,
-                              position: np.ndarray,
-                              is_training: np.ndarray = None,
-                              encoding_group_labels: np.ndarray = None,
-                              environment_labels: np.ndarray = None):
+    def make_state_transition(
+        self,
+        environments: tuple,
+        position: np.ndarray,
+        is_training: np.ndarray = None,
+        encoding_group_labels: np.ndarray = None,
+        environment_labels: np.ndarray = None,
+    ):
 
-        self.environment = environments[
-            environments.index(self.environment_name)]
+        self.environment = environments[environments.index(self.environment_name)]
 
         n_time = position.shape[0]
         if is_training is None:
@@ -227,27 +224,27 @@ class EmpiricalMovement:
         if encoding_group_labels is None:
             is_encoding = np.ones((n_time,), dtype=np.bool)
         else:
-            is_encoding = (encoding_group_labels == self.encoding_group)
+            is_encoding = encoding_group_labels == self.encoding_group
 
         if environment_labels is None:
             is_environment = np.ones((n_time,), dtype=np.bool)
         else:
-            is_environment = (environment_labels == self.environment_name)
+            is_environment = environment_labels == self.environment_name
 
-        position = atleast_2d(position)[
-            is_training & is_encoding & is_environment]
+        position = atleast_2d(position)[is_training & is_encoding & is_environment]
         state_transition, _ = np.histogramdd(
             np.concatenate((position[1:], position[:-1]), axis=1),
             bins=self.environment.edges_ * 2,
-            range=self.environment.position_range)
+            range=self.environment.position_range,
+        )
         original_shape = state_transition.shape
         n_position_dims = position.shape[1]
         shape_2d = np.product(original_shape[:n_position_dims])
         state_transition = _normalize_row_probability(
-            state_transition.reshape((shape_2d, shape_2d), order='F'))
+            state_transition.reshape((shape_2d, shape_2d), order="F")
+        )
 
-        return np.linalg.matrix_power(
-            state_transition, self.speedup)
+        return np.linalg.matrix_power(state_transition, self.speedup)
 
 
 @dataclass
@@ -262,14 +259,15 @@ class RandomWalkDirection1:
         How far the animal is can move in one time bin during normal
         movement.
     """
-    environment_name: str = ''
+
+    environment_name: str = ""
     movement_var: float = 6.0
 
     def make_state_transition(self, environments: tuple):
-        self.environment = environments[
-            environments.index(self.environment_name)]
-        random = (RandomWalk(self.environment_name, self.movement_var)
-                  .make_state_transition(environments))
+        self.environment = environments[environments.index(self.environment_name)]
+        random = RandomWalk(
+            self.environment_name, self.movement_var
+        ).make_state_transition(environments)
 
         return _normalize_row_probability(np.triu(random))
 
@@ -286,13 +284,14 @@ class RandomWalkDirection2:
         How far the animal is can move in one time bin during normal
         movement.
     """
-    environment_name: str = ''
+
+    environment_name: str = ""
     movement_var: float = 6.0
 
     def make_state_transition(self, environments: tuple):
-        self.environment = environments[
-            environments.index(self.environment_name)]
-        random = (RandomWalk(self.environment_name, self.movement_var)
-                  .make_state_transition(environments))
+        self.environment = environments[environments.index(self.environment_name)]
+        random = RandomWalk(
+            self.environment_name, self.movement_var
+        ).make_state_transition(environments)
 
         return _normalize_row_probability(np.tril(random))

@@ -44,11 +44,11 @@ def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
 
     n_position_dims = position.shape[1]
     data = {}
-    formula = '1 + te('
+    formula = "1 + te("
     for ind in range(n_position_dims):
-        formula += f'cr(x{ind}, knots=inner_knots[{ind}])'
-        formula += ', '
-        data[f'x{ind}'] = position[:, ind]
+        formula += f"cr(x{ind}, knots=inner_knots[{ind}])"
+        formula += ", "
+        data[f"x{ind}"] = position[:, ind]
 
     formula += 'constraints="center")'
 
@@ -59,20 +59,19 @@ def make_spline_predict_matrix(design_info, place_bin_centers):
     """Make a design matrix for position bins"""
     predict_data = {}
     for ind in range(place_bin_centers.shape[1]):
-        predict_data[f'x{ind}'] = place_bin_centers[:, ind]
-    return build_design_matrices(
-        [design_info], predict_data)[0]
+        predict_data[f"x{ind}"] = place_bin_centers[:, ind]
+    return build_design_matrices([design_info], predict_data)[0]
 
 
 def get_activity_rate(design_matrix, results):
     """Predicts the calcium activity trace given fitted model coefficents."""
-    rate = (design_matrix @ results.coefficients)
+    rate = design_matrix @ results.coefficients
     rate[rate < 0.1] = 0.1
     return rate
 
 
 @dask.delayed
-def fit_glm(response, design_matrix, penalty=None, tolerance=1E-5):
+def fit_glm(response, design_matrix, penalty=None, tolerance=1e-5):
     """Fits a L2-penalized GLM.
 
     Parameters
@@ -97,9 +96,12 @@ def fit_glm(response, design_matrix, penalty=None, tolerance=1E-5):
     else:
         penalty = np.finfo(np.float).eps
     return penalized_IRLS(
-        design_matrix, response.squeeze(), family=families.Gamma(
-            families.links.identity()),
-        penalty=penalty, tolerance=tolerance)
+        design_matrix,
+        response.squeeze(),
+        family=families.Gamma(families.links.identity()),
+        penalty=penalty,
+        tolerance=tolerance,
+    )
 
 
 def gamma_log_likelihood(calcium_activity, place_field, scale):
@@ -126,7 +128,8 @@ def gamma_log_likelihood(calcium_activity, place_field, scale):
     return gamma.loglike_obs(
         endog=calcium_activity[:, np.newaxis],
         mu=place_field[np.newaxis, :],
-        scale=scale)
+        scale=scale,
+    )
 
 
 def combined_likelihood(calcium_activity, place_fields, scales):
@@ -144,15 +147,15 @@ def combined_likelihood(calcium_activity, place_fields, scales):
     n_bins = place_fields.shape[0]
     log_likelihood = np.zeros((n_time, n_bins))
 
-    for activity, place_field, scale in zip(
-            calcium_activity.T, place_fields.T, scales):
+    for activity, place_field, scale in zip(calcium_activity.T, place_fields.T, scales):
         log_likelihood += gamma_log_likelihood(activity, place_field, scale)
 
     return log_likelihood
 
 
-def estimate_calcium_likelihood(calcium_activity, place_fields, scales,
-                                is_track_interior=None):
+def estimate_calcium_likelihood(
+    calcium_activity, place_fields, scales, is_track_interior=None
+):
     """Find the likelihood given a fitted place field model.
 
     Parameters
@@ -168,13 +171,12 @@ def estimate_calcium_likelihood(calcium_activity, place_fields, scales,
     likelihood : np.ndarray, shape (n_time, n_bins)
     """
     if is_track_interior is not None:
-        is_track_interior = is_track_interior.ravel(order='F')
+        is_track_interior = is_track_interior.ravel(order="F")
     else:
         n_bins = place_fields.shape[0]
         is_track_interior = np.ones((n_bins,), dtype=np.bool)
 
-    log_likelihood = combined_likelihood(
-        calcium_activity, place_fields, scales)
+    log_likelihood = combined_likelihood(calcium_activity, place_fields, scales)
 
     mask = np.ones_like(is_track_interior, dtype=np.float)
     mask[~is_track_interior] = np.nan
@@ -182,12 +184,14 @@ def estimate_calcium_likelihood(calcium_activity, place_fields, scales,
     return log_likelihood * mask
 
 
-def estimate_calcium_place_fields(position,
-                                  calcium_activity,
-                                  place_bin_centers,
-                                  place_bin_edges,
-                                  penalty=1E-1,
-                                  knot_spacing=10):
+def estimate_calcium_place_fields(
+    position,
+    calcium_activity,
+    place_bin_centers,
+    place_bin_edges,
+    penalty=1e-1,
+    knot_spacing=10,
+):
     """Gives the conditional intensity of the neurons' spiking with respect to
     position.
 
@@ -208,34 +212,34 @@ def estimate_calcium_place_fields(position,
     """
     if np.any(np.ptp(place_bin_edges, axis=0) <= knot_spacing):
         logging.warning("Range of position is smaller than knot spacing.")
-    design_matrix = make_spline_design_matrix(
-        position, place_bin_edges, knot_spacing)
+    design_matrix = make_spline_design_matrix(position, place_bin_edges, knot_spacing)
     design_info = design_matrix.design_info
     try:
         client = get_client()
     except ValueError:
         client = Client()
     design_matrix = client.scatter(np.asarray(design_matrix), broadcast=True)
-    results = [fit_glm(activity, design_matrix, penalty)
-               for activity in calcium_activity.T]
+    results = [
+        fit_glm(activity, design_matrix, penalty) for activity in calcium_activity.T
+    ]
     results = dask.compute(*results)
 
     predict_matrix = make_spline_predict_matrix(design_info, place_bin_centers)
-    place_fields = np.stack([get_activity_rate(predict_matrix, result)
-                             for result in results], axis=1)
+    place_fields = np.stack(
+        [get_activity_rate(predict_matrix, result) for result in results], axis=1
+    )
     scales = np.asarray([result.scale for result in results])
 
-    DIMS = ['position', 'neuron']
+    DIMS = ["position", "neuron"]
     if position.shape[1] == 1:
-        names = ['position']
-        coords = {
-            'position': place_bin_centers.squeeze()
-        }
+        names = ["position"]
+        coords = {"position": place_bin_centers.squeeze()}
     elif position.shape[1] == 2:
-        names = ['x_position', 'y_position']
+        names = ["x_position", "y_position"]
         coords = {
-            'position': pd.MultiIndex.from_arrays(
-                place_bin_centers.T.tolist(), names=names)
+            "position": pd.MultiIndex.from_arrays(
+                place_bin_centers.T.tolist(), names=names
+            )
         }
 
     return xr.DataArray(data=place_fields, coords=coords, dims=DIMS), scales

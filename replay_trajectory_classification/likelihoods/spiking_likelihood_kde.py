@@ -5,15 +5,16 @@ import pandas as pd
 import xarray as xr
 from replay_trajectory_classification.core import atleast_2d
 from replay_trajectory_classification.likelihoods.diffusion import (
-    diffuse_each_bin, estimate_diffusion_position_density)
+    diffuse_each_bin,
+    estimate_diffusion_position_density,
+)
 from tqdm.auto import tqdm
 
 
 def gaussian_pdf(x, mean, sigma):
     """Compute the value of a Gaussian probability density function at x with
     given mean and sigma."""
-    return np.exp(-0.5 * ((x - mean) / sigma)**2) / (
-        sigma * np.sqrt(2.0 * np.pi))
+    return np.exp(-0.5 * ((x - mean) / sigma) ** 2) / (sigma * np.sqrt(2.0 * np.pi))
 
 
 def estimate_position_distance(place_bin_centers, positions, position_std):
@@ -33,8 +34,7 @@ def estimate_position_distance(place_bin_centers, positions, position_std):
     n_time, n_position_dims = positions.shape
     n_position_bins = place_bin_centers.shape[0]
 
-    position_distance = np.ones(
-        (n_time, n_position_bins), dtype=np.float32)
+    position_distance = np.ones((n_time, n_position_bins), dtype=np.float32)
 
     if isinstance(position_std, (int, float)):
         position_std = [position_std] * n_position_dims
@@ -43,13 +43,15 @@ def estimate_position_distance(place_bin_centers, positions, position_std):
         position_distance *= gaussian_pdf(
             np.expand_dims(place_bin_centers[:, position_ind], axis=0),
             np.expand_dims(positions[:, position_ind], axis=1),
-            std)
+            std,
+        )
 
     return position_distance
 
 
-def estimate_position_density(place_bin_centers, positions, position_std,
-                              block_size=100):
+def estimate_position_density(
+    place_bin_centers, positions, position_std, block_size=100
+):
     """Estimates a kernel density estimate over position bins using
     Euclidean distances.
 
@@ -75,60 +77,73 @@ def estimate_position_density(place_bin_centers, positions, position_std,
     position_density = np.empty((n_position_bins,))
     for start_ind in range(0, n_position_bins, block_size):
         block_inds = slice(start_ind, start_ind + block_size)
-        position_density[block_inds] = np.mean(estimate_position_distance(
-            place_bin_centers[block_inds], positions, position_std), axis=0)
+        position_density[block_inds] = np.mean(
+            estimate_position_distance(
+                place_bin_centers[block_inds], positions, position_std
+            ),
+            axis=0,
+        )
     return position_density
 
 
-def get_firing_rate(is_spike, position, place_bin_centers,
-                    is_track_interior, not_nan_position, occupancy,
-                    position_std, block_size=None):
+def get_firing_rate(
+    is_spike,
+    position,
+    place_bin_centers,
+    is_track_interior,
+    not_nan_position,
+    occupancy,
+    position_std,
+    block_size=None,
+):
     if is_spike.sum() > 0:
         mean_rate = is_spike.mean()
-        marginal_density = np.zeros(
-            (place_bin_centers.shape[0],), dtype=np.float32)
+        marginal_density = np.zeros((place_bin_centers.shape[0],), dtype=np.float32)
 
         marginal_density[is_track_interior] = estimate_position_density(
             place_bin_centers[is_track_interior],
-            np.asarray(
-                position[is_spike & not_nan_position],
-                dtype=np.float32),
+            np.asarray(position[is_spike & not_nan_position], dtype=np.float32),
             position_std,
-            block_size=block_size)
-        return np.exp(np.log(mean_rate) + np.log(marginal_density) -
-                      np.log(occupancy))
+            block_size=block_size,
+        )
+        return np.exp(np.log(mean_rate) + np.log(marginal_density) - np.log(occupancy))
     else:
         return np.zeros_like(occupancy)
 
 
 def get_diffusion_firing_rate(
-        is_spike, position, edges, bin_diffusion_distances,
-        occupancy, not_nan_position,
+    is_spike,
+    position,
+    edges,
+    bin_diffusion_distances,
+    occupancy,
+    not_nan_position,
 ):
     if is_spike.sum() > 0:
         mean_rate = is_spike.mean()
         marginal_density = estimate_diffusion_position_density(
             position[is_spike & not_nan_position],
             edges,
-            bin_distances=bin_diffusion_distances
+            bin_distances=bin_diffusion_distances,
         ).astype(np.float32)
 
-        return np.exp(np.log(mean_rate) + np.log(marginal_density) -
-                      np.log(occupancy))
+        return np.exp(np.log(mean_rate) + np.log(marginal_density) - np.log(occupancy))
     else:
         return np.zeros_like(occupancy)
 
 
-def estimate_place_fields_kde(position,
-                              spikes,
-                              place_bin_centers,
-                              position_std,
-                              is_track_boundary=None,
-                              is_track_interior=None,
-                              edges=None,
-                              place_bin_edges=None,
-                              use_diffusion=False,
-                              block_size=None):
+def estimate_place_fields_kde(
+    position,
+    spikes,
+    place_bin_centers,
+    position_std,
+    is_track_boundary=None,
+    is_track_interior=None,
+    edges=None,
+    place_bin_edges=None,
+    use_diffusion=False,
+    block_size=None,
+):
     """Gives the conditional intensity of the neurons' spiking with respect to
     position.
 
@@ -167,7 +182,7 @@ def estimate_place_fields_kde(position,
             dx=edges[0][1] - edges[0][0],
             dy=edges[1][1] - edges[1][0],
             std=position_std,
-        ).reshape((n_total_bins, -1), order='F')
+        ).reshape((n_total_bins, -1), order="F")
 
         occupancy = estimate_diffusion_position_density(
             position[not_nan_position],
@@ -176,36 +191,53 @@ def estimate_place_fields_kde(position,
         ).astype(np.float32)
 
         place_fields = np.stack(
-            [get_diffusion_firing_rate(
-                is_spike, position, edges, bin_diffusion_distances,
-                occupancy, not_nan_position)
-             for is_spike in np.asarray(spikes, dtype=bool).T], axis=1)
+            [
+                get_diffusion_firing_rate(
+                    is_spike,
+                    position,
+                    edges,
+                    bin_diffusion_distances,
+                    occupancy,
+                    not_nan_position,
+                )
+                for is_spike in np.asarray(spikes, dtype=bool).T
+            ],
+            axis=1,
+        )
     else:
-        occupancy = np.zeros(
-            (place_bin_centers.shape[0],), dtype=np.float32)
-        occupancy[is_track_interior.ravel(order='F')] = estimate_position_density(
-            place_bin_centers[is_track_interior.ravel(order='F')],
+        occupancy = np.zeros((place_bin_centers.shape[0],), dtype=np.float32)
+        occupancy[is_track_interior.ravel(order="F")] = estimate_position_density(
+            place_bin_centers[is_track_interior.ravel(order="F")],
             position[not_nan_position],
-            position_std, block_size=block_size)
+            position_std,
+            block_size=block_size,
+        )
         place_fields = np.stack(
-            [get_firing_rate(
-                is_spike, position, place_bin_centers,
-                is_track_interior.ravel(
-                    order='F'), not_nan_position, occupancy,
-                position_std)
-             for is_spike in np.asarray(spikes, dtype=bool).T], axis=1)
+            [
+                get_firing_rate(
+                    is_spike,
+                    position,
+                    place_bin_centers,
+                    is_track_interior.ravel(order="F"),
+                    not_nan_position,
+                    occupancy,
+                    position_std,
+                )
+                for is_spike in np.asarray(spikes, dtype=bool).T
+            ],
+            axis=1,
+        )
 
-    DIMS = ['position', 'neuron']
+    DIMS = ["position", "neuron"]
     if position.shape[1] == 1:
-        names = ['position']
-        coords = {
-            'position': place_bin_centers.squeeze()
-        }
+        names = ["position"]
+        coords = {"position": place_bin_centers.squeeze()}
     elif position.shape[1] == 2:
-        names = ['x_position', 'y_position']
+        names = ["x_position", "y_position"]
         coords = {
-            'position': pd.MultiIndex.from_arrays(
-                place_bin_centers.T.tolist(), names=names)
+            "position": pd.MultiIndex.from_arrays(
+                place_bin_centers.T.tolist(), names=names
+            )
         }
 
     return xr.DataArray(data=place_fields, coords=coords, dims=DIMS)
@@ -226,8 +258,11 @@ def poisson_log_likelihood(spikes, conditional_intensity):
     poisson_log_likelihood : array_like, shape (n_time, n_place_bins)
 
     """
-    return (np.log(conditional_intensity[np.newaxis, :] + np.spacing(1)) *
-            spikes[:, np.newaxis] - conditional_intensity[np.newaxis, :])
+    return (
+        np.log(conditional_intensity[np.newaxis, :] + np.spacing(1))
+        * spikes[:, np.newaxis]
+        - conditional_intensity[np.newaxis, :]
+    )
 
 
 def combined_likelihood(spikes, conditional_intensity):
@@ -249,8 +284,9 @@ def combined_likelihood(spikes, conditional_intensity):
     return log_likelihood
 
 
-def estimate_spiking_likelihood_kde(spikes, conditional_intensity,
-                                    is_track_interior=None):
+def estimate_spiking_likelihood_kde(
+    spikes, conditional_intensity, is_track_interior=None
+):
     """
 
     Parameters
@@ -266,7 +302,7 @@ def estimate_spiking_likelihood_kde(spikes, conditional_intensity,
     spikes = np.asarray(spikes, dtype=np.float32)
 
     if is_track_interior is not None:
-        is_track_interior = is_track_interior.ravel(order='F')
+        is_track_interior = is_track_interior.ravel(order="F")
     else:
         n_bins = conditional_intensity.shape[0]
         is_track_interior = np.ones((n_bins,), dtype=np.bool)

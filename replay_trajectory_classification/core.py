@@ -8,11 +8,11 @@ def atleast_2d(x):
 
 
 def get_centers(edge):
-    """"Given a set of bin edges, return the center of the bin"""
+    """ "Given a set of bin edges, return the center of the bin"""
     return edge[:-1] + np.diff(edge) / 2
 
 
-@njit(parallel=True, error_model='numpy')
+@njit(parallel=True, error_model="numpy")
 def normalize_to_probability(distribution):
     """Ensure the distribution integrates to 1 so that it is a probability
     distribution
@@ -20,7 +20,7 @@ def normalize_to_probability(distribution):
     return distribution / np.nansum(distribution)
 
 
-@njit(nogil=True, error_model='numpy', cache=False)
+@njit(nogil=True, error_model="numpy", cache=False)
 def _causal_decode(initial_conditions, state_transition, likelihood):
     """Adaptive filter to iteratively calculate the posterior probability
     of a state variable using past information.
@@ -55,7 +55,7 @@ def _causal_decode(initial_conditions, state_transition, likelihood):
     return posterior, log_data_likelihood
 
 
-@njit(nogil=True, error_model='numpy', cache=False)
+@njit(nogil=True, error_model="numpy", cache=False)
 def _acausal_decode(causal_posterior, state_transition):
     """Uses past and future information to estimate the state.
 
@@ -77,22 +77,26 @@ def _acausal_decode(causal_posterior, state_transition):
     eps = np.spacing(1)
 
     for time_ind in np.arange(n_time - 2, -1, -1):
-        acausal_prior = (
-            state_transition.T @ causal_posterior[time_ind])
-        log_ratio = (
-            np.log(acausal_posterior[time_ind + 1, ..., 0] + eps) -
-            np.log(acausal_prior[..., 0] + eps))
+        acausal_prior = state_transition.T @ causal_posterior[time_ind]
+        log_ratio = np.log(acausal_posterior[time_ind + 1, ..., 0] + eps) - np.log(
+            acausal_prior[..., 0] + eps
+        )
         weights[..., 0] = np.exp(log_ratio) @ state_transition
 
         acausal_posterior[time_ind] = normalize_to_probability(
-            weights * causal_posterior[time_ind])
+            weights * causal_posterior[time_ind]
+        )
 
     return acausal_posterior
 
 
-@njit(nogil=True, error_model='numpy', cache=False)
-def _causal_classify(initial_conditions, continuous_state_transition,
-                     discrete_state_transition, likelihood):
+@njit(nogil=True, error_model="numpy", cache=False)
+def _causal_classify(
+    initial_conditions,
+    continuous_state_transition,
+    discrete_state_transition,
+    likelihood,
+):
     """Adaptive filter to iteratively calculate the posterior probability
     of a state variable using past information.
 
@@ -123,9 +127,10 @@ def _causal_classify(initial_conditions, continuous_state_transition,
         for state_k in np.arange(n_states):
             for state_k_1 in np.arange(n_states):
                 prior[state_k, :] += (
-                    discrete_state_transition[state_k_1, state_k] *
-                    continuous_state_transition[state_k_1, state_k].T @
-                    posterior[k - 1, state_k_1])
+                    discrete_state_transition[state_k_1, state_k]
+                    * continuous_state_transition[state_k_1, state_k].T
+                    @ posterior[k - 1, state_k_1]
+                )
         posterior[k] = prior * likelihood[k]
         norm = np.nansum(posterior[k])
         log_data_likelihood += np.log(norm)
@@ -134,9 +139,10 @@ def _causal_classify(initial_conditions, continuous_state_transition,
     return posterior, log_data_likelihood
 
 
-@njit(nogil=True, error_model='numpy', cache=False)
-def _acausal_classify(causal_posterior, continuous_state_transition,
-                      discrete_state_transition):
+@njit(nogil=True, error_model="numpy", cache=False)
+def _acausal_classify(
+    causal_posterior, continuous_state_transition, discrete_state_transition
+):
     """Uses past and future information to estimate the state.
 
     Parameters
@@ -162,24 +168,23 @@ def _acausal_classify(causal_posterior, continuous_state_transition,
         for state_k_1 in np.arange(n_states):
             for state_k in np.arange(n_states):
                 prior[state_k_1, :] += (
-                    discrete_state_transition[state_k, state_k_1] *
-                    continuous_state_transition[state_k, state_k_1].T @
-                    causal_posterior[k, state_k])
+                    discrete_state_transition[state_k, state_k_1]
+                    * continuous_state_transition[state_k, state_k_1].T
+                    @ causal_posterior[k, state_k]
+                )
 
         # Backwards Update
         weights = np.zeros((n_states, n_bins, 1))
-        ratio = np.exp(
-            np.log(acausal_posterior[k + 1] + eps) -
-            np.log(prior + eps))
+        ratio = np.exp(np.log(acausal_posterior[k + 1] + eps) - np.log(prior + eps))
         for state_k in np.arange(n_states):
             for state_k_1 in np.arange(n_states):
                 weights[state_k] += (
-                    discrete_state_transition[state_k, state_k_1] *
-                    continuous_state_transition[state_k, state_k_1] @
-                    ratio[state_k_1])
+                    discrete_state_transition[state_k, state_k_1]
+                    * continuous_state_transition[state_k, state_k_1]
+                    @ ratio[state_k_1]
+                )
 
-        acausal_posterior[k] = normalize_to_probability(
-            weights * causal_posterior[k])
+        acausal_posterior[k] = normalize_to_probability(weights * causal_posterior[k])
 
     return acausal_posterior
 
@@ -269,8 +274,7 @@ try:
         posterior[0] /= norm
 
         for k in np.arange(1, n_time):
-            posterior[k] = state_transition.T @ posterior[k - 1] * \
-                likelihood[k]
+            posterior[k] = state_transition.T @ posterior[k - 1] * likelihood[k]
             norm = np.nansum(posterior[k])
             log_data_likelihood += cp.log(norm)
             posterior[k] /= norm
@@ -301,22 +305,24 @@ try:
         eps = np.spacing(1, dtype=np.float32)
 
         for time_ind in np.arange(n_time - 2, -1, -1):
-            acausal_prior = (
-                state_transition.T @ causal_posterior[time_ind])
-            log_ratio = (
-                cp.log(acausal_posterior[time_ind + 1, ..., 0] + eps) -
-                cp.log(acausal_prior[..., 0] + eps))
+            acausal_prior = state_transition.T @ causal_posterior[time_ind]
+            log_ratio = cp.log(acausal_posterior[time_ind + 1, ..., 0] + eps) - cp.log(
+                acausal_prior[..., 0] + eps
+            )
             weights[..., 0] = cp.exp(log_ratio) @ state_transition
 
             acausal_posterior[time_ind] = weights * causal_posterior[time_ind]
-            acausal_posterior[time_ind] /= np.nansum(
-                acausal_posterior[time_ind])
+            acausal_posterior[time_ind] /= np.nansum(acausal_posterior[time_ind])
 
         return cp.asnumpy(acausal_posterior)
 
     @cp.fuse()
-    def _causal_classify_gpu(initial_conditions, continuous_state_transition,
-                             discrete_state_transition, likelihood):
+    def _causal_classify_gpu(
+        initial_conditions,
+        continuous_state_transition,
+        discrete_state_transition,
+        likelihood,
+    ):
         """Adaptive filter to iteratively calculate the posterior probability
         of a state variable using past information.
 
@@ -335,9 +341,11 @@ try:
         """
         initial_conditions = cp.asarray(initial_conditions, dtype=cp.float32)
         continuous_state_transition = cp.asarray(
-            continuous_state_transition, dtype=cp.float32)
+            continuous_state_transition, dtype=cp.float32
+        )
         discrete_state_transition = cp.asarray(
-            discrete_state_transition, dtype=cp.float32)
+            discrete_state_transition, dtype=cp.float32
+        )
         likelihood = cp.asarray(likelihood, dtype=cp.float32)
 
         n_time, n_states, n_bins, _ = likelihood.shape
@@ -352,9 +360,10 @@ try:
             for state_k in np.arange(n_states):
                 for state_k_1 in np.arange(n_states):
                     posterior[k, state_k] += (
-                        discrete_state_transition[state_k_1, state_k] *
-                        continuous_state_transition[state_k_1, state_k].T @
-                        posterior[k - 1, state_k_1])
+                        discrete_state_transition[state_k_1, state_k]
+                        * continuous_state_transition[state_k_1, state_k].T
+                        @ posterior[k - 1, state_k_1]
+                    )
             posterior[k] *= likelihood[k]
             norm = cp.nansum(posterior[k])
             log_data_likelihood += cp.log(norm)
@@ -363,8 +372,9 @@ try:
         return cp.asnumpy(posterior), cp.asnumpy(log_data_likelihood)
 
     @cp.fuse()
-    def _acausal_classify_gpu(causal_posterior, continuous_state_transition,
-                              discrete_state_transition):
+    def _acausal_classify_gpu(
+        causal_posterior, continuous_state_transition, discrete_state_transition
+    ):
         """Uses past and future information to estimate the state.
 
         Parameters
@@ -381,9 +391,11 @@ try:
         """
         causal_posterior = cp.asarray(causal_posterior, dtype=cp.float32)
         continuous_state_transition = cp.asarray(
-            continuous_state_transition, dtype=cp.float32)
+            continuous_state_transition, dtype=cp.float32
+        )
         discrete_state_transition = cp.asarray(
-            discrete_state_transition, dtype=cp.float32)
+            discrete_state_transition, dtype=cp.float32
+        )
 
         acausal_posterior = cp.zeros_like(causal_posterior)
         acausal_posterior[-1] = causal_posterior[-1]
@@ -396,40 +408,44 @@ try:
             for state_k_1 in np.arange(n_states):
                 for state_k in np.arange(n_states):
                     prior[state_k_1, :] += (
-                        discrete_state_transition[state_k, state_k_1] *
-                        continuous_state_transition[state_k, state_k_1].T @
-                        causal_posterior[k, state_k])
+                        discrete_state_transition[state_k, state_k_1]
+                        * continuous_state_transition[state_k, state_k_1].T
+                        @ causal_posterior[k, state_k]
+                    )
 
             # Backwards Update
             weights = cp.zeros((n_states, n_bins, 1))
-            ratio = cp.exp(
-                cp.log(acausal_posterior[k + 1] + eps) -
-                cp.log(prior + eps))
+            ratio = cp.exp(cp.log(acausal_posterior[k + 1] + eps) - cp.log(prior + eps))
             for state_k in np.arange(n_states):
                 for state_k_1 in np.arange(n_states):
                     weights[state_k] += (
-                        discrete_state_transition[state_k, state_k_1] *
-                        continuous_state_transition[state_k, state_k_1] @
-                        ratio[state_k_1])
+                        discrete_state_transition[state_k, state_k_1]
+                        * continuous_state_transition[state_k, state_k_1]
+                        @ ratio[state_k_1]
+                    )
 
-            acausal_posterior[k] = (weights * causal_posterior[k])
+            acausal_posterior[k] = weights * causal_posterior[k]
             acausal_posterior[k] /= cp.nansum(acausal_posterior[k])
 
         return cp.asnumpy(acausal_posterior)
+
 except ImportError:
     from logging import getLogger
+
     logger = getLogger(__name__)
-    logger.warning('Cupy is not installed or GPU is not detected.'
-                   ' Ignore this message if not using GPU')
+    logger.warning(
+        "Cupy is not installed or GPU is not detected."
+        " Ignore this message if not using GPU"
+    )
 
     def _causal_decode_gpu(*args, **kwargs):
-        logger.error('No GPU detected...')
+        logger.error("No GPU detected...")
 
     def _acausal_decode_gpu(*args, **kwargs):
-        logger.error('No GPU detected...')
+        logger.error("No GPU detected...")
 
     def _causal_classify_gpu(*args, **kwargs):
-        logger.error('No GPU detected...')
+        logger.error("No GPU detected...")
 
     def _acausal_classify_gpu(*args, **kwargs):
-        logger.error('No GPU detected...')
+        logger.error("No GPU detected...")

@@ -2,7 +2,9 @@
 import numpy as np
 from replay_trajectory_classification.core import scaled_likelihood
 from replay_trajectory_classification.likelihoods.multiunit_likelihood import (
-    estimate_intensity, poisson_mark_log_likelihood)
+    estimate_intensity,
+    poisson_mark_log_likelihood,
+)
 from scipy.signal import convolve
 from scipy.special import cotdg
 from scipy.stats import rv_histogram
@@ -33,10 +35,8 @@ def predict_mark_likelihood(
     for joint_model, multiunit_df, gpi, mean_rate in zip(
         joint_pdf_models, multiunit_dfs, ground_process_intensities, mean_rates
     ):
-        time_index = np.searchsorted(
-            time_bin_edges, multiunit_df.index.total_seconds())
-        in_time_bins = np.nonzero(
-            ~np.isin(time_index, [0, len(time_bin_edges)]))[0]
+        time_index = np.searchsorted(time_bin_edges, multiunit_df.index.total_seconds())
+        in_time_bins = np.nonzero(~np.isin(time_index, [0, len(time_bin_edges)]))[0]
         time_index = time_index[in_time_bins] - 1
         multiunit_df = multiunit_df.iloc[in_time_bins, :4]
         multiunit_df["time_bin_ind"] = time_index
@@ -79,8 +79,9 @@ def predict_mark_likelihood(
     return scaled_likelihood(log_likelihood), time
 
 
-def predict_poisson_likelihood(start_time, end_time, spike_times, place_fields,
-                               is_track_interior, dt=0.020):
+def predict_poisson_likelihood(
+    start_time, end_time, spike_times, place_fields, is_track_interior, dt=0.020
+):
     place_fields = np.asarray(place_fields)
     n_time_bins = np.ceil((end_time - start_time) / dt).astype(int)
     time_bin_edges = start_time + np.arange(n_time_bins + 1) * dt
@@ -97,9 +98,17 @@ def predict_poisson_likelihood(start_time, end_time, spike_times, place_fields,
     spike_time_ind = np.concatenate(spike_time_ind)
 
     log_likelihood = np.stack(
-        [np.sum(np.log(place_fields[:, neuron_ind[spike_time_ind == time_bin]] +
-                       np.spacing(1)), axis=1)
-         for time_bin in np.arange(n_time_bins)])
+        [
+            np.sum(
+                np.log(
+                    place_fields[:, neuron_ind[spike_time_ind == time_bin]]
+                    + np.spacing(1)
+                ),
+                axis=1,
+            )
+            for time_bin in np.arange(n_time_bins)
+        ]
+    )
     log_likelihood -= dt * np.sum(place_fields, axis=1)
 
     mask = np.ones_like(is_track_interior, dtype=np.float)
@@ -143,19 +152,20 @@ def detect_line_with_radon(
         filt = np.ones(2 * n_nearby_bins + 1)
         posterior = np.apply_along_axis(
             lambda time_bin: convolve(time_bin, filt, mode="same"),
-            axis=1, arr=posterior
+            axis=1,
+            arr=posterior,
         )
     else:
         n_nearby_bins = 1
     # Sinogram is shape (pixels_from_center, projection_angles)
     sinogram = radon(
-        posterior.T, theta=projection_angles, circle=False,
-        preserve_range=False
+        posterior.T, theta=projection_angles, circle=False, preserve_range=False
     )
     n_time, n_position_bins = posterior.shape
     center_pixel = np.asarray((n_time // 2, n_position_bins // 2))
     pixels_from_center = np.arange(
-        -sinogram.shape[0] // 2 + 1, sinogram.shape[0] // 2 + 1)
+        -sinogram.shape[0] // 2 + 1, sinogram.shape[0] // 2 + 1
+    )
 
     if filter_invalid_positions:
         start_positions, velocities = convert_polar_to_slope_intercept(
@@ -164,10 +174,8 @@ def detect_line_with_radon(
             center_pixel,
         )
         end_positions = start_positions + velocities * (n_time - 1)
-        sinogram[(start_positions < 0) |
-                 (start_positions > n_position_bins - 1)] = 0.0
-        sinogram[(end_positions < 0) |
-                 (end_positions > n_position_bins - 1)] = 0.0
+        sinogram[(start_positions < 0) | (start_positions > n_position_bins - 1)] = 0.0
+        sinogram[(end_positions < 0) | (end_positions > n_position_bins - 1)] = 0.0
         sinogram[:, np.isinf(velocities.squeeze())] = 0.0
 
     # Find the maximum of the sinogram
@@ -220,8 +228,7 @@ def weighted_correlation(posterior, time, place_bin_centers):
     place_bin_centers = place_bin_centers.squeeze()
     posterior[np.isnan(posterior)] = 0.0
 
-    return _corr(time[:, np.newaxis],
-                 place_bin_centers[np.newaxis, :], posterior)
+    return _corr(time[:, np.newaxis], place_bin_centers[np.newaxis, :], posterior)
 
 
 def isotonic_regression(posterior, time, place_bin_centers):
@@ -231,7 +238,7 @@ def isotonic_regression(posterior, time, place_bin_centers):
     map = map_estimate(posterior, place_bin_centers)
     map_probabilities = np.max(posterior, axis=1)
 
-    regression = IsotonicRegression(increasing='auto').fit(
+    regression = IsotonicRegression(increasing="auto").fit(
         X=time,
         y=map,
         sample_weight=map_probabilities,
@@ -265,8 +272,7 @@ def _sample_posterior(posterior, place_bin_edges, n_samples=1000):
     n_time = posterior.shape[0]
 
     posterior_samples = [
-        rv_histogram((posterior[time_ind], place_bin_edges)).rvs(
-            size=n_samples)
+        rv_histogram((posterior[time_ind], place_bin_edges)).rvs(size=n_samples)
         for time_ind in range(n_time)
     ]
 
@@ -275,9 +281,7 @@ def _sample_posterior(posterior, place_bin_edges, n_samples=1000):
 
 def linear_regression(posterior, place_bin_edges, time, n_samples=1000):
     posterior[np.isnan(posterior)] = 0.0
-    samples = _sample_posterior(
-        posterior, place_bin_edges, n_samples=n_samples
-    )
+    samples = _sample_posterior(posterior, place_bin_edges, n_samples=n_samples)
     design_matrix = np.tile(time, n_samples)[:, np.newaxis]
     response = samples.ravel(order="F")
     regression = LinearRegression().fit(X=design_matrix, y=response)

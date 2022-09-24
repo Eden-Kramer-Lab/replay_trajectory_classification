@@ -3,17 +3,16 @@ each position bin. This can be used for more accurate 2D kernel density
 estimates with boundaries."""
 
 import numpy as np
-from replay_trajectory_classification.environments import (diffuse_each_bin,
-                                                           get_bin_ind)
+from replay_trajectory_classification.environments import diffuse_each_bin, get_bin_ind
 
 
 def estimate_diffusion_position_distance(
-        positions,
-        edges,
-        is_track_interior=None,
-        is_track_boundary=None,
-        position_std=3.0,
-        bin_distances=None,
+    positions,
+    edges,
+    is_track_interior=None,
+    is_track_boundary=None,
+    position_std=3.0,
+    bin_distances=None,
 ):
     """Estimates a distance between a given position and all position bins
     using a diffusion.
@@ -40,22 +39,24 @@ def estimate_diffusion_position_distance(
             dx,
             dy,
             std=position_std,
-        ).reshape((n_time, -1), order='F')
+        ).reshape((n_time, -1), order="F")
 
     bin_ind = get_bin_ind(positions, [edge[1:-1] for edge in edges])
     linear_ind = np.ravel_multi_index(
-        bin_ind, [len(edge) - 1 for edge in edges], order='F')
+        bin_ind, [len(edge) - 1 for edge in edges], order="F"
+    )
     return bin_distances[linear_ind]
 
 
 def estimate_diffusion_position_density(
-        positions,
-        edges,
-        is_track_interior=None,
-        is_track_boundary=None,
-        position_std=3.0,
-        bin_distances=None,
-        block_size=100):
+    positions,
+    edges,
+    is_track_interior=None,
+    is_track_boundary=None,
+    position_std=3.0,
+    bin_distances=None,
+    block_size=100,
+):
     """Kernel density estimate over all position bins using diffusion.
 
     Parameters
@@ -74,11 +75,14 @@ def estimate_diffusion_position_density(
     if block_size is None:
         block_size = n_time
 
-    return np.mean(estimate_diffusion_position_distance(
-        positions,
-        edges,
-        is_track_interior=is_track_interior,
-        is_track_boundary=is_track_boundary,
-        position_std=position_std,
-        bin_distances=bin_distances,
-    ), axis=0)
+    return np.mean(
+        estimate_diffusion_position_distance(
+            positions,
+            edges,
+            is_track_interior=is_track_interior,
+            is_track_boundary=is_track_boundary,
+            position_std=position_std,
+            bin_distances=bin_distances,
+        ),
+        axis=0,
+    )

@@ -38,11 +38,11 @@ def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
 
     n_position_dims = position.shape[1]
     data = {}
-    formula = '1 + te('
+    formula = "1 + te("
     for ind in range(n_position_dims):
-        formula += f'cr(x{ind}, knots=inner_knots[{ind}])'
-        formula += ', '
-        data[f'x{ind}'] = position[:, ind]
+        formula += f"cr(x{ind}, knots=inner_knots[{ind}])"
+        formula += ", "
+        data[f"x{ind}"] = position[:, ind]
 
     formula += 'constraints="center")'
 
@@ -53,9 +53,8 @@ def make_spline_predict_matrix(design_info, place_bin_centers):
     """Make a design matrix for position bins"""
     predict_data = {}
     for ind in range(place_bin_centers.shape[1]):
-        predict_data[f'x{ind}'] = place_bin_centers[:, ind]
-    return build_design_matrices(
-        [design_info], predict_data)[0]
+        predict_data[f"x{ind}"] = place_bin_centers[:, ind]
+    return build_design_matrices([design_info], predict_data)[0]
 
 
 def get_firing_rate(design_matrix, results, sampling_frequency=1):
@@ -64,14 +63,13 @@ def get_firing_rate(design_matrix, results, sampling_frequency=1):
         n_time = design_matrix.shape[0]
         rate = np.zeros((n_time,))
     else:
-        rate = np.exp(
-            design_matrix @ results.coefficients) * sampling_frequency
+        rate = np.exp(design_matrix @ results.coefficients) * sampling_frequency
 
     return rate
 
 
 @dask.delayed
-def fit_glm(response, design_matrix, penalty=None, tolerance=1E-5):
+def fit_glm(response, design_matrix, penalty=None, tolerance=1e-5):
     """Fits a L2-penalized GLM.
 
     Parameters
@@ -96,8 +94,12 @@ def fit_glm(response, design_matrix, penalty=None, tolerance=1E-5):
     else:
         penalty = np.finfo(np.float).eps
     return penalized_IRLS(
-        design_matrix, response.squeeze(), family=families.Poisson(),
-        penalty=penalty, tolerance=tolerance)
+        design_matrix,
+        response.squeeze(),
+        family=families.Poisson(),
+        penalty=penalty,
+        tolerance=tolerance,
+    )
 
 
 def poisson_log_likelihood(spikes, conditional_intensity):
@@ -118,8 +120,8 @@ def poisson_log_likelihood(spikes, conditional_intensity):
     # Logarithm of the absolute value of the gamma function is always 0 when
     # spikes are 0 or 1
     return scipy.stats.poisson.logpmf(
-        spikes[:, np.newaxis],
-        conditional_intensity[np.newaxis, :] + np.spacing(1))
+        spikes[:, np.newaxis], conditional_intensity[np.newaxis, :] + np.spacing(1)
+    )
 
 
 def combined_likelihood(spikes, conditional_intensity):
@@ -141,8 +143,7 @@ def combined_likelihood(spikes, conditional_intensity):
     return log_likelihood
 
 
-def estimate_spiking_likelihood(spikes, conditional_intensity,
-                                is_track_interior=None):
+def estimate_spiking_likelihood(spikes, conditional_intensity, is_track_interior=None):
     """
 
     Parameters
@@ -156,7 +157,7 @@ def estimate_spiking_likelihood(spikes, conditional_intensity,
     likelihood : np.ndarray, shape (n_time, n_bins)
     """
     if is_track_interior is not None:
-        is_track_interior = is_track_interior.ravel(order='F')
+        is_track_interior = is_track_interior.ravel(order="F")
     else:
         n_bins = conditional_intensity.shape[0]
         is_track_interior = np.ones((n_bins,), dtype=np.bool)
@@ -169,15 +170,17 @@ def estimate_spiking_likelihood(spikes, conditional_intensity,
     return log_likelihood * mask
 
 
-def estimate_place_fields(position,
-                          spikes,
-                          place_bin_centers,
-                          place_bin_edges,
-                          edges=None,
-                          is_track_boundary=None,
-                          is_track_interior=None,
-                          penalty=1E-1,
-                          knot_spacing=10):
+def estimate_place_fields(
+    position,
+    spikes,
+    place_bin_centers,
+    place_bin_edges,
+    edges=None,
+    is_track_boundary=None,
+    is_track_interior=None,
+    penalty=1e-1,
+    knot_spacing=10,
+):
     """Gives the conditional intensity of the neurons' spiking with respect to
     position.
 
@@ -201,33 +204,31 @@ def estimate_place_fields(position,
     """
     if np.any(np.ptp(place_bin_edges, axis=0) <= knot_spacing):
         logging.warning("Range of position is smaller than knot spacing.")
-    design_matrix = make_spline_design_matrix(
-        position, place_bin_edges, knot_spacing)
+    design_matrix = make_spline_design_matrix(position, place_bin_edges, knot_spacing)
     design_info = design_matrix.design_info
     try:
         client = get_client()
     except ValueError:
         client = Client()
     design_matrix = client.scatter(np.asarray(design_matrix), broadcast=True)
-    results = [fit_glm(is_spike, design_matrix, penalty)
-               for is_spike in spikes.T]
+    results = [fit_glm(is_spike, design_matrix, penalty) for is_spike in spikes.T]
     results = dask.compute(*results)
 
     predict_matrix = make_spline_predict_matrix(design_info, place_bin_centers)
-    place_fields = np.stack([get_firing_rate(predict_matrix, result)
-                             for result in results], axis=1)
+    place_fields = np.stack(
+        [get_firing_rate(predict_matrix, result) for result in results], axis=1
+    )
 
-    DIMS = ['position', 'neuron']
+    DIMS = ["position", "neuron"]
     if position.shape[1] == 1:
-        names = ['position']
-        coords = {
-            'position': place_bin_centers.squeeze()
-        }
+        names = ["position"]
+        coords = {"position": place_bin_centers.squeeze()}
     elif position.shape[1] == 2:
-        names = ['x_position', 'y_position']
+        names = ["x_position", "y_position"]
         coords = {
-            'position': pd.MultiIndex.from_arrays(
-                place_bin_centers.T.tolist(), names=names)
+            "position": pd.MultiIndex.from_arrays(
+                place_bin_centers.T.tolist(), names=names
+            )
         }
 
     return xr.DataArray(data=place_fields, coords=coords, dims=DIMS)
