@@ -16,6 +16,7 @@ dependencies:
 - dask
 - regularized_glm
 - tqdm
+- flake8
 - jupyter
 - jupyterlab
 - nb_conda
@@ -23,3 +24,6 @@ dependencies:
 - ripple_detection
 - loren_frank_data_processing
 - track_linearization
+- pip
+- pip:
+  - 'black[jupyter]'
