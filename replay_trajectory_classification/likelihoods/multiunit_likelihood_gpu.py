@@ -8,6 +8,7 @@ from replay_trajectory_classification.likelihoods.diffusion import (
     estimate_diffusion_position_density,
     estimate_diffusion_position_distance,
 )
+from scipy.sparse import csr_matrix
 from tqdm.autonotebook import tqdm
 
 try:
@@ -463,8 +464,15 @@ try:
                     set_diag_zero=set_diag_zero,
                     position_distance=position_distance,
                 )
-            log_likelihood[np.ix_(is_spike, is_track_interior)] += np.nan_to_num(
-                log_joint_mark_intensity
+
+            spike_ind = np.nonzero(is_spike)[0]
+            n_spikes = len(spike_ind)
+
+            # add to loglikelihood, sum likelihood if multiple spikes in one time bin
+            # https://stackoverflow.com/questions/5205345/using-numpy-bincount-with-array-weights
+            log_likelihood[: spike_ind.max() + 1, is_track_interior] += np.nan_to_num(
+                csr_matrix((np.ones((n_spikes,)), (spike_ind, np.arange(n_spikes))))
+                * log_joint_mark_intensity
             )
 
             mempool = cp.get_default_memory_pool()
