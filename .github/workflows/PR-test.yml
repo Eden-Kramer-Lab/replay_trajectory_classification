@@ -31,3 +31,4 @@ jobs:
       shell: bash -l {0}
       run: |
         pip install -e .
+        jupyter nbconvert --to notebook --ExecutePreprocessor.kernel_name=python3 --execute notebooks/tutorial/01-Introduction_and_Data_Format.ipynb
