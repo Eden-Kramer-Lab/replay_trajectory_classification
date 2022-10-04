@@ -779,9 +779,12 @@ class SortedSpikesClassifier(_ClassifierBase):
                     )
                 )
         except ValueError:
+            n_enc_env = len(self.place_fields_)
             fig, axes = plt.subplots(
-                len(self.place_fields_), 1, constrained_layout=True, figsize=figsize
+                n_enc_env, 1, constrained_layout=True, figsize=figsize
             )
+            if n_enc_env == 1:
+                axes = np.asarray([axes])
             for ax, ((env_name, enc_group), place_fields) in zip(
                 axes.flat, self.place_fields_.items()
             ):
