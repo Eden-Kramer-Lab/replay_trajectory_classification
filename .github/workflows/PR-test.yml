@@ -21,7 +21,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: 3.8
+        python-version: 3.9
     - name: Set up conda environment
       uses: conda-incubator/setup-miniconda@v2
       with:
@@ -31,4 +31,3 @@ jobs:
       shell: bash -l {0}
       run: |
         pip install -e .
-        jupyter nbconvert --to notebook --execute notebooks/tutorial/01-Introduction_and_Data_Format.ipynb
