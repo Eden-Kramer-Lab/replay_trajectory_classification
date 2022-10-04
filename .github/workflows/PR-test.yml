@@ -30,7 +30,7 @@ jobs:
     - name: Install replay_trajectory_classification
       shell: bash -l {0}
       run: |
-        pip install -e . --no-deps
+        pip install -e .
     - name: Test notebooks
       shell: bash -l {0}
       run: |
