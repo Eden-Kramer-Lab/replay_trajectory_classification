@@ -1,5 +1,7 @@
 import numpy as np
 from numba import njit
+from scipy.interpolate import interp1d
+from track_linearization import get_linearized_position
 
 
 def atleast_2d(x):
@@ -239,6 +241,104 @@ def check_converged(loglik, previous_loglik, tolerance=1e-4):
     is_converged = (delta_loglik / avg_loglik) < tolerance
 
     return is_converged, is_increasing
+
+
+def make_time(start_time, end_time, sampling_frequency=500):
+    n_time_steps = int(np.ceil((end_time - start_time) * sampling_frequency)) + 1
+    return start_time + np.arange(n_time_steps) / sampling_frequency
+
+
+def get_spike_time_ind(spike_times, spike_features, time):
+    is_in_time_bounds = (spike_times >= time.min()) & (spike_times <= time.max())
+
+    spike_times = spike_times[is_in_time_bounds]
+    spike_features = spike_features[is_in_time_bounds]
+
+    spike_time_ind = np.digitize(spike_times, time[1:-1])
+
+    return spike_time_ind, spike_times, spike_features
+
+
+def get_position_at_spike_times(position_time, position, spike_times):
+    position_interpolater = [interp1d(position_time, pos) for pos in position.T]
+
+    return np.stack([interp(spike_times) for interp in position_interpolater], axis=1)
+
+
+def get_projected_position(
+    start_node_2D_position: np.ndarray,
+    end_node_2D_position: np.ndarray,
+    distance_from_start_node: np.ndarray,
+) -> np.ndarray:
+    angle = np.arctan2(
+        end_node_2D_position[:, 1] - start_node_2D_position[:, 1],
+        end_node_2D_position[:, 0] - start_node_2D_position[:, 0],
+    )
+    return np.stack(
+        [
+            start_node_2D_position[:, 0] + distance_from_start_node * np.cos(angle),
+            start_node_2D_position[:, 1] + distance_from_start_node * np.sin(angle),
+        ],
+        axis=1,
+    )
+
+
+def get_2D_position_from_1D_position(
+    linear_position, track_graph, edge_order, edge_spacing
+):
+
+    projected_position = np.zeros((linear_position.shape[0], 2))
+
+    start_node_linear_position = 0.0
+
+    for ind, (start_node, end_node) in enumerate(edge_order):
+
+        end_node_linear_position = (
+            start_node_linear_position
+            + track_graph.edges[(start_node, end_node)]["distance"]
+        )
+
+        is_edge = (linear_position >= start_node_linear_position) & (
+            linear_position <= end_node_linear_position
+        )
+
+        start_node_2D_position = track_graph.nodes[start_node]["pos"]
+        end_node_2D_position = track_graph.nodes[end_node]["pos"]
+
+        distance_from_start_node = linear_position[is_edge] - start_node_linear_position
+
+        projected_position[is_edge] = get_projected_position(
+            np.asarray(start_node_2D_position)[np.newaxis],
+            np.asarray(end_node_2D_position)[np.newaxis],
+            distance_from_start_node,
+        )
+
+        try:
+            start_node_linear_position = end_node_linear_position + edge_spacing[ind]
+        except IndexError:
+            pass
+
+    return projected_position
+
+
+def get_1D_position_at_spike_times(
+    spike_times, position_time, linear_position, track_graph, edge_order, edge_spacing
+):
+    # interpolate points
+    projected_position = get_2D_position_from_1D_position(
+        linear_position, track_graph, edge_order, edge_spacing
+    )
+    position2D_at_spike_times = get_position_at_spike_times(
+        position_time, projected_position, spike_times
+    )
+    # project back to 1D
+    return get_linearized_position(
+        position=position2D_at_spike_times,
+        track_graph=track_graph,
+        edge_spacing=edge_spacing,
+        edge_order=edge_order,
+        use_HMM=False,
+    ).linear_position.to_numpy()
 
 
 try:
