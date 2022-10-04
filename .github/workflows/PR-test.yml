@@ -31,4 +31,4 @@ jobs:
       shell: bash -l {0}
       run: |
         pip install -e .
-        jupyter nbconvert --execute notebooks/tutorial/01-Introduction_and_Data_Format.ipynb
+        jupyter nbconvert --to notebook --execute notebooks/tutorial/01-Introduction_and_Data_Format.ipynb
