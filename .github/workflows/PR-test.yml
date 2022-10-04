@@ -30,5 +30,12 @@ jobs:
     - name: Install replay_trajectory_classification
       shell: bash -l {0}
       run: |
-        pip install -e .
+        pip install -e . --no-deps
+    - name: Test notebooks
+      shell: bash -l {0}
+      run: |
         jupyter nbconvert --to notebook --ExecutePreprocessor.kernel_name=python3 --execute notebooks/tutorial/01-Introduction_and_Data_Format.ipynb
+        jupyter nbconvert --to notebook --ExecutePreprocessor.kernel_name=python3 --execute notebooks/tutorial/02-Decoding_with_Sorted_Spikes.ipynb
+        jupyter nbconvert --to notebook --ExecutePreprocessor.kernel_name=python3 --execute notebooks/tutorial/03-Decoding_with_Clusterless_Spikes.ipynb
+        jupyter nbconvert --to notebook --ExecutePreprocessor.kernel_name=python3 --execute notebooks/tutorial/04-Classifying_with_Sorted_Spikes.ipynb
+        jupyter nbconvert --to notebook --ExecutePreprocessor.kernel_name=python3 --execute notebooks/tutorial/05-Classifying_with_Clusterless_Spikes.ipynb
