@@ -3,6 +3,7 @@ trajectory from population spiking
 """
 from copy import deepcopy
 from logging import getLogger
+from typing import List
 
 import joblib
 import matplotlib.pyplot as plt
@@ -10,6 +11,8 @@ import numpy as np
 import seaborn as sns
 import sklearn
 import xarray as xr
+from sklearn.base import BaseEstimator
+
 from replay_trajectory_classification.continuous_state_transitions import (
     EmpiricalMovement,
     RandomWalk,
@@ -22,7 +25,10 @@ from replay_trajectory_classification.core import (
     _causal_classify_gpu,
     atleast_2d,
     check_converged,
+    find_time_interval_intersection,
     get_centers,
+    get_valid_time,
+    make_time,
     mask,
     scaled_likelihood,
 )
@@ -37,7 +43,6 @@ from replay_trajectory_classification.likelihoods import (
     _ClUSTERLESS_ALGORITHMS,
 )
 from replay_trajectory_classification.observation_model import ObservationModel
-from sklearn.base import BaseEstimator
 
 logger = getLogger(__name__)
 
@@ -938,19 +943,25 @@ class ClusterlessClassifier(_ClassifierBase):
 
     def fit_multiunits(
         self,
-        position,
-        multiunits,
-        is_training=None,
-        encoding_group_labels=None,
-        environment_labels=None,
+        position_time: np.ndarray,
+        position: np.ndarray,
+        multiunit_spike_times: List[np.ndarray],
+        multiunit_spike_features: List[np.ndarray],
+        training_time_intervals: np.ndarray = None,
+        labels_time_intervals: np.ndarray = None,
+        encoding_group_labels: np.ndarray = None,
+        environment_labels: np.ndarray = None,
     ):
         """Fit the clusterless place field model.
 
         Parameters
         ----------
+        position_time : array_like, shape (n_time,)
         position : array_like, shape (n_time, n_position_dims)
-        multiunits : array_like, shape (n_time, n_marks, n_electrodes)
-        is_training : None or array_like, shape (n_time,)
+        multiunit_spike_times : list of array_like, shape (n_spike_times,)
+        multiunit_spike_features : list of array_like, shape (n_spike_times, n_features)
+        training_time_intervals : np.ndarray, shape (n_intervals, 2)
+        labels_time_intervals : np.ndarray, shape (n_intervals, 2)
         encoding_group_labels : None or np.ndarray, shape (n_time,)
             Label for the corresponding encoding group for each time point
         environment_labels : None or np.ndarray, shape (n_time,)
@@ -958,19 +969,25 @@ class ClusterlessClassifier(_ClassifierBase):
 
         """
         logger.info("Fitting multiunits...")
-        n_time = position.shape[0]
-        if is_training is None:
-            is_training = np.ones((n_time,), dtype=bool)
 
+        if training_time_intervals is None:
+            training_time_intervals = np.asarray(
+                [[position_time.min(), position_time.max()]]
+            )
+
+        if labels_time_intervals is None:
+            labels_time_intervals = np.asarray(
+                [[position_time.min(), position_time.max()]]
+            )
+
+        n_labels_time_intervals = len(labels_time_intervals)
         if encoding_group_labels is None:
-            encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
+            encoding_group_labels = np.zeros((n_labels_time_intervals,), dtype=np.int32)
 
         if environment_labels is None:
             environment_labels = np.asarray(
-                [self.environments[0].environment_name] * n_time
+                [self.environments[0].environment_name] * n_labels_time_intervals
             )
-
-        is_training = np.asarray(is_training).squeeze()
 
         kwargs = self.clusterless_algorithm_params
         if kwargs is None:
@@ -985,15 +1002,30 @@ class ClusterlessClassifier(_ClassifierBase):
 
             is_encoding = np.isin(encoding_group_labels, obs.encoding_group)
             is_environment = environment_labels == obs.environment_name
-            is_group = is_training & is_encoding & is_environment
+            group_time_intervals = labels_time_intervals[is_encoding & is_environment]
+            time_interval = find_time_interval_intersection(
+                group_time_intervals, training_time_intervals
+            )
+
+            is_valid_position_time = get_valid_time(position_time, time_interval)
+            valid_spike_times = [
+                multiunit_spike_times[get_valid_time(spike_times, time_interval)]
+                for spike_times in multiunit_spike_times
+            ]
+            valid_spike_features = [
+                multiunit_spike_features[get_valid_time(spike_times, time_interval)]
+                for spike_times in multiunit_spike_times
+            ]
 
             likelihood_name = (obs.environment_name, obs.encoding_group)
 
             self.encoding_model_[likelihood_name] = _ClUSTERLESS_ALGORITHMS[
                 self.clusterless_algorithm
             ][0](
-                position=position[is_group],
-                multiunits=multiunits[is_group],
+                position_time[is_valid_position_time],
+                position[is_valid_position_time],
+                valid_spike_times,
+                valid_spike_features,
                 place_bin_centers=environment.place_bin_centers_,
                 is_track_interior=environment.is_track_interior_,
                 is_track_boundary=environment.is_track_boundary_,
@@ -1003,20 +1035,26 @@ class ClusterlessClassifier(_ClassifierBase):
 
     def fit(
         self,
-        position,
-        multiunits,
-        is_training=None,
-        encoding_group_labels=None,
-        environment_labels=None,
+        position_time: np.ndarray,
+        position: np.ndarray,
+        multiunit_spike_times: List[np.ndarray],
+        multiunit_spike_features: List[np.ndarray],
+        training_time_intervals: np.ndarray = None,
+        labels_time_intervals: np.ndarray = None,
+        encoding_group_labels: np.ndarray = None,
+        environment_labels: np.ndarray = None,
     ):
         """Fit the spatial grid, initial conditions, place field model, and
         transition matrices.
 
         Parameters
         ----------
+        position_time : array_like, shape (n_time,)
         position : array_like, shape (n_time, n_position_dims)
-        multiunits : array_like, shape (n_time, n_marks, n_electrodes)
-        is_training : None or array_like, shape (n_time,)
+        multiunit_spike_times : list of array_like, shape (n_spike_times,)
+        multiunit_spike_features : list of array_like, shape (n_spike_times, n_features)
+        training_time_intervals : np.ndarray, shape (n_intervals, 2)
+        labels_time_intervals : np.ndarray, shape (n_intervals, 2)
         encoding_group_labels : None or np.ndarray, shape (n_time,)
             Label for the corresponding encoding group for each time point
         environment_labels : None or np.ndarray, shape (n_time,)
@@ -1028,28 +1066,47 @@ class ClusterlessClassifier(_ClassifierBase):
 
         """
         position = atleast_2d(np.asarray(position))
-        multiunits = np.asarray(multiunits)
 
-        self.fit_environments(position, environment_labels)
+        (
+            position_environment_labels,
+            position_group_labels,
+            is_position_training,
+        ) = find_position_group_environment_labels(
+            position_time,
+            labels_time_intervals,
+            environment_labels,
+            training_time_intervals,
+        )
+        self.fit_environments(position, position_environment_labels)
         self.fit_initial_conditions()
         self.fit_continuous_state_transition(
             self.continuous_transition_types,
             position,
-            is_training,
-            encoding_group_labels,
-            environment_labels,
+            is_position_training,
+            position_group_labels,
+            position_environment_labels,
         )
         self.fit_discrete_state_transition()
         self.fit_multiunits(
-            position, multiunits, is_training, encoding_group_labels, environment_labels
+            position_time,
+            position,
+            multiunit_spike_times,
+            multiunit_spike_features,
+            training_time_intervals,
+            labels_time_intervals,
+            encoding_group_labels,
+            environment_labels,
         )
 
         return self
 
     def predict(
         self,
-        multiunits,
-        time=None,
+        multiunit_spike_times,
+        multiunit_spike_features,
+        start_time,
+        end_time,
+        sampling_frequency=500,
         is_compute_acausal=True,
         use_gpu=False,
         state_names=None,
@@ -1074,10 +1131,11 @@ class ClusterlessClassifier(_ClassifierBase):
         results : xarray.Dataset
 
         """
-        multiunits = np.asarray(multiunits)
-        n_time = multiunits.shape[0]
+        time = make_time(start_time, end_time, sampling_frequency)
+        n_time = len(time)
 
         logger.info("Estimating likelihood...")
+        compute_likelihood = _ClUSTERLESS_ALGORITHMS[self.clusterless_algorithm][1]
         likelihood = {}
         for (env_name, enc_group), encoding_params in self.encoding_model_.items():
             env_ind = self.environments.index(env_name)
@@ -1085,10 +1143,11 @@ class ClusterlessClassifier(_ClassifierBase):
                 order="F"
             )
             place_bin_centers = self.environments[env_ind].place_bin_centers_
-            likelihood[(env_name, enc_group)] = _ClUSTERLESS_ALGORITHMS[
-                self.clusterless_algorithm
-            ][1](
-                multiunits=multiunits,
+
+            likelihood[(env_name, enc_group)] = compute_likelihood(
+                time,
+                multiunit_spike_times,
+                multiunit_spike_features,
                 place_bin_centers=place_bin_centers,
                 is_track_interior=is_track_interior,
                 **encoding_params,

@@ -341,6 +341,73 @@ def get_1D_position_at_spike_times(
     ).linear_position.to_numpy()
 
 
+def find_time_interval_intersection(
+    intervals1: np.ndarray, intervals2: np.ndarray
+) -> np.ndarray:
+    """_summary_
+
+    Parameters
+    ----------
+    intervals1 : np.ndarray, shape (n_intervals1, 2)
+    intervals2 : np.ndarray, shape (n_intervals2, 2)
+
+    Returns
+    -------
+    np.ndarray, shape (n_intersecting_intervals, 2)
+
+    References
+    ----------
+    [1] https://stackoverflow.com/questions/40367461/intersection-of-two-lists-of-ranges-in-python
+
+    """
+    ranges = []
+    i = j = 0
+    while i < len(intervals1) and j < len(intervals2):
+        interval1_left, interval1_right = intervals1[i]
+        interval2_left, interval2_right = intervals2[j]
+
+        if interval1_right < interval2_right:
+            i += 1
+        else:
+            j += 1
+
+        if (interval1_right >= interval2_left) and (interval2_right >= interval1_left):
+            end_pts = sorted(
+                [interval1_left, interval1_right, interval2_left, interval2_right]
+            )
+            ranges.append([end_pts[1], end_pts[2]])
+
+    ri = 0
+    while ri < len(ranges) - 1:
+        if ranges[ri][1] == ranges[ri + 1][0]:
+            ranges[ri : ri + 2] = [[ranges[ri][0], ranges[ri + 1][1]]]
+
+        ri += 1
+
+    return np.asarray(ranges)
+
+
+def get_valid_time(time: np.ndarray, time_interval: np.ndarray) -> np.ndarray:
+    """Get boolean array marking valid times from array of time intervals.
+
+    Parameters
+    ----------
+    time : np.ndarray, shape (n_time,)
+    time_interval : np.ndarray, shape (n_intervals, 2)
+
+    Returns
+    -------
+    is_valid_time : np.ndarray, shape (n_time,)
+
+    """
+
+    return np.sum(
+        (time[:, np.newaxis] >= time_interval[:, 0])
+        & (time[:, np.newaxis] <= time_interval[:, 1]),
+        axis=1,
+    ).astype(bool)
+
+
 try:
     import cupy as cp
 
