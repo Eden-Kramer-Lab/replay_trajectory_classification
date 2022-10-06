@@ -379,15 +379,13 @@ class _ClassifierBase(BaseEstimator):
     ):
         n_states = self.discrete_state_transition_.shape[0]
         results = {}
+        dtype = np.float32 if use_gpu else np.float64
 
-        if use_gpu:
-            results["likelihood"] = np.full(
-                (n_time, n_states, self.max_pos_bins_, 1), np.nan, dtype=np.float32
-            )
-        else:
-            results["likelihood"] = np.full(
-                (n_time, n_states, self.max_pos_bins_, 1), np.nan, dtype=np.float64
-            )
+        results["likelihood"] = np.full(
+            (n_time, n_states, self.max_pos_bins_, 1), np.nan, dtype=dtype
+        )
+        compute_causal = _causal_classify_gpu if use_gpu else _causal_classify
+        compute_acausal = _acausal_classify_gpu if use_gpu else _acausal_classify
 
         for state_ind, obs in enumerate(self.observation_models):
             likelihood_name = (obs.environment_name, obs.encoding_group)
@@ -400,6 +398,10 @@ class _ClassifierBase(BaseEstimator):
         results["likelihood"][np.isnan(results["likelihood"])] = 0.0
 
         n_environments = len(self.environments)
+
+        if time is None:
+            time = np.arange(n_time)
+
         if n_environments == 1:
             logger.info("Estimating causal posterior...")
             is_track_interior = self.environments[0].is_track_interior_.ravel(order="F")
@@ -408,72 +410,31 @@ class _ClassifierBase(BaseEstimator):
             st_interior_ind = np.ix_(
                 is_states, is_states, is_track_interior, is_track_interior
             )
-            if not use_gpu:
-                results["causal_posterior"] = np.full(
-                    (n_time, n_states, n_position_bins, 1), np.nan, dtype=np.float64
-                )
-                (
-                    results["causal_posterior"][:, :, is_track_interior],
-                    data_log_likelihood,
-                ) = _causal_classify(
-                    self.initial_conditions_[:, is_track_interior].astype(np.float64),
-                    self.continuous_state_transition_[st_interior_ind].astype(
-                        np.float64
-                    ),
-                    self.discrete_state_transition_.astype(np.float64),
-                    results["likelihood"][:, :, is_track_interior].astype(np.float64),
-                )
-            else:
-                results["causal_posterior"] = np.full(
-                    (n_time, n_states, n_position_bins, 1), np.nan, dtype=np.float32
-                )
-                (
-                    results["causal_posterior"][:, :, is_track_interior],
-                    data_log_likelihood,
-                ) = _causal_classify_gpu(
-                    self.initial_conditions_[:, is_track_interior].astype(np.float32),
-                    self.continuous_state_transition_[st_interior_ind].astype(
-                        np.float32
-                    ),
-                    self.discrete_state_transition_.astype(np.float32),
-                    results["likelihood"][:, :, is_track_interior].astype(np.float32),
-                )
+
+            results["causal_posterior"] = np.full(
+                (n_time, n_states, n_position_bins, 1), np.nan, dtype=dtype
+            )
+            (
+                results["causal_posterior"][:, :, is_track_interior],
+                data_log_likelihood,
+            ) = compute_causal(
+                self.initial_conditions_[:, is_track_interior].astype(dtype),
+                self.continuous_state_transition_[st_interior_ind].astype(dtype),
+                self.discrete_state_transition_.astype(dtype),
+                results["likelihood"][:, :, is_track_interior].astype(dtype),
+            )
 
             if is_compute_acausal:
                 logger.info("Estimating acausal posterior...")
-                if not use_gpu:
-                    results["acausal_posterior"] = np.full(
-                        (n_time, n_states, n_position_bins, 1), np.nan, dtype=np.float32
-                    )
-                    results["acausal_posterior"][
-                        :, :, is_track_interior
-                    ] = _acausal_classify(
-                        results["causal_posterior"][:, :, is_track_interior].astype(
-                            np.float64
-                        ),
-                        self.continuous_state_transition_[st_interior_ind].astype(
-                            np.float64
-                        ),
-                        self.discrete_state_transition_.astype(np.float64),
-                    )
-                else:
-                    results["acausal_posterior"] = np.full(
-                        (n_time, n_states, n_position_bins, 1), np.nan, dtype=np.float32
-                    )
-                    results["acausal_posterior"][
-                        :, :, is_track_interior
-                    ] = _acausal_classify_gpu(
-                        results["causal_posterior"][:, :, is_track_interior].astype(
-                            np.float32
-                        ),
-                        self.continuous_state_transition_[st_interior_ind].astype(
-                            np.float32
-                        ),
-                        self.discrete_state_transition_.astype(np.float32),
-                    )
 
-            if time is None:
-                time = np.arange(n_time)
+                results["acausal_posterior"] = np.full(
+                    (n_time, n_states, n_position_bins, 1), np.nan, dtype=dtype
+                )
+                results["acausal_posterior"][:, :, is_track_interior] = compute_acausal(
+                    results["causal_posterior"][:, :, is_track_interior].astype(dtype),
+                    self.continuous_state_transition_[st_interior_ind].astype(dtype),
+                    self.discrete_state_transition_.astype(dtype),
+                )
 
             return self._convert_results_to_xarray(
                 results, time, state_names, data_log_likelihood
@@ -481,41 +442,20 @@ class _ClassifierBase(BaseEstimator):
 
         else:
             logger.info("Estimating causal posterior...")
-            if not use_gpu:
-                (results["causal_posterior"], data_log_likelihood) = _causal_classify(
-                    self.initial_conditions_,
-                    self.continuous_state_transition_,
-                    self.discrete_state_transition_,
-                    results["likelihood"],
-                )
-            else:
-                (
-                    results["causal_posterior"],
-                    data_log_likelihood,
-                ) = _causal_classify_gpu(
-                    self.initial_conditions_,
-                    self.continuous_state_transition_,
-                    self.discrete_state_transition_,
-                    results["likelihood"],
-                )
+            (results["causal_posterior"], data_log_likelihood) = compute_causal(
+                self.initial_conditions_.astype(dtype),
+                self.continuous_state_transition_.astype(dtype),
+                self.discrete_state_transition_.astype(dtype),
+                results["likelihood"].astype(dtype),
+            )
 
             if is_compute_acausal:
                 logger.info("Estimating acausal posterior...")
-                if not use_gpu:
-                    results["acausal_posterior"] = _acausal_classify(
-                        results["causal_posterior"],
-                        self.continuous_state_transition_,
-                        self.discrete_state_transition_,
-                    )
-                else:
-                    results["acausal_posterior"] = _acausal_classify_gpu(
-                        results["causal_posterior"],
-                        self.continuous_state_transition_,
-                        self.discrete_state_transition_,
-                    )
-
-            if time is None:
-                time = np.arange(n_time)
+                results["acausal_posterior"] = compute_acausal(
+                    results["causal_posterior"].astype(dtype),
+                    self.continuous_state_transition_.astype(dtype),
+                    self.discrete_state_transition_.astype(dtype),
+                )
 
             return self._convert_results_to_xarray_mutienvironment(
                 results, time, state_names, data_log_likelihood
