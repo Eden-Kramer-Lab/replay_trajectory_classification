@@ -42,7 +42,9 @@ or our [conference paper](https://doi.org/10.1109/IEEECONF44664.2019.9048688):
 Also see:
 > Gillespie, A.K., Astudillo Maya, D.A., Denovellis, E.L., Liu, D.F., Kastner, D.B., Coulter, M.E., Roumis, D.K., Eden, U.T., and Frank, L.M. (2021). Hippocampal replay reflects specific past experiences rather than a plan for subsequent choice. Neuron S0896627321005730. <https://doi.org/10.1016/j.neuron.2021.07.029>.
 
-> Joshi, A., Denovellis, E., Mankili, A., Meneksedag, Y., Davidson, T., Gillespie, K., Guidera, J.A., Roumis, D., and Frank, L.M. (2022). Dynamic Synchronization between Hippocampal Spatial Representations and the Stepping Rhythm. 30. <https://doi.org/10.1101/2022.02.23.481357>.
+> Joshi, A., Denovellis, E., Mankili, A., Meneksedag, Y., Davidson, T., Gillespie, K., Guidera, J.A., Roumis, D., and Frank, L.M. (2022). Dynamic Synchronization between Hippocampal Spatial Representations and the Stepping Rhythm. bioRxiv, 30. <https://doi.org/10.1101/2022.02.23.481357>.
+
+> Gillespie, A.K., Astudillo Maya, D.A., Denovellis, E.L., Desse, S., and Frank, L.M. (2022). Neurofeedback training can modulate task-relevant memory replay in rats. bioRxiv, 2022.10.13.512183. <https://doi.org/10.1101/2022.10.13.512183>.
 
 ### Installation ###
 
