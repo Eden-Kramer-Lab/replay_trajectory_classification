@@ -132,51 +132,31 @@ def expected_duration(discrete_state_transition, sampling_frequency=1):
 
 
 def estimate_discrete_state_transition(classifier, results):
-    """Updates the discrete_state_transition based on the probability of each
-    state.
 
-    Parameters
-    ----------
-    classifier : ClusterlessClassifier or SortedSpikesClassifier
-    results : xarray.Dataset
+    likelihood = results.likelihood.sum("position").values
+    causal_prob = results.causal_posterior.sum("position").values
+    acausal_prob = results.acausal_posterior.sum("position").values
+    transition_matrix = classifier.discrete_state_transition_
 
-    Returns
-    -------
-    discrete_state_transition : numpy.ndarray, shape (n_states, n_states)
+    n_time, n_states = causal_prob.shape
 
-    Notes
-    -----
-    $$
-    Pr(I_{k} = i, I_{k+1} = j \mid O_{1:T}) = \frac{Pr(I_{k+1} = j \mid I_{k} = i) Pr(I_{k} = i \mid O_{1:k})}{Pr(I_{k+1} = j \mid O_{1:k})} Pr(I_{k+1} = j \mid O_{1:T})
-    $$
-    """
-    EPS = 1e-32
-    try:
-        causal_prob = np.log(results.causal_posterior.sum("position").values + EPS)
-        acausal_prob = np.log(results.acausal_posterior.sum("position").values + EPS)
-    except ValueError:
-        causal_prob = np.log(
-            results.causal_posterior.sum(["x_position", "y_position"]).values + EPS
-        )
-        acausal_prob = np.log(
-            results.acausal_posterior.sum(["x_position", "y_position"]).values + EPS
-        )
+    # probability of state 1 in time t and state 2 in time t+1
+    xi = np.zeros((n_time - 1, n_states, n_states))
 
-    old_discrete_state_transition = np.log(classifier.discrete_state_transition_)
-    n_states = old_discrete_state_transition.shape[0]
-
-    new_log_discrete_state_transition = np.empty((n_states, n_states))
-    for i in range(n_states):
-        for j in range(n_states):
-            new_log_discrete_state_transition[i, j] = logsumexp(
-                old_discrete_state_transition[i, j]
-                + causal_prob[:-1, i]
-                + acausal_prob[1:, j]
-                - causal_prob[1:, j]
+    for from_state in range(n_states):
+        for to_state in range(n_states):
+            xi[:, from_state, to_state] = (
+                causal_prob[:-1, from_state]
+                * likelihood[1:, to_state]
+                * acausal_prob[1:, to_state]
+                * transition_matrix[from_state, to_state]
+                / (causal_prob[1:, to_state] + np.spacing(1))
             )
-            new_log_discrete_state_transition[i, j] -= logsumexp(acausal_prob[:-1, i])
-    new_log_discrete_state_transition -= logsumexp(
-        new_log_discrete_state_transition, axis=-1, keepdims=True
-    )
 
-    return np.exp(new_log_discrete_state_transition)
+    xi = xi / xi.sum(axis=(1, 2), keepdims=True)
+
+    summed_xi = xi.sum(axis=0)
+
+    new_transition_matrix = summed_xi / summed_xi.sum(axis=1, keepdims=True)
+
+    return new_transition_matrix
