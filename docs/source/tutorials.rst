@@ -2,7 +2,7 @@ Jupyter Notebooks Examples
 ##########################
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :includehidden:
 
    Introduction <_copied_over/notebooks/01-Introduction_and_Data_Format.ipynb>
