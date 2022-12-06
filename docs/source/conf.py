@@ -14,74 +14,102 @@ import os
 import shutil
 import sys
 
-sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath("."))
 
 
 # -- Project information -----------------------------------------------------
 
-project = 'replay_trajectory_classification'
-copyright = '2022, Eric Denovellis'
-author = 'Eric Denovellis'
+project = "replay_trajectory_classification"
+copyright = "2022, Eric Denovellis"
+author = "Eric Denovellis"
 
 # The full version, including alpha/beta/rc tags
-release = '1.3.2'
+release = "1.3.6"
 
-# -- Get Jupyter Notebooks ---------------------------------------------------
-
+# -- General configuration ------------------------------------------------
 
 extensions = [
-    'sphinx.ext.autodoc',  # Core Sphinx library for auto html doc generation from docstrings
-    'sphinx.ext.autosummary',  # Create neat summary tables for modules/classes/methods etc
-    'sphinxcontrib.napoleon',
-    # Link to other project's documentation (see mapping below)
-    'sphinx.ext.intersphinx',
-    # Add a link to the Python source code for classes, functions etc.
-    'sphinx.ext.viewcode',
-    # 'sphinx.autodoc.typehints', # Automatically document param types (less noise in class signature)
-    'nbsphinx',  # Integrate Jupyter Notebooks and Sphinx
-    'IPython.sphinxext.ipython_console_highlighting',
-    'myst_parser',
+    "sphinx.ext.autodoc",  # Core Sphinx library for auto html doc generation from docstrings
+    "sphinx.ext.autosummary",  # Create neat summary tables for modules/classes/methods etc
+    "sphinx.ext.coverage",
+    "sphinx.ext.intersphinx",  # Link to other project's documentation (see mapping below)
+    "sphinx.ext.mathjax",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",  # Add a link to the Python source code for classes, functions etc.
+    "nbsphinx",  # Integrate Jupyter Notebooks and Sphinx
+    "numpydoc",
+    "myst_nb",
+    "IPython.sphinxext.ipython_console_highlighting",  # syntax highlighting
 ]
-
-# Mappings for sphinx.ext.intersphinx. Projects have to have Sphinx-generated doc! (.inv file)
-intersphinx_mapping = {
-    "python": ("https://docs.python.org/3/", None),
-}
-
-autosummary_generate = True  # Turn on sphinx.ext.autosummary
-autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
-# Remove 'view source code' from top of page (for html, not python)
-html_show_sourcelink = True
-autodoc_inherit_docstrings = False  # If no docstring, inherit from base class
-# Enable 'expensive' imports for sphinx_autodoc_typehints
-set_type_checking_flag = True
-nbsphinx_allow_errors = True  # Continue through Jupyter errors
-add_module_names = False  # Remove namespaces from class/method signatures
-
+autosummary_generate = True
+add_module_names = False
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
+
+# The suffix(es) of source filenames.
+source_suffix = {".rst": "restructuredtext", ".myst": "myst-nb", ".ipynb": "myst-nb"}
+
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-# This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'requirements.txt']
+# This patterns also effect to html_static_path and html_extra_path
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    "**.ipynb_checkpoints",
+    "setup.py",
+    "README.md",
+]
 
-nbsphinx_execute = 'never'
+# The name of the Pygments (syntax highlighting) style to use.
+pygments_style = "sphinx"
 
-source_suffix = {
-    '.rst': 'restructuredtext',
-    '.txt': 'markdown',
-    '.md': 'markdown',
-}
-# -- Options for HTML output -------------------------------------------------
+# -- Options for HTML output ----------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-#
-html_theme = 'furo'
+html_theme = "furo"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
+    "cupy": ("https://docs.cupy.dev/en/stable/", None),
+}
+
+# -- MyST and MyST-NB ---------------------------------------------------
+
+# MyST
+myst_enable_extensions = [
+    "dollarmath",
+    "amsmath",
+    "deflist",
+    "colon_fence",
+]
+
+# MyST-NB
+nb_execution_mode = "cache"
+nb_execution_mode = "off"
+
+
+def copy_tree(src, tar):
+    """Copies over notebooks into the documentation folder, so get around an issue where nbsphinx
+    requires notebooks to be in the same folder as the documentation folder"""
+    if os.path.exists(tar):
+        shutil.rmtree(tar)
+    shutil.copytree(src, tar)
+
+
+# -- Get Jupyter Notebooks ---------------------------------------------------
+
+copy_tree("../../notebooks/tutorial", "./_copied_over/notebooks")
