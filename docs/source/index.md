@@ -23,9 +23,11 @@ API reference <api>
 
 `replay_trajectory_classification` is a python package for decoding spatial position represented by neural activity and categorizing the type of trajectory.
 
-<p align="center">
-  <img src="fra_11_04_0001.gif" height="400"></img>
-</p>
+```{image} ../_static/fra_11_04_0001.gif
+:alt: linearization image
+:align: center
+:height: 400 px
+```
 
 ### Advantages over other algorithms ###
 
