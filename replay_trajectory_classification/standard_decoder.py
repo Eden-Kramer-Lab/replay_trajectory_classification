@@ -3,7 +3,6 @@ import numpy as np
 from replay_trajectory_classification.core import scaled_likelihood
 from replay_trajectory_classification.likelihoods.multiunit_likelihood import (
     estimate_intensity,
-    poisson_mark_log_likelihood,
 )
 from scipy.signal import convolve
 from scipy.special import cotdg
@@ -11,6 +10,25 @@ from scipy.stats import rv_histogram
 from skimage.transform import radon
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LinearRegression
+
+
+def poisson_mark_log_likelihood(
+    joint_mark_intensity, ground_process_intensity, time_bin_size=1
+):
+    """Probability of parameters given spiking indicator at a particular
+    time and associated marks.
+    Parameters
+    ----------
+    joint_mark_intensity : ndarray, shape (n_time, n_bins)
+    ground_process_intensity : ndarray, shape (1, n_bins)
+    time_bin_size : int, optional
+    Returns
+    -------
+    poisson_mark_log_likelihood : ndarray, shape (n_time, n_bins)
+    """
+    return np.log(joint_mark_intensity + np.spacing(1)) - (
+        (ground_process_intensity + np.spacing(1)) * time_bin_size
+    )
 
 
 def predict_mark_likelihood(
