@@ -1,4 +1,5 @@
 replay_trajectory_classification
+dask[distributed]
 numpydoc
 sphinx
 pydata-sphinx-theme
