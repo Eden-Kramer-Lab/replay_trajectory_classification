@@ -24,7 +24,7 @@ copyright = "2022, Eric Denovellis"
 author = "Eric Denovellis"
 
 # The full version, including alpha/beta/rc tags
-release = "1.3.6"
+release = "1.3.7"
 
 # -- General configuration ------------------------------------------------
 
