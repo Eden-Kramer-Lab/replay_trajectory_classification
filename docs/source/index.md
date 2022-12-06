@@ -7,14 +7,14 @@ Tutorials <tutorials>
 API reference <api>
 ```
 
-# replay_trajectory_classification #
+# replay_trajectory_classification
 
 [![DOI](https://zenodo.org/badge/177004334.svg)](https://zenodo.org/badge/latestdoi/177004334)
 ![PyPI version](https://img.shields.io/pypi/v/replay_trajectory_classification)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Eden-Kramer-Lab/replay_trajectory_classification/master)
 [![PR Test](https://github.com/Eden-Kramer-Lab/replay_trajectory_classification/actions/workflows/PR-test.yml/badge.svg)](https://github.com/Eden-Kramer-Lab/replay_trajectory_classification/actions/workflows/PR-test.yml)
 
-## What is replay_trajectory_classification? ##
+## What is replay_trajectory_classification?
 
 `replay_trajectory_classification` is a python package for decoding spatial position represented by neural activity and categorizing the type of trajectory.
 
@@ -24,7 +24,7 @@ API reference <api>
 :height: 400 px
 ```
 
-### Advantages over other algorithms ###
+### Advantages over other algorithms
 
 It has several advantages over decoders typically used to characterize hippocampal data:
 
@@ -37,7 +37,7 @@ It has several advantages over decoders typically used to characterize hippocamp
 7. Easily installable, documented code with tutorials on how to use the code (see below)
 8. Fast computation using GPUs. (Note: must install `cupy` to use)
 
-### References ###
+### References
 
 For further details, please see our [eLife paper](https://doi.org/10.7554/eLife.64505):
 > Denovellis, E.L., Gillespie, A.K., Coulter, M.E., Sosa, M., Chung, J.E., Eden, U.T., and Frank, L.M. (2021). Hippocampal replay of experience at real-world speeds. ELife 10, e64505.
