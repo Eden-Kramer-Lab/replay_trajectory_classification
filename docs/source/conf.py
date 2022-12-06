@@ -29,21 +29,6 @@ release = '1.3.2'
 # -- Get Jupyter Notebooks ---------------------------------------------------
 
 
-def copy_tree(src, tar):
-    """Copies over notebooks into the documentation folder, so get around an issue where nbsphinx
-    requires notebooks to be in the same folder as the documentation folder"""
-    if os.path.exists(tar):
-        shutil.rmtree(tar)
-    shutil.copytree(src, tar)
-
-
-copy_tree("../../notebooks/tutorial", "./_copied_over/notebooks")
-
-# -- General configuration ---------------------------------------------------
-
-# Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-# ones.
 extensions = [
     'sphinx.ext.autodoc',  # Core Sphinx library for auto html doc generation from docstrings
     'sphinx.ext.autosummary',  # Create neat summary tables for modules/classes/methods etc
