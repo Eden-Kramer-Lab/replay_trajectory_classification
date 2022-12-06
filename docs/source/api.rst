@@ -1,5 +1,3 @@
-:orphan:
-
 API Reference
 =============
 .. automodule:: replay_trajectory_classification
