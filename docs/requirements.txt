@@ -1,8 +1,13 @@
+replay_trajectory_classification
 numpydoc
 sphinx
-sphinx_rtd_theme
+pydata-sphinx-theme
 furo
 sphinxcontrib-napoleon
+sphinx-autobuild
+sphinx-copybutton
+sphinx-design
+sphinx-examples
 sphinx-autodoc-typehints
 nbsphinx
 ipython
@@ -11,3 +16,5 @@ jupyter
 matplotlib
 numpy
 myst_parser
+myst_nb
+ipykernel
