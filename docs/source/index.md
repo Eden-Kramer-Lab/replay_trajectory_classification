@@ -14,11 +14,6 @@ API reference <api>
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Eden-Kramer-Lab/replay_trajectory_classification/master)
 [![PR Test](https://github.com/Eden-Kramer-Lab/replay_trajectory_classification/actions/workflows/PR-test.yml/badge.svg)](https://github.com/Eden-Kramer-Lab/replay_trajectory_classification/actions/workflows/PR-test.yml)
 
-[**Tutorials**](#tutorials)
-| [**Installation**](#installation)
-| [**References**](#references)
-| [**Developer Installation**](#developer-installation)
-
 ## What is replay_trajectory_classification? ##
 
 `replay_trajectory_classification` is a python package for decoding spatial position represented by neural activity and categorizing the type of trajectory.
