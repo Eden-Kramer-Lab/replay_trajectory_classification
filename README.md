@@ -5,12 +5,13 @@
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Eden-Kramer-Lab/replay_trajectory_classification/master)
 [![PR Test](https://github.com/Eden-Kramer-Lab/replay_trajectory_classification/actions/workflows/PR-test.yml/badge.svg)](https://github.com/Eden-Kramer-Lab/replay_trajectory_classification/actions/workflows/PR-test.yml)
 
-[**Tutorials**](#tutorials)
-| [**Installation**](#installation)
+[**Installation**](#installation)
+| [**Documentation**](#documentation)
+| [**Tutorials**](#tutorials)
 | [**References**](#references)
 | [**Developer Installation**](#developer-installation)
 
-## What is replay_trajectory_classification? ##
+## What is replay_trajectory_classification?
 
 `replay_trajectory_classification` is a python package for decoding spatial position represented by neural activity and categorizing the type of trajectory.
 
@@ -18,7 +19,7 @@
   <img src="docs/_static/fra_11_04_0001.gif" height="400"></img>
 </p>
 
-### Advantages over other algorithms ###
+### Advantages over other algorithms
 
 It has several advantages over decoders typically used to characterize hippocampal data:
 
@@ -31,7 +32,7 @@ It has several advantages over decoders typically used to characterize hippocamp
 7. Easily installable, documented code with tutorials on how to use the code (see below)
 8. Fast computation using GPUs. (Note: must install `cupy` to use)
 
-### References ###
+### References
 
 For further details, please see our [eLife paper](https://doi.org/10.7554/eLife.64505):
 > Denovellis, E.L., Gillespie, A.K., Coulter, M.E., Sosa, M., Chung, J.E., Eden, U.T., and Frank, L.M. (2021). Hippocampal replay of experience at real-world speeds. ELife 10, e64505.
@@ -46,7 +47,7 @@ Also see other work using this code:
 
 > Gillespie, A.K., Astudillo Maya, D.A., Denovellis, E.L., Desse, S., and Frank, L.M. (2022). Neurofeedback training can modulate task-relevant memory replay in rats. bioRxiv, 2022.10.13.512183. <https://doi.org/10.1101/2022.10.13.512183>.
 
-### Installation ###
+### Installation
 
 `replay_trajectory_classification` can be installed through pypi or conda. Conda is the best way to ensure that all the dependencies are installed properly.
 
@@ -60,7 +61,11 @@ Or
 conda install -c edeno replay_trajectory_classification
 ```
 
-### Tutorials ###
+### Documentation
+
+Documentation can be found here: <https://replay-trajectory-classification.readthedocs.io/en/latest/>
+
+### Tutorials
 
 There are five jupyter notebooks introducing the package:
 
@@ -70,7 +75,7 @@ There are five jupyter notebooks introducing the package:
 4. [04-Classifying_with_Sorted_Spikes](notebooks/tutorial/04-Classifying_with_Sorted_Spikes.ipynb): Using multiple movement models to classify the movement dynamics and decode the trajectory using sorted spikes.
 5. [05-Classifying_with_Clusterless_Spikes](notebooks/tutorial/05-Classifying_with_Clusterless_Spikes.ipynb): Using multiple movement models to classify the movement dynamics and decode the trajectory using clusterless spikes.
 
-### Developer Installation ###
+### Developer Installation
 
 For people who want to expand upon the code for their own use:
 
