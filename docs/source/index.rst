@@ -4,7 +4,7 @@
    Home page <self>
    Installation <installation>
    Tutorials <tutorials>
-   API reference <_autosummary/replay_trajectory_classification>
+   API reference <api>
 
 
 replay_trajectory_classification
