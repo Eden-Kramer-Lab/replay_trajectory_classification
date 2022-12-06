@@ -20,4 +20,12 @@ API Reference
    replay_trajectory_classification.simulate
    replay_trajectory_classification.sorted_spikes_simulation
    replay_trajectory_classification.standard_decoder
-   replay_trajectory_classification.likelihoods
+   replay_trajectory_classification.likelihoods.calcium_likelihood
+   replay_trajectory_classification.likelihoods.diffusion
+   replay_trajectory_classification.likelihoods.multiunit_likelihood
+   replay_trajectory_classification.likelihoods.multiunit_likelihood_gpu
+   replay_trajectory_classification.likelihoods.multiunit_likelihood_integer
+   replay_trajectory_classification.likelihoods.multiunit_likelihood_integer_gpu
+   replay_trajectory_classification.likelihoods.spiking_likelihood_glm
+   replay_trajectory_classification.likelihoods.spiking_likelihood_kde
+   replay_trajectory_classification.likelihoods.spiking_likelihood_kde_gpu
