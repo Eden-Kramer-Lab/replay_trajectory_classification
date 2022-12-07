@@ -17,15 +17,17 @@ import sys
 
 import replay_trajectory_classification
 
-sys.path.insert(
-    0, os.path.abspath(os.path.join("..", "..", "replay_trajectory_classification"))
-)
-sys.path.insert(
-    0,
-    os.path.abspath(
-        os.path.join("..", "..", "replay_trajectory_classification", "likelihoods")
-    ),
-)
+# sys.path.insert(
+#     0, os.path.abspath(os.path.join("..", "..", "replay_trajectory_classification"))
+# )
+# sys.path.insert(
+#     0,
+#     os.path.abspath(
+#         os.path.join("..", "..", "replay_trajectory_classification", "likelihoods")
+#     ),
+# )
+
+sys.path.insert(0, os.path.abspath("../.."))
 
 
 # -- Project information -----------------------------------------------------
