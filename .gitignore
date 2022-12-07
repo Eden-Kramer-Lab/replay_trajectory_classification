@@ -61,3 +61,5 @@ coverage.xml
 *.prof
 *.qdrep
 *.pdf
+_build
+_autosummary

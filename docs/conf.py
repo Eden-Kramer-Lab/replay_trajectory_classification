@@ -27,7 +27,7 @@ import replay_trajectory_classification
 #     ),
 # )
 
-sys.path.insert(0, os.path.abspath("../.."))
+sys.path.insert(0, os.path.abspath("../"))
 
 
 # -- Project information -----------------------------------------------------
@@ -134,7 +134,7 @@ def copy_tree(src, tar):
 
 # -- Get Jupyter Notebooks ---------------------------------------------------
 
-copy_tree("../../notebooks/tutorial", "./_copied_over/notebooks")
+copy_tree("../notebooks/tutorial", "./_copied_over/notebooks")
 
 # Report warnings for all validation checks except GL01, GL02, and GL05
 numpydoc_validation_checks = {"all", "GL01", "GL02", "GL05"}
