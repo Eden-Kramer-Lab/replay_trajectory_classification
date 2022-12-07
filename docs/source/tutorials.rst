@@ -1,5 +1,5 @@
-Jupyter Notebooks Examples
-##########################
+Tutorials
+#########
 
 .. toctree::
    :maxdepth: 2
