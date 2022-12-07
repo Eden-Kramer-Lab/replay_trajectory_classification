@@ -1,8 +1,10 @@
 API Reference
 =============
+.. automodule:: replay_trajectory_classification
+
 .. autosummary::
-   :toctree: _autosummary
+   :toctree:
    :template: custom-module-template.rst
    :recursive:
 
-   replay_trajectory_classification
+   replay_trajectory_classification.classifier
