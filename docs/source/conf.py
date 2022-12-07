@@ -17,6 +17,12 @@ import sys
 sys.path.insert(
     0, os.path.abspath(os.path.join("..", "..", "replay_trajectory_classification"))
 )
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join("..", "..", "replay_trajectory_classification", "likelihoods")
+    ),
+)
 
 
 # -- Project information -----------------------------------------------------
