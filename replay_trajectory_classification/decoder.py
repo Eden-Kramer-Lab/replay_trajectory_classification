@@ -1,4 +1,4 @@
-"""Main classeses for decoding trajectories from population spiking"""
+"""Main classes for decoding trajectories from population spiking"""
 
 from copy import deepcopy
 from logging import getLogger
