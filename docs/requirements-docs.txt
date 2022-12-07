@@ -4,7 +4,6 @@ numpydoc==1.1.0
 sphinx
 pydata-sphinx-theme
 furo
-sphinxcontrib-napoleon
 sphinx-autobuild
 sphinx-copybutton
 sphinx-design
