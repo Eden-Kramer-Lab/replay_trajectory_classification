@@ -1,4 +1,4 @@
-"""State space models that decode trajectories from population spiking"""
+"""Main classeses for decoding trajectories from population spiking"""
 
 from copy import deepcopy
 from logging import getLogger

@@ -1,3 +1,4 @@
+"""Classes for constructing discrete grids representations of spatial environments in 1D and 2D"""
 from dataclasses import dataclass
 
 import joblib
@@ -16,7 +17,10 @@ from replay_trajectory_classification.core import atleast_2d, get_centers
 
 @dataclass
 class Environment:
-    """
+    """Represent the spatial environment with a discrete grid.
+
+    Parameters
+    ----------
     environment_name : str, optional
     place_bin_size : float, optional
         Approximate size of the position bins.

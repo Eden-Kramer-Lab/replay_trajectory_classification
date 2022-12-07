@@ -1,3 +1,5 @@
+"""Classes for setting the initial conditions for the state space models."""
+
 from dataclasses import dataclass
 
 import numpy as np

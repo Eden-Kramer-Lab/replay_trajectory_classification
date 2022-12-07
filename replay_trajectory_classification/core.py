@@ -1,3 +1,4 @@
+"""Core algorithms for decoding."""
 import numpy as np
 from numba import njit
 

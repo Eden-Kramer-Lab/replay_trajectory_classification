@@ -1,3 +1,4 @@
+"""Classes to generate transitions between categories."""
 from dataclasses import dataclass
 
 import numpy as np

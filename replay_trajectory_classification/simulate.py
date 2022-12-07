@@ -1,21 +1,81 @@
+"""Main code for simulating position and sorted spikes or clusterless spikes and waveforms."""
 import numpy as np
 from replay_trajectory_classification.core import atleast_2d
 from scipy.stats import multivariate_normal
 
 
-def simulate_time(n_samples, sampling_frequency):
+def simulate_time(n_samples: int, sampling_frequency: float) -> np.ndarray:
+    """Simulate a time vector.
+
+    Parameters
+    ----------
+    n_samples : int
+        The number of samples to generate.
+    sampling_frequency : float
+        The sampling frequency to use.
+
+    Returns
+    -------
+    time : ndarray, shape (n_samples,)
+        The simulated time vector.
+
+    """
     return np.arange(n_samples) / sampling_frequency
 
 
-def simulate_linear_distance(time, track_height, running_speed=15):
+def simulate_linear_distance(
+    time: np.ndarray, track_height: float, running_speed: float = 15
+) -> np.ndarray:
+    """Simulate a linear distance vector.
+
+    Parameters
+    ----------
+    time : ndarray, shape (n_time,)
+        The time vector.
+    track_height : float
+        The height of the track.
+    running_speed : float, optional
+        The running speed (default is 15).
+
+    Returns
+    -------
+    distance : ndarray, shape (n_time,)
+        The simulated linear distance vector.
+
+    """
     half_height = track_height / 2
     freq = 1 / (2 * track_height / running_speed)
     return half_height * np.sin(freq * 2 * np.pi * time - np.pi / 2) + half_height
 
 
 def simulate_linear_distance_with_pauses(
-    time, track_height, running_speed=15, pause=0.5, sampling_frequency=1
-):
+    time: np.ndarray,
+    track_height: float,
+    running_speed: float = 15,
+    pause: float = 0.5,
+    sampling_frequency: float = 1,
+) -> np.ndarray:
+    """Simulate a linear distance vector with pauses.
+
+    Parameters
+    ----------
+    time : ndarray, shape (n_time,)
+        The time vector.
+    track_height : float
+        The height of the track.
+    running_speed : float, optional
+        The running speed (default is 15).
+    pause : float, optional
+        The pause duration (default is 0.5).
+    sampling_frequency : float, optional
+        The sampling frequency (default is 1).
+
+    Returns
+    -------
+    distance : ndarray, shape (n_time,)
+        The simulated linear distance vector with pauses.
+
+    """
     linear_distance = simulate_linear_distance(time, track_height, running_speed)
     peaks = np.nonzero(np.isclose(linear_distance, track_height))[0]
     n_pause_samples = int(pause * sampling_frequency)

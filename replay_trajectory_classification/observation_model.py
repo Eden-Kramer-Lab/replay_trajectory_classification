@@ -1,3 +1,5 @@
+"""Class for representing an environment and a condition (trial type, etc.)"""
+
 from dataclasses import dataclass
 
 
