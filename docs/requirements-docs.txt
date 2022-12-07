@@ -1,6 +1,6 @@
 replay_trajectory_classification
 dask[distributed]
-numpydoc
+numpydoc==1.1.0
 sphinx
 pydata-sphinx-theme
 furo
