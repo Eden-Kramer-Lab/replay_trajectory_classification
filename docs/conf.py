@@ -138,3 +138,7 @@ copy_tree("../notebooks/tutorial", "./_copied_over/notebooks")
 
 # Report warnings for all validation checks except GL01, GL02, and GL05
 numpydoc_validation_checks = {"all", "GL01", "GL02", "GL05"}
+
+
+def setup(app):
+    app.add_css_file("custom.css")
