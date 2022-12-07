@@ -17,16 +17,6 @@ import sys
 
 import replay_trajectory_classification
 
-# sys.path.insert(
-#     0, os.path.abspath(os.path.join("..", "..", "replay_trajectory_classification"))
-# )
-# sys.path.insert(
-#     0,
-#     os.path.abspath(
-#         os.path.join("..", "..", "replay_trajectory_classification", "likelihoods")
-#     ),
-# )
-
 sys.path.insert(0, os.path.abspath("../"))
 
 
@@ -94,6 +84,16 @@ pygments_style = "sphinx"
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 html_theme = "pydata_sphinx_theme"
+html_theme_options = {
+    "search_bar_text": "Search this site...",
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/Eden-Kramer-Lab/replay_trajectory_classification/",
+            "icon": "fa-brands fa-github",
+        },
+    ],
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
