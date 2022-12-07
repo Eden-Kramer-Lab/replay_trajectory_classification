@@ -1,4 +1,5 @@
 ```{toctree}
+:maxdepth: 1
 :hidden:
 
 Home page <self>
