@@ -11,8 +11,11 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
+import re
 import shutil
 import sys
+
+import replay_trajectory_classification
 
 sys.path.insert(
     0, os.path.abspath(os.path.join("..", "..", "replay_trajectory_classification"))
@@ -32,7 +35,15 @@ copyright = "2022, Eric Denovellis"
 author = "Eric Denovellis"
 
 # The full version, including alpha/beta/rc tags
-release = "1.3.7"
+
+# The short X.Y version (including .devXXXX, rcX, b1 suffixes if present)
+version = re.sub(
+    r"(\d+\.\d+)\.\d+(.*)", r"\1\2", replay_trajectory_classification.__version__
+)
+version = re.sub(r"(\.dev\d+).*?$", r"\1", version)
+# The full version, including alpha/beta/rc tags.
+release = replay_trajectory_classification.__version__
+print("%s %s" % (version, release))
 
 # -- General configuration ------------------------------------------------
 

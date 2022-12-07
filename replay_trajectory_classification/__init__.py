@@ -31,3 +31,6 @@ from track_linearization import (
     plot_graph_as_1D,
     plot_track_graph,
 )
+
+
+__version__ = "1.3.8"
