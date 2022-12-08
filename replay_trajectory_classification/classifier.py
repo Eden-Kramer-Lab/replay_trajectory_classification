@@ -3,6 +3,7 @@ trajectory from population spiking
 """
 from copy import deepcopy
 from logging import getLogger
+from typing import Optional
 
 import joblib
 import matplotlib.pyplot as plt
@@ -10,6 +11,8 @@ import numpy as np
 import seaborn as sns
 import sklearn
 import xarray as xr
+from sklearn.base import BaseEstimator
+
 from replay_trajectory_classification.continuous_state_transitions import (
     EmpiricalMovement,
     RandomWalk,
@@ -37,7 +40,6 @@ from replay_trajectory_classification.likelihoods import (
     _ClUSTERLESS_ALGORITHMS,
 )
 from replay_trajectory_classification.observation_model import ObservationModel
-from sklearn.base import BaseEstimator
 
 logger = getLogger(__name__)
 
@@ -60,14 +62,16 @@ _DEFAULT_ENVIRONMENT = Environment(environment_name="")
 
 
 class _ClassifierBase(BaseEstimator):
+    """Base class for classifier objects."""
+
     def __init__(
         self,
-        environments=_DEFAULT_ENVIRONMENT,
-        observation_models=None,
-        continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
+        environments: list[Environment] = _DEFAULT_ENVIRONMENT,
+        observation_models: Optional[ObservationModel] = None,
+        continuous_transition_types: list[list] = _DEFAULT_CONTINUOUS_TRANSITIONS,
         discrete_transition_type=DiagonalDiscrete(0.968),
         initial_conditions_type=UniformInitialConditions(),
-        infer_track_interior=True,
+        infer_track_interior: bool = True,
     ):
         if isinstance(environments, Environment):
             environments = (environments,)
@@ -82,7 +86,18 @@ class _ClassifierBase(BaseEstimator):
         self.initial_conditions_type = initial_conditions_type
         self.infer_track_interior = infer_track_interior
 
-    def fit_environments(self, position, environment_labels=None):
+    def fit_environments(
+        self, position: np.ndarray, environment_labels: np.ndarray = None
+    ) -> None:
+        """Fits the Environment class on the position data to get information about the spatial environment.
+
+        Parameters
+        ----------
+        position : np.ndarray, shape (n_time, n_position_dims)
+        environment_labels : np.ndarray, optional, shape (n_time,)
+            Labels for each time points about which environment it corresponds to, by default None
+
+        """
         for environment in self.environments:
             if environment_labels is None:
                 is_environment = np.ones((position.shape[0],), dtype=bool)
@@ -97,6 +112,7 @@ class _ClassifierBase(BaseEstimator):
         )
 
     def fit_initial_conditions(self):
+        """Constructs the initial conditions for the state and spatial environment."""
         logger.info("Fitting initial conditions...")
         environment_names_to_state = [
             obs.environment_name for obs in self.observation_models
@@ -114,12 +130,29 @@ class _ClassifierBase(BaseEstimator):
 
     def fit_continuous_state_transition(
         self,
-        continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
-        position=None,
-        is_training=None,
-        encoding_group_labels=None,
-        environment_labels=None,
-    ):
+        continuous_transition_types: list[list[str]] = _DEFAULT_CONTINUOUS_TRANSITIONS,
+        position: Optional[np.ndarray] = None,
+        is_training: Optional[np.ndarray] = None,
+        encoding_group_labels: Optional[np.ndarray] = None,
+        environment_labels: Optional[np.ndarray] = None,
+    ) -> None:
+        """Constructs the transition matrices for the continuous states.
+
+        Parameters
+        ----------
+        continuous_transition_types : list[list[str]], optional
+            Types of transition models, by default _DEFAULT_CONTINUOUS_TRANSITIONS
+        position : Optional[np.ndarray], optional
+            Position of the animal in the environment, by default None
+        is_training : Optional[np.ndarray], optional
+            Boolean array that determines what data to train the place fields on, by default None
+        encoding_group_labels : Optional[np.ndarray], shape (n_time,), optional
+            If place fields should correspond to each state, label each time point with the group name
+            For example, Some points could correspond to inbound trajectories and some outbound, by default None
+        environment_labels : Optional[np.ndarray], shape (n_time,), optional
+            If there are multiple environments, label each time point with the environment name, by default None
+
+        """
         logger.info("Fitting continuous state transition...")
 
         if is_training is None:
@@ -165,6 +198,7 @@ class _ClassifierBase(BaseEstimator):
                 ] = st
 
     def fit_discrete_state_transition(self):
+        """Constructs the transition matrix for the discrete states."""
         logger.info("Fitting discrete state transition")
         n_states = len(self.continuous_transition_types)
         self.discrete_state_transition_ = (
@@ -173,13 +207,28 @@ class _ClassifierBase(BaseEstimator):
 
     def plot_discrete_state_transition(
         self,
-        state_names=None,
-        cmap="Oranges",
-        ax=None,
-        convert_to_seconds=False,
-        sampling_frequency=1,
-    ):
+        state_names: list[str] = None,
+        cmap: str = "Oranges",
+        ax: plt.axes = None,
+        convert_to_seconds: bool = False,
+        sampling_frequency: int = 1,
+    ) -> None:
+        """Plot heatmap of discrete transition matrix.
 
+        Parameters
+        ----------
+        state_names : list[str], optional
+            Names corresponding to each discrete state, by default None
+        cmap : str, optional
+            matplotlib colormap, by default "Oranges"
+        ax : plt.axes, optional
+            Plotting axis, by default plots to current axis
+        convert_to_seconds : bool, optional
+            Convert the probabilities of state to expected duration of state, by default False
+        sampling_frequency : int, optional
+            Number of samples per second, by default 1
+
+        """
         if ax is None:
             ax = plt.gca()
 
@@ -218,16 +267,43 @@ class _ClassifierBase(BaseEstimator):
 
     def estimate_parameters(
         self,
-        fit_args,
-        predict_args,
-        tolerance=1e-4,
-        max_iter=10,
-        verbose=True,
-        store_likelihood=True,
-        estimate_initial_conditions=True,
-        estimate_discrete_transition=True,
-    ):
+        fit_args: dict,
+        predict_args: dict,
+        tolerance: float = 1e-4,
+        max_iter: int = 10,
+        verbose: bool = True,
+        store_likelihood: bool = True,
+        estimate_initial_conditions: bool = True,
+        estimate_discrete_transition: bool = True,
+    ) -> tuple[xr.Dataset, list]:
+        """Estimate the intial conditions and/or discrete transition matrix of the model.
 
+        Parameters
+        ----------
+        fit_args : dict
+           Arguments that would be passed to the `fit` method.
+        predict_args : dict
+            Arguments that would be passed to the `predict` method.
+        tolerance : float, optional
+            Smallest change in data log likelihood for there to be no change in likelihood, by default 1e-4
+        max_iter : int, optional
+            Maximum number of iterations, by default 10
+        verbose : bool, optional
+            Log results of each iteration, by default True
+        store_likelihood : bool, optional
+            If True, don't reestimate the likelihood, by default True
+        estimate_initial_conditions : bool, optional
+            If True, estimate the initial conditions, by default True
+        estimate_discrete_transition : bool, optional
+            If True, estimate the discrete state transition, by default True
+
+        Returns
+        -------
+        results : xr.Dataset
+        data_log_likelihoods : list, len (n_iter,)
+            The data log likelihood of each iteration
+
+        """
         if "store_likelihood" in predict_args:
             store_likelihood = predict_args["store_likelihood"]
         else:
@@ -370,13 +446,29 @@ class _ClassifierBase(BaseEstimator):
 
     def _get_results(
         self,
-        likelihood,
-        n_time,
-        time=None,
-        is_compute_acausal=True,
-        use_gpu=False,
-        state_names=None,
-    ):
+        likelihood: np.ndarray,
+        n_time: int,
+        time: Optional[np.ndarray] = None,
+        is_compute_acausal: bool = True,
+        use_gpu: bool = False,
+        state_names: Optional[list[str]] = None,
+    ) -> xr.Dataset:
+        """Computes the causal and acausal posterior after the likelihood has been computed.
+
+        Parameters
+        ----------
+        likelihood : np.ndarray
+        n_time : int
+        time : np.ndarray, optional
+        is_compute_acausal : bool, optional
+        use_gpu : bool, optional
+        state_names : list[str], optional
+
+        Returns
+        -------
+        results : xr.Dataset
+
+        """
         n_states = self.discrete_state_transition_.shape[0]
         results = {}
         dtype = np.float32 if use_gpu else np.float64
@@ -462,8 +554,26 @@ class _ClassifierBase(BaseEstimator):
             )
 
     def _convert_results_to_xarray(
-        self, results, time, state_names, data_log_likelihood
-    ):
+        self,
+        results: dict,
+        time: np.ndarray,
+        state_names: list,
+        data_log_likelihood: float,
+    ) -> xr.Dataset:
+        """Converts the results dict into a collection of labeled arrays.
+
+        Parameters
+        ----------
+        results : dict
+        time : np.ndarray
+        state_names : list
+        data_log_likelihood : float
+
+        Returns
+        -------
+        results : xr.Dataset
+
+        """
         attrs = {"data_log_likelihood": data_log_likelihood}
         n_position_dims = self.environments[0].place_bin_centers_.shape[1]
         diag_transition_names = np.diag(np.asarray(self.continuous_transition_types))
@@ -526,8 +636,26 @@ class _ClassifierBase(BaseEstimator):
         return results
 
     def _convert_results_to_xarray_mutienvironment(
-        self, results, time, state_names, data_log_likelihood
-    ):
+        self,
+        results: dict,
+        time: np.ndarray,
+        state_names: list,
+        data_log_likelihood: float,
+    ) -> xr.Dataset:
+        """Converts the results dict into a collection of labeled arrays when there are multiple environments.
+
+        Parameters
+        ----------
+        results : dict
+        time : np.ndarray
+        state_names : list
+        data_log_likelihood : float
+
+        Returns
+        -------
+        results : xr.Dataset
+
+        """
         if state_names is None:
             state_names = [
                 f"{obs.environment_name}-{obs.encoding_group}"
@@ -573,61 +701,95 @@ class _ClassifierBase(BaseEstimator):
         return results
 
     def fit(self):
+        """To be implemented by inheriting class"""
         raise NotImplementedError
 
     def predict(self):
+        """To be implemented by inheriting class"""
         raise NotImplementedError
 
-    def save_model(self, filename="model.pkl"):
+    def save_model(self, filename: str = "model.pkl") -> None:
+        """Save the classifier to a pickled file.
+
+        Parameters
+        ----------
+        filename : str, optional
+
+        """
         joblib.dump(self, filename)
 
     @staticmethod
-    def load_model(filename="model.pkl"):
+    def load_model(filename: str = "model.pkl"):
+        """Load the classifier from a file.
+
+        Parameters
+        ----------
+        filename : str, optional
+
+        Returns
+        -------
+        classifier instance
+
+        """
         return joblib.load(filename)
 
     @staticmethod
-    def predict_proba(results):
+    def predict_proba(results: xr.Dataset) -> xr.Dataset:
+        """Predicts the probability of each state.
+
+        Parameters
+        ----------
+        results : xr.Dataset
+
+        Returns
+        -------
+        results : xr.Dataset
+
+        """
         try:
             return results.sum(["x_position", "y_position"])
         except ValueError:
             return results.sum(["position"])
 
     def copy(self):
+        """Makes a copy of the classifier"""
         return deepcopy(self)
 
 
 class SortedSpikesClassifier(_ClassifierBase):
-    """
+    """Classifies neural population representation of position and trajectory from clustered cells.
 
-    Attributes
+    Parameters
     ----------
-    environment : Environment
-        The spatial environment and topology to fit
-    continuous_transition_types : tuple of tuples
-        The continuous state transition class instances to fit
-    discrete_transition_type : Discrete
-        The type of transition between states
-    initial_conditions_type : InitialConditions
-        The initial conditions class instance to fit
+    environments : list of Environment instances, optional
+        The spatial environment(s) to fit
+    observation_models : ObservationModel instance, optional
+        Links environments and encoding group
+    continuous_transition_types : list of list of strings, optional
+        Strings correspond to the type of continuous transition matrix.
+        Length correspond to number of discrete states.
+    discrete_transition_type : discrete transition instance, optional
+    initial_conditions_type : initial conditions instance, optional
+        The initial conditions class instance
     infer_track_interior : bool, optional
-        Whether to infer the valid position bins
-    sorted_spikes_algorithm : str
+        Whether to infer the spatial geometry of track from position
+    sorted_spikes_algorithm : str, optional
         The type of algorithm. See _SORTED_SPIKES_ALGORITHMS for keys
-    sorted_spikes_algorithm_params : dict
+    sorted_spikes_algorithm_params : dict, optional
         Parameters for the algorithm.
 
     """
 
     def __init__(
         self,
-        environments=_DEFAULT_ENVIRONMENT,
-        observation_models=None,
-        continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
+        environments: list[Environment] = _DEFAULT_ENVIRONMENT,
+        observation_models: Optional[ObservationModel] = None,
+        continuous_transition_types: list[list] = _DEFAULT_CONTINUOUS_TRANSITIONS,
         discrete_transition_type=DiagonalDiscrete(0.98),
         initial_conditions_type=UniformInitialConditions(),
-        infer_track_interior=True,
-        sorted_spikes_algorithm="spiking_likelihood_kde",
-        sorted_spikes_algorithm_params=_DEFAULT_SORTED_SPIKES_MODEL_KWARGS,
+        infer_track_interior: bool = True,
+        sorted_spikes_algorithm: str = "spiking_likelihood_kde",
+        sorted_spikes_algorithm_params: dict = _DEFAULT_SORTED_SPIKES_MODEL_KWARGS,
     ):
         super().__init__(
             environments,
@@ -642,12 +804,28 @@ class SortedSpikesClassifier(_ClassifierBase):
 
     def fit_place_fields(
         self,
-        position,
-        spikes,
-        is_training=None,
-        encoding_group_labels=None,
-        environment_labels=None,
-    ):
+        position: np.ndarray,
+        spikes: np.ndarray,
+        is_training: Optional[np.ndarray] = None,
+        encoding_group_labels: Optional[np.ndarray] = None,
+        environment_labels: Optional[np.ndarray] = None,
+    ) -> None:
+        """Fits the place intensity function for each encoding group and environment.
+
+        Parameters
+        ----------
+        position : np.ndarray, shape (n_time, n_position_dims)
+            Position of the animal.
+        spikes : np.ndarray, (n_time, n_neurons)
+            Binary indicator of whether there was a spike in a given time bin for a given neuron.
+        is_training : np.ndarray, shape (n_time,), optional
+            Boolean array to indicate which data should be included in fitting of place fields, by default None
+        encoding_group_labels : np.ndarray, shape (n_time,), optional
+            Label for the corresponding encoding group for each time point
+        environment_labels : np.ndarray, shape (n_time,), optional
+            Label for the corresponding environment for each time point
+
+        """
         logger.info("Fitting place fields...")
         n_time = position.shape[0]
         if is_training is None:
@@ -691,7 +869,7 @@ class SortedSpikesClassifier(_ClassifierBase):
             )
 
     def plot_place_fields(self, sampling_frequency=1, figsize=(10, 7)):
-        """Plots all place fields.
+        """Plots place fields for each neuron.
 
         Parameters
         ----------
@@ -699,6 +877,7 @@ class SortedSpikesClassifier(_ClassifierBase):
             samples per second, by default 1
         figsize : tuple, optional
             figure dimensions, by default (10, 7)
+
         """
         try:
             for (env, enc) in self.place_fields_:
@@ -741,11 +920,11 @@ class SortedSpikesClassifier(_ClassifierBase):
 
     def fit(
         self,
-        position,
-        spikes,
-        is_training=None,
-        encoding_group_labels=None,
-        environment_labels=None,
+        position: np.ndarray,
+        spikes: np.ndarray,
+        is_training: Optional[np.ndarray] = None,
+        encoding_group_labels: Optional[np.ndarray] = None,
+        environment_labels: Optional[np.ndarray] = None,
     ):
         """Fit the spatial grid, initial conditions, place field model, and
         transition matrices.
@@ -753,9 +932,11 @@ class SortedSpikesClassifier(_ClassifierBase):
         Parameters
         ----------
         position : np.ndarray, shape (n_time, n_position_dims)
+            Position of the animal.
         spikes : np.ndarray, shape (n_time, n_neurons)
-        is_training : None or bool np.ndarray, shape (n_time), optional
-            Time bins to be used for encoding.
+            Binary indicator of whether there was a spike in a given time bin for a given neuron.
+        is_training : None or np.ndarray, shape (n_time), optional
+            Boolean array to indicate which data should be included in fitting of place fields, by default None
         encoding_group_labels : None or np.ndarray, shape (n_time,)
             Label for the corresponding encoding group for each time point
         environment_labels : None or np.ndarray, shape (n_time,)
@@ -786,23 +967,29 @@ class SortedSpikesClassifier(_ClassifierBase):
 
     def predict(
         self,
-        spikes,
-        time=None,
-        is_compute_acausal=True,
-        use_gpu=False,
-        state_names=None,
-        store_likelihood=False,
+        spikes: np.ndarray,
+        time: Optional[np.ndarray] = None,
+        is_compute_acausal: bool = True,
+        use_gpu: bool = False,
+        state_names: Optional[list[str]] = None,
+        store_likelihood: bool = False,
     ):
         """Run the state space model on spikes.
 
         Parameters
         ----------
         spikes : np.ndarray, shape (n_time, n_neurons)
+            Binary indicator of whether there was a spike in a given time bin for a given neuron.
         time : ndarray or None, shape (n_time,), optional
+            Label the time axis with these values.
         is_compute_acausal : bool, optional
+            If True, compute the acausal posterior.
         use_gpu : bool, optional
             Use GPU for the state space part of the model, not the likelihood.
         state_names : None or array_like, shape (n_states,)
+            Label the discrete states.
+        store_likelihood : bool, optional
+            Store the likelihood to reuse in next computation.
 
         Returns
         -------
@@ -834,18 +1021,20 @@ class SortedSpikesClassifier(_ClassifierBase):
 class ClusterlessClassifier(_ClassifierBase):
     """
 
-    Attributes
+    Parameters
     ----------
-    environment : Environment
-        The spatial environment and topology to fit
-    continuous_transition_types : tuple of tuples
-        The continuous state transition class instances to fit
-    discrete_transition_type : Discrete
-        The type of transition between states
-    initial_conditions_type : InitialConditions
-        The initial conditions class instance to fit
+    environments : list of Environment instances, optional
+        The spatial environment(s) to fit
+    observation_models : ObservationModel instance, optional
+        Links environments and encoding group
+    continuous_transition_types : list of list of strings, optional
+        Strings correspond to the type of continuous transition matrix.
+        Length correspond to number of discrete states.
+    discrete_transition_type : discrete transition instance, optional
+    initial_conditions_type : initial conditions instance, optional
+        The initial conditions class instance
     infer_track_interior : bool, optional
-        Whether to infer the valid position bins
+        Whether to infer the spatial geometry of track from position
     clusterless_algorithm : str
         The type of clusterless algorithm. See _ClUSTERLESS_ALGORITHMS for keys
     clusterless_algorithm_params : dict
@@ -855,7 +1044,7 @@ class ClusterlessClassifier(_ClassifierBase):
 
     def __init__(
         self,
-        environments=_DEFAULT_ENVIRONMENT,
+        environments: list[Environment] = _DEFAULT_ENVIRONMENT,
         observation_models=None,
         continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
         discrete_transition_type=DiagonalDiscrete(0.98),
@@ -878,19 +1067,23 @@ class ClusterlessClassifier(_ClassifierBase):
 
     def fit_multiunits(
         self,
-        position,
-        multiunits,
-        is_training=None,
-        encoding_group_labels=None,
-        environment_labels=None,
+        position: np.ndarray,
+        multiunits: np.ndarray,
+        is_training: Optional[np.ndarray] = None,
+        encoding_group_labels: Optional[np.ndarray] = None,
+        environment_labels: Optional[np.ndarray] = None,
     ):
         """Fit the clusterless place field model.
 
         Parameters
         ----------
-        position : array_like, shape (n_time, n_position_dims)
+        position : np.ndarray, shape (n_time, n_position_dims)
+            Position of the animal.
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
-        is_training : None or array_like, shape (n_time,)
+            Array where spikes are indicated by non-Nan values that correspond to the waveform features
+            for each electrode.
+        is_training : None or np.ndarray, shape (n_time), optional
+            Boolean array to indicate which data should be included in fitting of place fields, by default None
         encoding_group_labels : None or np.ndarray, shape (n_time,)
             Label for the corresponding encoding group for each time point
         environment_labels : None or np.ndarray, shape (n_time,)
@@ -943,20 +1136,24 @@ class ClusterlessClassifier(_ClassifierBase):
 
     def fit(
         self,
-        position,
-        multiunits,
-        is_training=None,
-        encoding_group_labels=None,
-        environment_labels=None,
+        position: np.ndarray,
+        multiunits: np.ndarray,
+        is_training: Optional[np.ndarray] = None,
+        encoding_group_labels: Optional[np.ndarray] = None,
+        environment_labels: Optional[np.ndarray] = None,
     ):
         """Fit the spatial grid, initial conditions, place field model, and
         transition matrices.
 
         Parameters
         ----------
-        position : array_like, shape (n_time, n_position_dims)
+        position : np.ndarray, shape (n_time, n_position_dims)
+            Position of the animal.
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
-        is_training : None or array_like, shape (n_time,)
+            Array where spikes are indicated by non-Nan values that correspond to the waveform features
+            for each electrode.
+        is_training : None or np.ndarray, shape (n_time), optional
+            Boolean array to indicate which data should be included in fitting of place fields, by default None
         encoding_group_labels : None or np.ndarray, shape (n_time,)
             Label for the corresponding encoding group for each time point
         environment_labels : None or np.ndarray, shape (n_time,)
@@ -988,26 +1185,30 @@ class ClusterlessClassifier(_ClassifierBase):
 
     def predict(
         self,
-        multiunits,
-        time=None,
-        is_compute_acausal=True,
-        use_gpu=False,
-        state_names=None,
-        store_likelihood=False,
+        multiunits: np.ndarray,
+        time: Optional[np.ndarray] = None,
+        is_compute_acausal: bool = True,
+        use_gpu: bool = False,
+        state_names: Optional[list[str]] = None,
+        store_likelihood: bool = False,
     ):
         """Run the state space model.
 
         Parameters
         ----------
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
-        time : None or np.ndarray, shape (n_time,)
+            Array where spikes are indicated by non-Nan values that correspond to the waveform features
+            for each electrode.
+        time : ndarray or None, shape (n_time,), optional
+            Label the time axis with these values.
         is_compute_acausal : bool, optional
-            Use future information to compute the posterior.
+            If True, compute the acausal posterior.
         use_gpu : bool, optional
             Use GPU for the state space part of the model, not the likelihood.
         state_names : None or array_like, shape (n_states,)
+            Label the discrete states.
         store_likelihood : bool, optional
-            Save the likelihood for EM computations
+            Store the likelihood to reuse in next computation.
 
         Returns
         -------
