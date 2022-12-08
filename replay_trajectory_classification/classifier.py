@@ -1118,9 +1118,9 @@ class ClusterlessClassifier(_ClassifierBase):
         initial_conditions_type: Union[
             UniformInitialConditions, UniformOneEnvironmentInitialConditions
         ] = UniformInitialConditions(),
-        infer_track_interior=True,
-        clusterless_algorithm="multiunit_likelihood",
-        clusterless_algorithm_params=_DEFAULT_CLUSTERLESS_MODEL_KWARGS,
+        infer_track_interior: bool = True,
+        clusterless_algorithm: str = "multiunit_likelihood",
+        clusterless_algorithm_params: dict = _DEFAULT_CLUSTERLESS_MODEL_KWARGS,
     ):
         super().__init__(
             environments,

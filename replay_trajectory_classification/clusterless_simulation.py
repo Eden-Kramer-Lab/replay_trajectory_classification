@@ -21,21 +21,21 @@ MARK_SPACING = 5
 
 
 def make_simulated_run_data(
-    sampling_frequency=SAMPLING_FREQUENCY,
-    track_height=TRACK_HEIGHT,
-    running_speed=RUNNING_SPEED,
-    n_runs=N_RUNS,
-    place_field_variance=PLACE_FIELD_VARIANCE,
-    place_field_means=PLACE_FIELD_MEANS,
-    n_tetrodes=N_TETRODES,
-    make_inbound_outbound_neurons=False,
+    sampling_frequency: int = SAMPLING_FREQUENCY,
+    track_height: float = TRACK_HEIGHT,
+    running_speed: float = RUNNING_SPEED,
+    n_run: int = N_RUNS,
+    place_field_variance: float = PLACE_FIELD_VARIANCE,
+    place_field_means: np.ndarray = PLACE_FIELD_MEANS,
+    n_tetrodes: int = N_TETRODES,
+    make_inbound_outbound_neurons: bool = False,
 ):
     """Make simulated data of a rat running back and forth
     on a linear maze with unclustered spikes.
 
     Parameters
     ----------
-    sampling_frequency : float, optional
+    sampling_frequency : int, optional
     track_height : float, optional
         Height of the simulated track
     running_speed : float, optional
@@ -57,8 +57,9 @@ def make_simulated_run_data(
     position : np.ndarray, shape (n_time,)
     sampling_frequency : float
     multiunits : np.ndarray, shape (n_time, n_features, n_electrodes)
-    multiunits_spikes : ndarray (n_time, n_electrodes)
-    place_field_means : ndarray (n_tetrodes, n_place_fields)
+    multiunits_spikes : np.ndarray (n_time, n_electrodes)
+    place_field_means : np.ndarray (n_tetrodes, n_place_fields)
+
     """
     n_samples = int(n_runs * sampling_frequency * 2 * track_height / running_speed)
 

@@ -5,7 +5,14 @@ from dataclasses import dataclass
 
 @dataclass(order=True)
 class ObservationModel:
-    """Determines which environment and data points data correspond to."""
+    """Determines which environment and data points data correspond to.
+
+    Attributes
+    ----------
+    environment_name : str, optional
+    encoding_group : str, optional
+
+    """
 
     environment_name: str = ""
     encoding_group: str = 0

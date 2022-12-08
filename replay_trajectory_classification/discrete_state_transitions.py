@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.special import logsumexp
+import xarray as xr
 
 
 @dataclass
@@ -19,7 +19,7 @@ class DiagonalDiscrete:
 
     diagonal_value: float = 0.98
 
-    def make_state_transition(self, n_states):
+    def make_state_transition(self, n_states: int) -> np.ndarray:
         """Makes discrete state transition matrix.
 
         Parameters
@@ -45,7 +45,7 @@ class UniformDiscrete:
     probability.
     """
 
-    def make_state_transition(self, n_states):
+    def make_state_transition(self, n_states: int) -> np.ndarray:
         """Makes discrete state transition matrix.
 
         Parameters
@@ -66,7 +66,7 @@ class UniformDiscrete:
 class RandomDiscrete:
     """All state transitions are random"""
 
-    def make_state_transition(self, n_states):
+    def make_state_transition(self, n_states: int) -> np.ndarray:
         """Makes discrete state transition matrix.
 
         Parameters
@@ -96,7 +96,7 @@ class UserDefinedDiscrete:
 
     state_transition_: np.ndarray
 
-    def make_state_transition(self, n_states):
+    def make_state_transition(self, n_states: int) -> np.ndarray:
         """Makes discrete state transition matrix.
 
         Parameters
@@ -111,7 +111,9 @@ class UserDefinedDiscrete:
         return self.state_transition_
 
 
-def expected_duration(discrete_state_transition, sampling_frequency=1):
+def expected_duration(
+    discrete_state_transition: np.ndarray, sampling_frequency: int = 1
+):
     """The average duration of each discrete state if it follows
     a geometric distribution.
 
@@ -132,8 +134,22 @@ def expected_duration(discrete_state_transition, sampling_frequency=1):
     return (1 / (1 - self_transitions)) / sampling_frequency
 
 
-def estimate_discrete_state_transition(classifier, results):
+def estimate_discrete_state_transition(
+    classifier,
+    results: xr.Dataset,
+) -> np.ndarray:
+    """Estimate a new discrete transition matrix given the old one and updated smoother results.
 
+    Parameters
+    ----------
+    classifier : ClusterlessClassifier or SortedSpikesClassifier instance
+    results : xr.Dataset
+
+    Returns
+    -------
+    new_transition_matrix : np.ndarray, shape (n_states, n_states)
+
+    """
     likelihood = results.likelihood.sum("position").values
     causal_prob = results.causal_posterior.sum("position").values
     acausal_prob = results.acausal_posterior.sum("position").values

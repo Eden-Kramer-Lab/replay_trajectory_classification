@@ -1,6 +1,7 @@
-"""Classes for setting the initial conditions for the state space models."""
+"""Classes for constructing the initial conditions for the state space models."""
 
 from dataclasses import dataclass
+from replay_trajectory_classification.environments import Environment
 
 import numpy as np
 
@@ -11,8 +12,21 @@ class UniformInitialConditions:
     equally likely."""
 
     def make_initial_conditions(
-        self, environments: tuple, environment_names_to_state: tuple
-    ):
+        self, environments: tuple[Environment], environment_names_to_state: tuple[str]
+    ) -> list[np.ndarray]:
+        """Creates initial conditions array
+
+        Parameters
+        ----------
+        environments : tuple[Environment]
+            Spatial environments in the model
+        environment_names_to_state : tuple[str]
+            Mapping of environment names to state
+
+        Returns
+        -------
+        initial_conditions : list of arrays
+        """
         n_total_place_bins = 0
         initial_conditions = []
 
@@ -34,8 +48,21 @@ class UniformOneEnvironmentInitialConditions:
     environment_name: str = ""
 
     def make_initial_conditions(
-        self, environments: tuple, environment_names_to_state: tuple
-    ):
+        self, environments: tuple[Environment], environment_names_to_state: tuple[str]
+    ) -> list[np.ndarray]:
+        """Creates initial conditions array
+
+        Parameters
+        ----------
+        environments : tuple[Environment]
+            Spatial environments in the model
+        environment_names_to_state : tuple[str]
+            Mapping of environment names to state
+
+        Returns
+        -------
+        initial_conditions : list of arrays
+        """
         n_total_place_bins = 0
         initial_conditions = []
 
