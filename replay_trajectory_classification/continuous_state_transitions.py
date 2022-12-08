@@ -293,12 +293,12 @@ class EmpiricalMovement:
             The existing environments in the model
         position : np.ndarray
             Position of the animal
-        is_training : Optional[np.ndarray], optional
+        is_training : np.ndarray, optional
             Boolean array that determines what data to train the place fields on, by default None
-        encoding_group_labels : Optional[np.ndarray], shape (n_time,), optional
+        encoding_group_labels : np.ndarray, shape (n_time,), optional
             If place fields should correspond to each state, label each time point with the group name
             For example, Some points could correspond to inbound trajectories and some outbound, by default None
-        environment_labels : Optional[np.ndarray], shape (n_time,), optional
+        environment_labels : np.ndarray, shape (n_time,), optional
             If there are multiple environments, label each time point with the environment name, by default None
 
         Returns

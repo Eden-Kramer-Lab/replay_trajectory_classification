@@ -1,5 +1,6 @@
 """Classes for constructing discrete grids representations of spatial environments in 1D and 2D"""
 from dataclasses import dataclass
+from typing import Optional, Union
 
 import joblib
 import matplotlib.pyplot as plt
@@ -65,10 +66,26 @@ class Environment:
     dilate: bool = False
     bin_count_threshold: int = 0
 
-    def __eq__(self, other):
+    def __eq__(self, other: str) -> bool:
         return self.environment_name == other
 
-    def fit_place_grid(self, position=None, infer_track_interior=True):
+    def fit_place_grid(
+        self, position: Optional[np.ndarray] = None, infer_track_interior: bool = True
+    ):
+        """Fits a discrete grid of the spatial environment.
+
+        Parameters
+        ----------
+        position : np.ndarray, optional
+            Position of the animal.
+        infer_track_interior : bool, optional
+            Whether to infer the spatial geometry of track from position
+
+        Returns
+        -------
+        self
+
+        """
         if self.track_graph is None:
             (
                 self.edges_,
@@ -124,10 +141,18 @@ class Environment:
 
         return self
 
-    def plot_grid(self, ax=None):
+    def plot_grid(self, ax: plt.axes = None):
+        """Plot the fitted spatial grid of the environment.
+
+        Parameters
+        ----------
+        ax : plt.axes, optional
+            Plot on this axis if given, by default None
+
+        """
         if self.track_graph is not None:
             if ax is None:
-                fig, ax = plt.subplots(figsize=(15, 2))
+                _, ax = plt.subplots(figsize=(15, 2))
 
             plot_graph_as_1D(
                 self.track_graph, self.edge_order, self.edge_spacing, ax=ax
@@ -137,7 +162,7 @@ class Environment:
             ax.set_ylim((0, 0.1))
         else:
             if ax is None:
-                fig, ax = plt.subplots(figsize=(6, 7))
+                _, ax = plt.subplots(figsize=(6, 7))
             ax.pcolormesh(
                 self.edges_[0], self.edges_[1], self.is_track_interior_.T, cmap="bone_r"
             )
@@ -146,11 +171,38 @@ class Environment:
             ax.grid(visible=True, which="minor")
             ax.grid(visible=False, which="major")
 
-    def save_environment(self, filename="environment.pkl"):
+    def save_environment(self, filename: str = "environment.pkl"):
+        """Saves the environment as a pickled file.
+
+        Parameters
+        ----------
+        filename : str, optional
+            File name to pickle the environment to, by default "environment.pkl"
+
+        """
         joblib.dump(self, filename)
 
+    @staticmethod
+    def load_environment(filename: str = "environment.pkl"):
+        """Load the environment from a file.
 
-def get_n_bins(position, bin_size=2.5, position_range=None):
+        Parameters
+        ----------
+        filename : str, optional
+
+        Returns
+        -------
+        environment instance
+
+        """
+        return joblib.load(filename)
+
+
+def get_n_bins(
+    position: np.ndarray,
+    bin_size: float = 2.5,
+    position_range: Optional[list[np.ndarray]] = None,
+) -> int:
     """Get number of bins need to span a range given a bin size.
 
     Parameters
@@ -173,7 +225,11 @@ def get_n_bins(position, bin_size=2.5, position_range=None):
     return np.ceil(extent / bin_size).astype(np.int32)
 
 
-def get_grid(position, bin_size=2.5, position_range=None):
+def get_grid(
+    position: np.ndarray,
+    bin_size: float = 2.5,
+    position_range: Optional[list[np.ndarray]] = None,
+) -> tuple(np.ndarray, np.ndarray, np.ndarray, tuple):
     """Gets the spatial grid of bins.
 
     Parameters
@@ -220,8 +276,12 @@ def get_grid(position, bin_size=2.5, position_range=None):
 
 
 def get_track_interior(
-    position, bins, fill_holes=False, dilate=False, bin_count_threshold=0
-):
+    position: np.ndarray,
+    bins: int,
+    fill_holes: bool = False,
+    dilate: bool = False,
+    bin_count_threshold: int = 0,
+) -> np.ndarray:
     """Infers the interior bins of the track given positions.
 
     Parameters
@@ -266,7 +326,7 @@ def get_track_interior(
     return is_track_interior.astype(bool)
 
 
-def get_track_segments_from_graph(track_graph):
+def get_track_segments_from_graph(track_graph: nx.Graph) -> np.ndarray:
     """Returns a 2D array of node positions corresponding to each edge.
 
     Parameters
@@ -287,7 +347,9 @@ def get_track_segments_from_graph(track_graph):
     )
 
 
-def project_points_to_segment(track_segments, position):
+def project_points_to_segment(
+    track_segments: np.ndarray, position: np.ndarray
+) -> np.ndarray:
     """Finds the closet point on a track segment in terms of Euclidean distance
 
     Parameters
@@ -315,8 +377,12 @@ def project_points_to_segment(track_segments, position):
 
 
 def _calculate_linear_position(
-    track_graph, position, track_segment_id, edge_order, edge_spacing
-):
+    track_graph: nx.Graph,
+    position: np.ndarray,
+    track_segment_id: np.ndarray,
+    edge_order: list[tuple],
+    edge_spacing: Union[float, list],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Determines the linear position given a 2D position and a track graph.
 
     Parameters
@@ -396,7 +462,9 @@ def _calculate_linear_position(
     )
 
 
-def make_track_graph_with_bin_centers_edges(track_graph, place_bin_size):
+def make_track_graph_with_bin_centers_edges(
+    track_graph: nx.Graph, place_bin_size: float
+) -> nx.Graph:
     """Insert the bin center and bin edge positions as nodes in the track graph.
 
     Parameters
@@ -460,8 +528,11 @@ def make_track_graph_with_bin_centers_edges(track_graph, place_bin_size):
 
 
 def extract_bin_info_from_track_graph(
-    track_graph, track_graph_with_bin_centers_edges, edge_order, edge_spacing
-):
+    track_graph: nx.Graph,
+    track_graph_with_bin_centers_edges: nx.Graph,
+    edge_order: list[tuple],
+    edge_spacing: Union[float, list],
+) -> pd.DataFrame:
     """For each node, find edge_id, is_bin_edge, x_position, y_position, and
     linear_position.
 
@@ -511,7 +582,24 @@ def extract_bin_info_from_track_graph(
     return nodes_df
 
 
-def get_track_grid(track_graph, edge_order, edge_spacing, place_bin_size):
+def get_track_grid(
+    track_graph: nx.Graph,
+    edge_order: list[tuple],
+    edge_spacing: Union[float, list],
+    place_bin_size: float,
+) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    dict,
+    tuple,
+    tuple,
+    nx.Graph,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+]:
     """Figures out 1D spatial bins given a track graph.
 
     Parameters
@@ -630,7 +718,9 @@ def get_track_grid(track_graph, edge_order, edge_spacing, place_bin_size):
     )
 
 
-def get_track_boundary(is_track_interior, n_position_dims=2, connectivity=1):
+def get_track_boundary(
+    is_track_interior: np.ndarray, n_position_dims: int = 2, connectivity: int = 1
+) -> np.ndarray:
     """Determines the boundary of the valid interior track bins. The boundary
     are not bins on the track but surround it.
 
@@ -660,10 +750,19 @@ def get_track_boundary(is_track_interior, n_position_dims=2, connectivity=1):
     )
 
 
-def order_boundary(boundary):
+def order_boundary(boundary: np.ndarray) -> np.ndarray:
     """Given boundary bin centers, orders them in a way to make a continuous line.
 
     https://stackoverflow.com/questions/37742358/sorting-points-to-form-a-continuous-line
+
+    Parameters
+    ----------
+    boundary : np.ndarray, shape (n_boundary_points, n_position_dims)
+
+    Returns
+    -------
+    ordered_boundary : np.ndarray, shape (n_boundary_points, n_position_dims)
+
     """
     n_points = boundary.shape[0]
     clf = NearestNeighbors(n_neighbors=2).fit(boundary)
@@ -683,13 +782,19 @@ def order_boundary(boundary):
     return boundary[opt_order][:-1]
 
 
-def get_track_boundary_points(is_track_interior, edges, connectivity=1):
+def get_track_boundary_points(
+    is_track_interior: np.ndarray, edges: list[np.ndarray], connectivity: int = 1
+):
     """
 
     Parameters
     ----------
     is_track_interior : np.ndarray, shape (n_x_bins, n_y_bins)
     edges : list of ndarray
+
+    Returns
+    -------
+    boundary_points : np.ndarray, shape (n_boundary_points, n_position_dims)
 
     """
     n_position_dims = len(edges)
@@ -710,7 +815,7 @@ def diffuse(
     Fy: float,
     is_track_interior: np.ndarray,
     is_track_boundary: np.ndarray,
-):
+) -> np.ndarray:
     """Calculates diffusion for a single time step given a track.
 
     Parameters
@@ -731,18 +836,20 @@ def diffuse(
     """
     # interior points
     for x_ind, y_ind in zip(*np.nonzero(is_track_interior)):
-        # no flux boundary condition
-        if is_track_boundary[x_ind - 1, y_ind]:
-            position_grid[x_ind - 1, y_ind] = position_grid[x_ind, y_ind]
+        # check if current point is on the boundary
+        if not is_track_boundary[x_ind, y_ind]:
+            # no flux boundary condition
+            if is_track_boundary[x_ind - 1, y_ind]:
+                position_grid[x_ind - 1, y_ind] = position_grid[x_ind, y_ind]
 
-        if is_track_boundary[x_ind + 1, y_ind]:
-            position_grid[x_ind + 1, y_ind] = position_grid[x_ind, y_ind]
+            if is_track_boundary[x_ind + 1, y_ind]:
+                position_grid[x_ind + 1, y_ind] = position_grid[x_ind, y_ind]
 
-        if is_track_boundary[x_ind, y_ind - 1]:
-            position_grid[x_ind, y_ind - 1] = position_grid[x_ind, y_ind]
+            if is_track_boundary[x_ind, y_ind - 1]:
+                position_grid[x_ind, y_ind - 1] = position_grid[x_ind, y_ind]
 
-        if is_track_boundary[x_ind, y_ind + 1]:
-            position_grid[x_ind, y_ind + 1] = position_grid[x_ind, y_ind]
+            if is_track_boundary[x_ind, y_ind + 1]:
+                position_grid[x_ind, y_ind + 1] = position_grid[x_ind, y_ind]
 
         position_grid[x_ind, y_ind] += Fx * (
             position_grid[x_ind - 1, y_ind]
@@ -764,10 +871,10 @@ def run_diffusion(
     is_track_boundary: np.ndarray,
     dx: float,
     dy: float,
-    std=6.0,
-    alpha=0.5,
-    dt=0.250,
-):
+    std: float = 6.0,
+    alpha: float = 0.5,
+    dt: float = 0.250,
+) -> np.ndarray:
     """Calculates diffusion of a single point over time up until it matches a
     Gaussian with standard deviation `std`.
 
@@ -815,9 +922,9 @@ def diffuse_each_bin(
     is_track_boundary: np.ndarray,
     dx: float,
     dy: float,
-    std=6.0,
-    alpha=0.5,
-):
+    std: float = 6.0,
+    alpha: float = 0.5,
+) -> np.ndarray:
     """
     For each position bin in the grid, diffuse by `std`.
 
@@ -869,10 +976,21 @@ def diffuse_each_bin(
     return diffused_grid
 
 
-def get_bin_ind(sample, edges):
+def get_bin_ind(sample: np.ndarray, edges: list[np.ndarray]) -> np.ndarray:
     """Figure out which bin a given sample falls into.
 
-    Extracted from np.histogramdd."""
+    Extracted from np.histogramdd.
+
+    Parameters
+    ----------
+    sample : np.ndarray
+    edges : list of np.ndarray
+
+    Returns
+    -------
+    Ncount : np.ndarray
+
+    """
 
     try:
         # Sample is an ND-array.

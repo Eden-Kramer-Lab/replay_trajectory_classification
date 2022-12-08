@@ -3,7 +3,7 @@ trajectory from population spiking
 """
 from copy import deepcopy
 from logging import getLogger
-from typing import Optional
+from typing import Optional, Union
 
 import joblib
 import matplotlib.pyplot as plt
@@ -16,6 +16,8 @@ from sklearn.base import BaseEstimator
 from replay_trajectory_classification.continuous_state_transitions import (
     EmpiricalMovement,
     RandomWalk,
+    RandomWalkDirection1,
+    RandomWalkDirection2,
     Uniform,
 )
 from replay_trajectory_classification.core import (
@@ -31,10 +33,16 @@ from replay_trajectory_classification.core import (
 )
 from replay_trajectory_classification.discrete_state_transitions import (
     DiagonalDiscrete,
+    RandomDiscrete,
+    UniformDiscrete,
+    UserDefinedDiscrete,
     estimate_discrete_state_transition,
 )
 from replay_trajectory_classification.environments import Environment
-from replay_trajectory_classification.initial_conditions import UniformInitialConditions
+from replay_trajectory_classification.initial_conditions import (
+    UniformInitialConditions,
+    UniformOneEnvironmentInitialConditions,
+)
 from replay_trajectory_classification.likelihoods import (
     _SORTED_SPIKES_ALGORITHMS,
     _ClUSTERLESS_ALGORITHMS,
@@ -68,9 +76,26 @@ class _ClassifierBase(BaseEstimator):
         self,
         environments: list[Environment] = _DEFAULT_ENVIRONMENT,
         observation_models: Optional[ObservationModel] = None,
-        continuous_transition_types: list[list] = _DEFAULT_CONTINUOUS_TRANSITIONS,
-        discrete_transition_type=DiagonalDiscrete(0.968),
-        initial_conditions_type=UniformInitialConditions(),
+        continuous_transition_types: list[
+            list[
+                Union[
+                    EmpiricalMovement,
+                    RandomWalk,
+                    RandomWalkDirection1,
+                    RandomWalkDirection2,
+                    Uniform,
+                ]
+            ]
+        ] = _DEFAULT_CONTINUOUS_TRANSITIONS,
+        discrete_transition_type: Union[
+            DiagonalDiscrete,
+            RandomDiscrete,
+            UniformDiscrete,
+            UserDefinedDiscrete,
+        ] = DiagonalDiscrete(0.968),
+        initial_conditions_type: Union[
+            UniformInitialConditions, UniformOneEnvironmentInitialConditions
+        ] = UniformInitialConditions(),
         infer_track_interior: bool = True,
     ):
         if isinstance(environments, Environment):
@@ -130,7 +155,17 @@ class _ClassifierBase(BaseEstimator):
 
     def fit_continuous_state_transition(
         self,
-        continuous_transition_types: list[list[str]] = _DEFAULT_CONTINUOUS_TRANSITIONS,
+        continuous_transition_types: list[
+            list[
+                Union[
+                    EmpiricalMovement,
+                    RandomWalk,
+                    RandomWalkDirection1,
+                    RandomWalkDirection2,
+                    Uniform,
+                ]
+            ]
+        ] = _DEFAULT_CONTINUOUS_TRANSITIONS,
         position: Optional[np.ndarray] = None,
         is_training: Optional[np.ndarray] = None,
         encoding_group_labels: Optional[np.ndarray] = None,
@@ -140,16 +175,16 @@ class _ClassifierBase(BaseEstimator):
 
         Parameters
         ----------
-        continuous_transition_types : list[list[str]], optional
+        continuous_transition_types : list of list of transition matrix instances, optional
             Types of transition models, by default _DEFAULT_CONTINUOUS_TRANSITIONS
-        position : Optional[np.ndarray], optional
+        position : np.ndarray, optional
             Position of the animal in the environment, by default None
-        is_training : Optional[np.ndarray], optional
+        is_training : np.ndarray, optional
             Boolean array that determines what data to train the place fields on, by default None
-        encoding_group_labels : Optional[np.ndarray], shape (n_time,), optional
+        encoding_group_labels : np.ndarray, shape (n_time,), optional
             If place fields should correspond to each state, label each time point with the group name
             For example, Some points could correspond to inbound trajectories and some outbound, by default None
-        environment_labels : Optional[np.ndarray], shape (n_time,), optional
+        environment_labels : np.ndarray, shape (n_time,), optional
             If there are multiple environments, label each time point with the environment name, by default None
 
         """
@@ -765,8 +800,8 @@ class SortedSpikesClassifier(_ClassifierBase):
         The spatial environment(s) to fit
     observation_models : ObservationModel instance, optional
         Links environments and encoding group
-    continuous_transition_types : list of list of strings, optional
-        Strings correspond to the type of continuous transition matrix.
+    continuous_transition_types : list of list of transition matrix instances, optional
+        Types of transition models, by default _DEFAULT_CONTINUOUS_TRANSITIONS
         Length correspond to number of discrete states.
     discrete_transition_type : discrete transition instance, optional
     initial_conditions_type : initial conditions instance, optional
@@ -784,9 +819,26 @@ class SortedSpikesClassifier(_ClassifierBase):
         self,
         environments: list[Environment] = _DEFAULT_ENVIRONMENT,
         observation_models: Optional[ObservationModel] = None,
-        continuous_transition_types: list[list] = _DEFAULT_CONTINUOUS_TRANSITIONS,
-        discrete_transition_type=DiagonalDiscrete(0.98),
-        initial_conditions_type=UniformInitialConditions(),
+        continuous_transition_types: list[
+            list[
+                Union[
+                    EmpiricalMovement,
+                    RandomWalk,
+                    RandomWalkDirection1,
+                    RandomWalkDirection2,
+                    Uniform,
+                ]
+            ]
+        ] = _DEFAULT_CONTINUOUS_TRANSITIONS,
+        discrete_transition_type: Union[
+            DiagonalDiscrete,
+            RandomDiscrete,
+            UniformDiscrete,
+            UserDefinedDiscrete,
+        ] = DiagonalDiscrete(0.98),
+        initial_conditions_type: Union[
+            UniformInitialConditions, UniformOneEnvironmentInitialConditions
+        ] = UniformInitialConditions(),
         infer_track_interior: bool = True,
         sorted_spikes_algorithm: str = "spiking_likelihood_kde",
         sorted_spikes_algorithm_params: dict = _DEFAULT_SORTED_SPIKES_MODEL_KWARGS,
@@ -1027,8 +1079,8 @@ class ClusterlessClassifier(_ClassifierBase):
         The spatial environment(s) to fit
     observation_models : ObservationModel instance, optional
         Links environments and encoding group
-    continuous_transition_types : list of list of strings, optional
-        Strings correspond to the type of continuous transition matrix.
+    continuous_transition_types : list of list of transition matrix instances, optional
+        Types of transition models, by default _DEFAULT_CONTINUOUS_TRANSITIONS
         Length correspond to number of discrete states.
     discrete_transition_type : discrete transition instance, optional
     initial_conditions_type : initial conditions instance, optional
@@ -1046,9 +1098,26 @@ class ClusterlessClassifier(_ClassifierBase):
         self,
         environments: list[Environment] = _DEFAULT_ENVIRONMENT,
         observation_models=None,
-        continuous_transition_types=_DEFAULT_CONTINUOUS_TRANSITIONS,
-        discrete_transition_type=DiagonalDiscrete(0.98),
-        initial_conditions_type=UniformInitialConditions(),
+        continuous_transition_types: list[
+            list[
+                Union[
+                    EmpiricalMovement,
+                    RandomWalk,
+                    RandomWalkDirection1,
+                    RandomWalkDirection2,
+                    Uniform,
+                ]
+            ]
+        ] = _DEFAULT_CONTINUOUS_TRANSITIONS,
+        discrete_transition_type: Union[
+            DiagonalDiscrete,
+            RandomDiscrete,
+            UniformDiscrete,
+            UserDefinedDiscrete,
+        ] = DiagonalDiscrete(0.98),
+        initial_conditions_type: Union[
+            UniformInitialConditions, UniformOneEnvironmentInitialConditions
+        ] = UniformInitialConditions(),
         infer_track_interior=True,
         clusterless_algorithm="multiunit_likelihood",
         clusterless_algorithm_params=_DEFAULT_CLUSTERLESS_MODEL_KWARGS,
