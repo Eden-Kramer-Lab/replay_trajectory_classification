@@ -2,28 +2,45 @@
 from dataclasses import dataclass
 
 import numpy as np
-from replay_trajectory_classification.core import atleast_2d
-from replay_trajectory_classification.environments import diffuse_each_bin
 from scipy.stats import multivariate_normal
 
+from replay_trajectory_classification.core import atleast_2d
+from replay_trajectory_classification.environments import Environment, diffuse_each_bin
 
-def _normalize_row_probability(x):
-    """Ensure the state transition matrix rows sum to 1"""
+
+def _normalize_row_probability(x: np.ndarray) -> np.ndarray:
+    """Ensure the state transition matrix rows sum to 1.
+
+    Parameters
+    ----------
+    x : np.ndarray, shape (n_rows, n_cols)
+
+    Returns
+    -------
+    normalized_x : np.ndarray, shape (n_rows, n_cols)
+
+    """
     x /= x.sum(axis=1, keepdims=True)
     x[np.isnan(x)] = 0
     return x
 
 
-def estimate_movement_var(position, sampling_frequency):
+def estimate_movement_var(
+    position: np.ndarray, sampling_frequency: int = 1
+) -> np.ndarray:
     """Estimates the movement variance based on position.
 
     Parameters
     ----------
     position : np.ndarray, shape (n_time, n_position_dim)
+        Position of the animal
+    sampling_frequency : int, optional
+        Number of samples per second.
 
     Returns
     -------
-    movement_std : np.ndarray, shape (n_position_dim,)
+    movement_var : np.ndarray, shape (n_position_dim,)
+        Variance of the movement.
 
     """
     position = atleast_2d(position)
@@ -34,12 +51,30 @@ def estimate_movement_var(position, sampling_frequency):
 
 
 def _random_walk_on_track_graph(
-    place_bin_centers,
-    movement_mean,
-    movement_var,
-    place_bin_center_ind_to_node,
-    distance_between_nodes,
-):
+    place_bin_centers: np.ndarray,
+    movement_mean: float,
+    movement_var: float,
+    place_bin_center_ind_to_node: np.ndarray,
+    distance_between_nodes: dict[dict],
+) -> np.ndarray:
+    """Estimates the random walk probabilities based on the spatial
+    topology given by the track graph.
+
+    Parameters
+    ----------
+    place_bin_centers : np.ndarray, shape (n_position_bins,)
+    movement_mean : float
+    movement_var : float
+    place_bin_center_ind_to_node : np.ndarray
+        Mapping of place bin center to track graph node
+    distance_between_nodes : dict[dict]
+        Distance between each pair of track graph nodes with an edge.
+
+    Returns
+    -------
+    random_walk : np.ndarray, shape (n_position_bins, n_position_bins)
+
+    """
     state_transition = np.zeros((place_bin_centers.size, place_bin_centers.size))
     gaussian = multivariate_normal(mean=movement_mean, cov=movement_var)
 
@@ -78,7 +113,19 @@ class RandomWalk:
     movement_mean: float = 0.0
     use_diffusion: bool = False
 
-    def make_state_transition(self, environments: tuple):
+    def make_state_transition(self, environments: tuple[Environment]) -> np.ndarray:
+        """Creates a transition matrix for a given environment.
+
+        Parameters
+        ----------
+        environments : tuple[Environment]
+            The existing environments in the model
+
+        Returns
+        -------
+        state_transition_matrix : np.ndarray, shape (n_position_bins, n_position_bins)
+
+        """
         self.environment = environments[environments.index(self.environment_name)]
 
         if self.environment.track_graph is None:
@@ -139,7 +186,19 @@ class Uniform:
     environment_name: str = ""
     environment2_name: str = None
 
-    def make_state_transition(self, environments: tuple):
+    def make_state_transition(self, environments: tuple[Environment]):
+        """Creates a transition matrix for a given environment.
+
+        Parameters
+        ----------
+        environments : tuple[Environment]
+            The existing environments in the model
+
+        Returns
+        -------
+        state_transition_matrix : np.ndarray, shape (n_position_bins, n_position_bins)
+
+        """
         self.environment1 = environments[environments.index(self.environment_name)]
         n_bins1 = self.environment1.place_bin_centers_.shape[0]
         is_track_interior1 = self.environment1.is_track_interior_.ravel(order="F")
@@ -172,7 +231,19 @@ class Identity:
 
     environment_name: str = ""
 
-    def make_state_transition(self, environments: tuple):
+    def make_state_transition(self, environments: tuple[Environment]):
+        """Creates a transition matrix for a given environment.
+
+        Parameters
+        ----------
+        environments : tuple[Environment]
+            The existing environments in the model
+
+        Returns
+        -------
+        state_transition_matrix : np.ndarray, shape (n_position_bins, n_position_bins)
+
+        """
         self.environment = environments[environments.index(self.environment_name)]
         n_bins = self.environment.place_bin_centers_.shape[0]
 
@@ -196,8 +267,7 @@ class EmpiricalMovement:
     encoding_group : str, optional
         Name of encoding group to fit
     speedup : int, optional
-        Used to
-        make the empirical transition matrix "faster", means allowing for
+        Used to make the empirical transition matrix "faster", means allowing for
         all the same transitions made by the animal but sped up by
         `speedup` times. So `speedup​=20` means 20x faster than the
         animal's movement.
@@ -209,13 +279,33 @@ class EmpiricalMovement:
 
     def make_state_transition(
         self,
-        environments: tuple,
+        environments: tuple[Environment],
         position: np.ndarray,
         is_training: np.ndarray = None,
         encoding_group_labels: np.ndarray = None,
         environment_labels: np.ndarray = None,
     ):
+        """Creates a transition matrix for a given environment.
 
+        Parameters
+        ----------
+        environments : tuple[Environment]
+            The existing environments in the model
+        position : np.ndarray
+            Position of the animal
+        is_training : Optional[np.ndarray], optional
+            Boolean array that determines what data to train the place fields on, by default None
+        encoding_group_labels : Optional[np.ndarray], shape (n_time,), optional
+            If place fields should correspond to each state, label each time point with the group name
+            For example, Some points could correspond to inbound trajectories and some outbound, by default None
+        environment_labels : Optional[np.ndarray], shape (n_time,), optional
+            If there are multiple environments, label each time point with the environment name, by default None
+
+        Returns
+        -------
+        state_transition_matrix : np.ndarray, shape (n_position_bins, n_position_bins)
+
+        """
         self.environment = environments[environments.index(self.environment_name)]
 
         n_time = position.shape[0]
@@ -264,7 +354,19 @@ class RandomWalkDirection1:
     environment_name: str = ""
     movement_var: float = 6.0
 
-    def make_state_transition(self, environments: tuple):
+    def make_state_transition(self, environments: tuple[Environment]):
+        """Creates a transition matrix for a given environment.
+
+        Parameters
+        ----------
+        environments : tuple[Environment]
+            The existing environments in the model
+
+        Returns
+        -------
+        state_transition_matrix : np.ndarray, shape (n_position_bins, n_position_bins)
+
+        """
         self.environment = environments[environments.index(self.environment_name)]
         random = RandomWalk(
             self.environment_name, self.movement_var
@@ -289,7 +391,19 @@ class RandomWalkDirection2:
     environment_name: str = ""
     movement_var: float = 6.0
 
-    def make_state_transition(self, environments: tuple):
+    def make_state_transition(self, environments: tuple[Environment]):
+        """Creates a transition matrix for a given environment.
+
+        Parameters
+        ----------
+        environments : tuple[Environment]
+            The existing environments in the model
+
+        Returns
+        -------
+        state_transition_matrix : np.ndarray, shape (n_position_bins, n_position_bins)
+
+        """
         self.environment = environments[environments.index(self.environment_name)]
         random = RandomWalk(
             self.environment_name, self.movement_var
