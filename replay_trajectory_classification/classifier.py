@@ -137,7 +137,7 @@ class _ClassifierBase(BaseEstimator):
         )
 
     def fit_initial_conditions(self):
-        """Constructs the initial conditions for the state and spatial environment."""
+        """Constructs the initial probability for the state and each spatial bin."""
         logger.info("Fitting initial conditions...")
         environment_names_to_state = [
             obs.environment_name for obs in self.observation_models
@@ -1026,13 +1026,13 @@ class SortedSpikesClassifier(_ClassifierBase):
         state_names: Optional[list[str]] = None,
         store_likelihood: bool = False,
     ):
-        """Run the state space model on spikes.
+        """Predict the probability of spatial position and category from the spikes.
 
         Parameters
         ----------
         spikes : np.ndarray, shape (n_time, n_neurons)
             Binary indicator of whether there was a spike in a given time bin for a given neuron.
-        time : ndarray or None, shape (n_time,), optional
+        time : np.ndarray or None, shape (n_time,), optional
             Label the time axis with these values.
         is_compute_acausal : bool, optional
             If True, compute the acausal posterior.
@@ -1071,7 +1071,7 @@ class SortedSpikesClassifier(_ClassifierBase):
 
 
 class ClusterlessClassifier(_ClassifierBase):
-    """
+    """Classifies neural population representation of position and trajectory from multiunit spikes and waveforms.
 
     Parameters
     ----------
@@ -1261,14 +1261,14 @@ class ClusterlessClassifier(_ClassifierBase):
         state_names: Optional[list[str]] = None,
         store_likelihood: bool = False,
     ):
-        """Run the state space model.
+        """Predict the probability of spatial position and category from the multiunit spikes and waveforms.
 
         Parameters
         ----------
         multiunits : array_like, shape (n_time, n_marks, n_electrodes)
             Array where spikes are indicated by non-Nan values that correspond to the waveform features
             for each electrode.
-        time : ndarray or None, shape (n_time,), optional
+        time : np.ndarray or None, shape (n_time,), optional
             Label the time axis with these values.
         is_compute_acausal : bool, optional
             If True, compute the acausal posterior.

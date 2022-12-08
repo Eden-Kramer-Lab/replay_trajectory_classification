@@ -2,14 +2,20 @@
 
 from copy import deepcopy
 from logging import getLogger
+from typing import Optional, Union
 
 import joblib
 import numpy as np
 import sklearn
 import xarray as xr
+from sklearn.base import BaseEstimator
+
 from replay_trajectory_classification.continuous_state_transitions import (
     EmpiricalMovement,
     RandomWalk,
+    RandomWalkDirection1,
+    RandomWalkDirection2,
+    Uniform,
 )
 from replay_trajectory_classification.core import (
     _acausal_decode,
@@ -27,7 +33,6 @@ from replay_trajectory_classification.likelihoods import (
     _SORTED_SPIKES_ALGORITHMS,
     _ClUSTERLESS_ALGORITHMS,
 )
-from sklearn.base import BaseEstimator
 
 logger = getLogger(__name__)
 
@@ -46,33 +51,77 @@ _DEFAULT_SORTED_SPIKES_MODEL_KWARGS = {
 
 
 class _DecoderBase(BaseEstimator):
+    """Base class for decoder objects.
+
+    Parameters
+    ----------
+    environment : Environment, optional
+        The spatial environment to fit
+    transition_type : EmpiricalMovement | RandomWalk | RandomWalkDirection1 | RandomWalkDirection2 | Uniform
+        The continuous state transition matrix
+    initial_conditions_type : UniformInitialConditions, optional
+        The initial conditions class instance
+    infer_track_interior : bool, optional
+        Whether to infer the spatial geometry of track from position
+
+    """
+
     def __init__(
         self,
-        environment=Environment(environment_name=""),
-        transition_type=RandomWalk(),
-        initial_conditions_type=UniformInitialConditions(),
-        infer_track_interior=True,
+        environment: Environment = Environment(environment_name=""),
+        transition_type: Union[
+            EmpiricalMovement,
+            RandomWalk,
+            RandomWalkDirection1,
+            RandomWalkDirection2,
+            Uniform,
+        ] = RandomWalk(),
+        initial_conditions_type: UniformInitialConditions = UniformInitialConditions(),
+        infer_track_interior: bool = True,
     ):
         self.environment = environment
         self.transition_type = transition_type
         self.initial_conditions_type = initial_conditions_type
         self.infer_track_interior = infer_track_interior
 
-    def fit_environment(self, position):
+    def fit_environment(self, position: np.ndarray) -> None:
+        """Discretize the spatial environment into bins. Determine valid track positions.
+
+        Parameters
+        ----------
+        position : np.ndarray, shape (n_time, n_position_dims)
+            Position of the animal in the environment.
+        """
         self.environment.fit_place_grid(
             position, infer_track_interior=self.infer_track_interior
         )
 
     def fit_initial_conditions(self):
+        """Set the initial probability of position."""
         logger.info("Fitting initial conditions...")
         self.initial_conditions_ = self.initial_conditions_type.make_initial_conditions(
             [self.environment], [self.environment.environment_name]
         )[0]
 
     def fit_state_transition(
-        self, position, is_training=None, transition_type=RandomWalk()
+        self,
+        position: np.ndarray,
+        is_training: Optional[np.ndarray] = None,
+        transition_type: Optional[
+            Union[
+                EmpiricalMovement,
+                RandomWalk,
+                RandomWalkDirection1,
+                RandomWalkDirection2,
+                Uniform,
+            ]
+        ] = None,
     ):
         logger.info("Fitting state transition...")
+
+        if transition_type is not None:
+            self.transition_type = transition_type
+
         if isinstance(self.transition_type, EmpiricalMovement):
             if is_training is None:
                 is_training = np.ones((position.shape[0],), dtype=np.bool)
@@ -92,30 +141,65 @@ class _DecoderBase(BaseEstimator):
             )
 
     def fit(self):
+        """To be implemented by inheriting class"""
         raise NotImplementedError
 
     def predict(self):
+        """To be implemented by inheriting class"""
         raise NotImplementedError
 
     def save_model(self, filename="model.pkl"):
+        """Save the classifier to a pickled file.
+
+        Parameters
+        ----------
+        filename : str, optional
+
+        """
         joblib.dump(self, filename)
 
     @staticmethod
     def load_model(filename="model.pkl"):
+        """Load the classifier from a file.
+
+        Parameters
+        ----------
+        filename : str, optional
+
+        Returns
+        -------
+        classifier instance
+
+        """
         return joblib.load(filename)
 
     def copy(self):
+        """Makes a copy of the classifier"""
         return deepcopy(self)
 
     def _get_results(
         self,
-        results,
-        n_time,
-        time=None,
-        is_compute_acausal=True,
-        use_gpu=False,
+        results: dict,
+        n_time: int,
+        time: Optional[np.ndarray] = None,
+        is_compute_acausal: bool = True,
+        use_gpu: bool = False,
     ):
+        """Converts the results dict into a collection of labeled arrays.
 
+        Parameters
+        ----------
+        results : dict
+        n_time : int
+        time : np.ndarray
+        is_compute_acausal : bool
+        use_gpu : bool
+
+        Returns
+        -------
+        results : xr.Dataset
+
+        """
         is_track_interior = self.environment.is_track_interior_.ravel(order="F")
         n_position_bins = is_track_interior.shape[0]
         st_interior_ind = np.ix_(is_track_interior, is_track_interior)
@@ -174,7 +258,22 @@ class _DecoderBase(BaseEstimator):
 
         return self.convert_results_to_xarray(results, time, data_log_likelihood)
 
-    def convert_results_to_xarray(self, results, time, data_log_likelihood):
+    def convert_results_to_xarray(
+        self, results: dict, time: np.ndarray, data_log_likelihood: float
+    ) -> xr.Dataset:
+        """Converts the results dict into a collection of labeled arrays.
+
+        Parameters
+        ----------
+        results : dict
+        time : np.ndarray
+        data_log_likelihood : float
+
+        Returns
+        -------
+        results : xr.Dataset
+
+        """
         n_position_dims = self.environment.place_bin_centers_.shape[1]
         n_time = time.shape[0]
 
@@ -225,29 +324,37 @@ class _DecoderBase(BaseEstimator):
 class SortedSpikesDecoder(_DecoderBase):
     def __init__(
         self,
-        environment=Environment(environment_name=""),
-        transition_type=RandomWalk(),
-        initial_conditions_type=UniformInitialConditions(),
-        infer_track_interior=True,
-        sorted_spikes_algorithm="spiking_likelihood_kde",
-        sorted_spikes_algorithm_params=_DEFAULT_SORTED_SPIKES_MODEL_KWARGS,
+        environment: Environment = Environment(environment_name=""),
+        transition_type: Union[
+            EmpiricalMovement,
+            RandomWalk,
+            RandomWalkDirection1,
+            RandomWalkDirection2,
+            Uniform,
+        ] = RandomWalk(),
+        initial_conditions_type: UniformInitialConditions = UniformInitialConditions(),
+        infer_track_interior: bool = True,
+        sorted_spikes_algorithm: str = "spiking_likelihood_kde",
+        sorted_spikes_algorithm_params: dict = _DEFAULT_SORTED_SPIKES_MODEL_KWARGS,
     ):
-        """
+        """Decodes neural population representation of position from clustered cells.
 
-        Attributes
+        Parameters
         ----------
-        environment : Environment
-            The spatial environment and topology to fit
-        transition_type : (RandomWalk, Uniform, ...)
-            The continuous state transition class instance to fit
-        initial_conditions_type : InitialConditions
-            The initial conditions class instance to fit
+        environment : Environment instance, optional
+            The spatial environment to fit
+        transition_type : transition matrix instance, optional
+            Movement model for the continuous state
+        discrete_transition_type : discrete transition instance, optional
+        initial_conditions_type : initial conditions instance, optional
+            The initial conditions class instance
         infer_track_interior : bool, optional
-            Whether to infer the valid position bins
-        knot_spacing : float, optional
-            How far apart the spline knots are in position
-        spike_model_penalty : float, optional
-            L2 penalty (ridge) for the size of the regression coefficients
+            Whether to infer the spatial geometry of track from position
+        sorted_spikes_algorithm : str, optional
+            The type of algorithm. See _SORTED_SPIKES_ALGORITHMS for keys
+        sorted_spikes_algorithm_params : dict, optional
+            Parameters for the algorithm.
+
         """
         super().__init__(
             environment, transition_type, initial_conditions_type, infer_track_interior
@@ -255,7 +362,24 @@ class SortedSpikesDecoder(_DecoderBase):
         self.sorted_spikes_algorithm = sorted_spikes_algorithm
         self.sorted_spikes_algorithm_params = sorted_spikes_algorithm_params
 
-    def fit_place_fields(self, position, spikes, is_training=None):
+    def fit_place_fields(
+        self,
+        position: np.ndarray,
+        spikes: np.ndarray,
+        is_training: Optional[np.ndarray] = None,
+    ):
+        """Fits the place intensity function.
+
+        Parameters
+        ----------
+        position : np.ndarray, shape (n_time, n_position_dims)
+            Position of the animal.
+        spikes : np.ndarray, (n_time, n_neurons)
+            Binary indicator of whether there was a spike in a given time bin for a given neuron.
+        is_training : np.ndarray, shape (n_time,), optional
+            Boolean array to indicate which data should be included in fitting of place fields, by default None
+
+        """
         logger.info("Fitting place fields...")
         if is_training is None:
             is_training = np.ones((position.shape[0],), dtype=np.bool)
@@ -274,13 +398,17 @@ class SortedSpikesDecoder(_DecoderBase):
             **kwargs
         )
 
-    def plot_place_fields(self, sampling_frequency=1, col_wrap=5):
-        """Plots the fitted 2D place fields for each neuron.
+    def plot_place_fields(
+        self, sampling_frequency: int = 1, col_wrap: int = 5
+    ) -> xr.plot.FacetGrid:
+        """Plots the fitted place fields for each neuron.
 
         Parameters
         ----------
-        sampling_frequency : float, optional
+        sampling_frequency : int, optional
+            Number of samples per second
         col_wrap : int, optional
+            Number of columns in the subplot.
 
         Returns
         -------
@@ -301,15 +429,23 @@ class SortedSpikesDecoder(_DecoderBase):
 
         return g
 
-    def fit(self, position, spikes, is_training=None):
-        """
+    def fit(
+        self,
+        position: np.ndarray,
+        spikes: np.ndarray,
+        is_training: Optional[np.ndarray] = None,
+    ):
+        """Fit the spatial grid, initial conditions, place field model, and
+        transition matrix.
 
         Parameters
         ----------
         position : np.ndarray, shape (n_time, n_position_dims)
+            Position of the animal.
         spikes : np.ndarray, shape (n_time, n_neurons)
-        is_training : None or bool np.ndarray, shape (n_time), optional
-            Time bins to be used for encoding.
+            Binary indicator of whether there was a spike in a given time bin for a given neuron.
+        is_training : None or np.ndarray, shape (n_time), optional
+            Boolean array to indicate which data should be included in fitting of place fields, by default None
 
         Returns
         -------
@@ -327,14 +463,23 @@ class SortedSpikesDecoder(_DecoderBase):
 
         return self
 
-    def predict(self, spikes, time=None, is_compute_acausal=True, use_gpu=False):
-        """
+    def predict(
+        self,
+        spikes: np.ndarray,
+        time: Optional[np.ndarray] = None,
+        is_compute_acausal: bool = True,
+        use_gpu: bool = False,
+    ) -> xr.Dataset:
+        """Predict the probability of spatial position from the spikes.
 
         Parameters
         ----------
         spikes : np.ndarray, shape (n_time, n_neurons)
-        time : ndarray or None, shape (n_time,), optional
+            Binary indicator of whether there was a spike in a given time bin for a given neuron.
+        time : np.ndarray or None, shape (n_time,), optional
+            Label the time axis with these values.
         is_compute_acausal : bool, optional
+            If True, compute the acausal posterior.
         use_gpu : bool, optional
             Use GPU for the state space part of the model, not the likelihood.
 
@@ -357,32 +502,39 @@ class SortedSpikesDecoder(_DecoderBase):
 
 
 class ClusterlessDecoder(_DecoderBase):
-    """
+    """Classifies neural population representation of position from multiunit spikes and waveforms.
 
-    Attributes
+    Parameters
     ----------
-    environment : Environment
-        The spatial environment and topology to fit
-    transition_type : (RandomWalk, Uniform, ...)
-        The continuous state transition class instance to fit
-    initial_conditions_type : InitialConditions
-        The initial conditions class instance to fit
+    environment : Environment, optional
+        The spatial environment to fit
+    transition_type : EmpiricalMovement | RandomWalk | RandomWalkDirection1 | RandomWalkDirection2 | Uniform
+        The continuous state transition matrix
+    initial_conditions_type : UniformInitialConditions, optional
+        The initial conditions class instance
     infer_track_interior : bool, optional
-        Whether to infer the valid position bins
+        Whether to infer the spatial geometry of track from position
     clusterless_algorithm : str
         The type of clusterless algorithm. See _ClUSTERLESS_ALGORITHMS for keys
     clusterless_algorithm_params : dict
         Parameters for the clusterless algorithms.
+
     """
 
     def __init__(
         self,
-        environment=Environment(environment_name=""),
-        transition_type=RandomWalk(),
-        initial_conditions_type=UniformInitialConditions(),
-        infer_track_interior=True,
-        clusterless_algorithm="multiunit_likelihood",
-        clusterless_algorithm_params=_DEFAULT_CLUSTERLESS_MODEL_KWARGS,
+        environment: Environment = Environment(environment_name=""),
+        transition_type: Union[
+            EmpiricalMovement,
+            RandomWalk,
+            RandomWalkDirection1,
+            RandomWalkDirection2,
+            Uniform,
+        ] = RandomWalk(),
+        initial_conditions_type: UniformInitialConditions = UniformInitialConditions(),
+        infer_track_interior: bool = True,
+        clusterless_algorithm: str = "multiunit_likelihood",
+        clusterless_algorithm_params: dict = _DEFAULT_CLUSTERLESS_MODEL_KWARGS,
     ):
         super().__init__(
             environment, transition_type, initial_conditions_type, infer_track_interior
@@ -390,13 +542,18 @@ class ClusterlessDecoder(_DecoderBase):
         self.clusterless_algorithm = clusterless_algorithm
         self.clusterless_algorithm_params = clusterless_algorithm_params
 
-    def fit_multiunits(self, position, multiunits, is_training=None):
+    def fit_multiunits(
+        self,
+        position: np.ndarray,
+        multiunits: np.ndarray,
+        is_training: Optional[np.ndarray] = None,
+    ):
         """
 
         Parameters
         ----------
-        position : array_like, shape (n_time, n_position_dims)
-        multiunits : array_like, shape (n_time, n_marks, n_electrodes)
+        position : np.ndarray, shape (n_time, n_position_dims)
+        multiunits : np.ndarray, shape (n_time, n_marks, n_electrodes)
         is_training : None or array_like, shape (n_time,)
 
         """
@@ -417,14 +574,24 @@ class ClusterlessDecoder(_DecoderBase):
             **kwargs
         )
 
-    def fit(self, position, multiunits, is_training=None):
-        """
+    def fit(
+        self,
+        position: np.ndarray,
+        multiunits: np.ndarray,
+        is_training: Optional[np.ndarray] = None,
+    ):
+        """Fit the spatial grid, initial conditions, place field model, and
+        transition matrices.
 
         Parameters
         ----------
-        position : array_like, shape (n_time, n_position_dims)
-        multiunits : array_like, shape (n_time, n_marks, n_electrodes)
-        is_training : None or array_like, shape (n_time,)
+        position : np.ndarray, shape (n_time, n_position_dims)
+            Position of the animal.
+        multiunits : np.ndarray, shape (n_time, n_marks, n_electrodes)
+            Array where spikes are indicated by non-Nan values that correspond to the waveform features
+            for each electrode.
+        is_training : None or np.ndarray, shape (n_time), optional
+            Boolean array to indicate which data should be included in fitting of place fields, by default None
 
         Returns
         -------
@@ -443,15 +610,24 @@ class ClusterlessDecoder(_DecoderBase):
 
         return self
 
-    def predict(self, multiunits, time=None, is_compute_acausal=True, use_gpu=False):
-        """
+    def predict(
+        self,
+        multiunits: np.ndarray,
+        time: Optional[np.ndarray] = None,
+        is_compute_acausal: bool = True,
+        use_gpu: bool = False,
+    ) -> xr.Dataset:
+        """Predict the probability of spatial position and category from the multiunit spikes and waveforms.
 
         Parameters
         ----------
-        multiunits : array_like, shape (n_time, n_marks, n_electrodes)
-        time : None or np.ndarray, shape (n_time,)
+        multiunits : np.ndarray, shape (n_time, n_marks, n_electrodes)
+            Array where spikes are indicated by non-Nan values that correspond to the waveform features
+            for each electrode.
+        time : np.ndarray or None, shape (n_time,), optional
+            Label the time axis with these values.
         is_compute_acausal : bool, optional
-            Use future information to compute the posterior.
+            If True, compute the acausal posterior.
         use_gpu : bool, optional
             Use GPU for the state space part of the model, not the likelihood.
 
