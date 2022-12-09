@@ -480,6 +480,38 @@ class _ClassifierBase(BaseEstimator):
             attrs=results2D.attrs,
         )
 
+    def project_1D_position_to_2D(
+        self, results: xr.Dataset, posterior_type="acausal_posterior"
+    ) -> np.ndarray:
+        """Project the 1D most probable position into the 2D track graph space.
+
+        Only works for single environment.
+
+        Parameters
+        ----------
+        results : xr.Dataset
+        posterior_type : causal_posterior | acausal_posterior | likelihood
+
+        Returns
+        -------
+        map_position2D : np.ndarray
+
+        """
+        if len(self.environments) > 1:
+            print("Canont project back with multiple environments.")
+            return
+        map_position_ind = (
+            results[posterior_type].sum("state").argmax("position").to_numpy().squeeze()
+        )
+
+        return (
+            self.environments[0]
+            .place_bin_centers_nodes_df_.iloc[map_position_ind][
+                ["x_position", "y_position"]
+            ]
+            .to_numpy()
+        )
+
     def _get_results(
         self,
         likelihood: np.ndarray,
