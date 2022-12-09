@@ -6,6 +6,7 @@ from logging import getLogger
 from typing import Optional, Union
 
 import joblib
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -112,7 +113,7 @@ class _ClassifierBase(BaseEstimator):
         self.infer_track_interior = infer_track_interior
 
     def fit_environments(
-        self, position: np.ndarray, environment_labels: np.ndarray = None
+        self, position: np.ndarray, environment_labels: Optional[np.ndarray] = None
     ) -> None:
         """Fits the Environment class on the position data to get information about the spatial environment.
 
@@ -242,9 +243,9 @@ class _ClassifierBase(BaseEstimator):
 
     def plot_discrete_state_transition(
         self,
-        state_names: list[str] = None,
+        state_names: Optional[list[str]] = None,
         cmap: str = "Oranges",
-        ax: plt.axes = None,
+        ax: Optional[matplotlib.axes.Axes] = None,
         convert_to_seconds: bool = False,
         sampling_frequency: int = 1,
     ) -> None:
@@ -256,7 +257,7 @@ class _ClassifierBase(BaseEstimator):
             Names corresponding to each discrete state, by default None
         cmap : str, optional
             matplotlib colormap, by default "Oranges"
-        ax : plt.axes, optional
+        ax : matplotlib.axes.Axes, optional
             Plotting axis, by default plots to current axis
         convert_to_seconds : bool, optional
             Convert the probabilities of state to expected duration of state, by default False
@@ -310,7 +311,7 @@ class _ClassifierBase(BaseEstimator):
         store_likelihood: bool = True,
         estimate_initial_conditions: bool = True,
         estimate_discrete_transition: bool = True,
-    ) -> tuple[xr.Dataset, list]:
+    ) -> tuple[xr.Dataset, list[float]]:
         """Estimate the intial conditions and/or discrete transition matrix of the model.
 
         Parameters
@@ -920,7 +921,9 @@ class SortedSpikesClassifier(_ClassifierBase):
                 **kwargs,
             )
 
-    def plot_place_fields(self, sampling_frequency=1, figsize=(10, 7)):
+    def plot_place_fields(
+        self, sampling_frequency: int = 1, figsize: tuple[float, float] = (10.0, 7.0)
+    ):
         """Plots place fields for each neuron.
 
         Parameters
@@ -1025,7 +1028,7 @@ class SortedSpikesClassifier(_ClassifierBase):
         use_gpu: bool = False,
         state_names: Optional[list[str]] = None,
         store_likelihood: bool = False,
-    ):
+    ) -> xr.Dataset:
         """Predict the probability of spatial position and category from the spikes.
 
         Parameters
@@ -1260,7 +1263,7 @@ class ClusterlessClassifier(_ClassifierBase):
         use_gpu: bool = False,
         state_names: Optional[list[str]] = None,
         store_likelihood: bool = False,
-    ):
+    ) -> xr.Dataset:
         """Predict the probability of spatial position and category from the multiunit spikes and waveforms.
 
         Parameters
