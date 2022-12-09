@@ -39,7 +39,6 @@ INSTALL_REQUIRES = [
     "track_linearization",
     "tqdm",
     "seaborn",
-    "trajectory_analysis_tools",
 ]
 TESTS_REQUIRE = ["pytest >= 2.7.1"]
 
