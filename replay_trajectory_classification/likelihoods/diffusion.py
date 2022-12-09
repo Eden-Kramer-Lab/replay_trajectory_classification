@@ -5,15 +5,17 @@ estimates with boundaries."""
 import numpy as np
 from replay_trajectory_classification.environments import diffuse_each_bin, get_bin_ind
 
+from typing import Optional
+
 
 def estimate_diffusion_position_distance(
-    positions,
-    edges,
-    is_track_interior=None,
-    is_track_boundary=None,
-    position_std=3.0,
-    bin_distances=None,
-):
+    positions: np.ndarray,
+    edges: np.ndarray,
+    is_track_interior: Optional[np.ndarray] = None,
+    is_track_boundary: Optional[np.ndarray] = None,
+    position_std: float = 3.0,
+    bin_distances: Optional[np.ndarray] = None,
+) -> np.ndarray:
     """Estimates a distance between a given position and all position bins
     using a diffusion.
 
@@ -49,14 +51,14 @@ def estimate_diffusion_position_distance(
 
 
 def estimate_diffusion_position_density(
-    positions,
-    edges,
-    is_track_interior=None,
-    is_track_boundary=None,
-    position_std=3.0,
-    bin_distances=None,
-    block_size=100,
-):
+    positions: np.ndarray,
+    edges: np.ndarray,
+    is_track_interior: Optional[np.ndarray] = None,
+    is_track_boundary: Optional[np.ndarray] = None,
+    position_std: float = 3.0,
+    bin_distances: Optional[np.ndarray] = None,
+    block_size: Optional[int] = 100,
+) -> np.ndarray:
     """Kernel density estimate over all position bins using diffusion.
 
     Parameters

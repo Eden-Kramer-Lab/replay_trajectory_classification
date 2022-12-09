@@ -1,6 +1,7 @@
 """Estimates a Poisson likelihood using place fields estimated with a GLM
 with a spline basis"""
 import logging
+from typing import Optional, Union
 
 import dask
 import numpy as np
@@ -8,13 +9,16 @@ import pandas as pd
 import scipy.stats
 import xarray as xr
 from dask.distributed import Client, get_client
-from patsy import build_design_matrices, dmatrix
+from patsy import DesignInfo, DesignMatrix, build_design_matrices, dmatrix
 from regularized_glm import penalized_IRLS
-from replay_trajectory_classification.environments import get_n_bins
 from statsmodels.api import families
 
+from replay_trajectory_classification.environments import get_n_bins
 
-def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
+
+def make_spline_design_matrix(
+    position: np.ndarray, place_bin_edges: np.ndarray, knot_spacing: float = 10.0
+) -> DesignMatrix:
     """Creates a design matrix for regression with a position spline basis.
 
     Parameters
@@ -24,7 +28,7 @@ def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
 
     Returns
     -------
-    design_matrix : statsmodels.DesignMatrix
+    design_matrix : patsy.DesignMatrix
 
     """
     inner_knots = []
@@ -49,7 +53,9 @@ def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
     return dmatrix(formula, data)
 
 
-def make_spline_predict_matrix(design_info, place_bin_centers):
+def make_spline_predict_matrix(
+    design_info: DesignInfo, place_bin_centers: np.ndarray
+) -> DesignMatrix:
     """Make a design matrix for position bins"""
     predict_data = {}
     for ind in range(place_bin_centers.shape[1]):
@@ -57,7 +63,9 @@ def make_spline_predict_matrix(design_info, place_bin_centers):
     return build_design_matrices([design_info], predict_data)[0]
 
 
-def get_firing_rate(design_matrix, results, sampling_frequency=1):
+def get_firing_rate(
+    design_matrix: DesignMatrix, results: tuple, sampling_frequency: int = 1
+):
     """Predicts the firing rate given fitted model coefficents."""
     if np.any(np.isnan(results.coefficients)):
         n_time = design_matrix.shape[0]
@@ -69,7 +77,12 @@ def get_firing_rate(design_matrix, results, sampling_frequency=1):
 
 
 @dask.delayed
-def fit_glm(response, design_matrix, penalty=None, tolerance=1e-5):
+def fit_glm(
+    response: np.ndarray,
+    design_matrix: np.ndarray,
+    penalty: Optional[float] = None,
+    tolerance: float = 1e-5,
+) -> tuple:
     """Fits a L2-penalized GLM.
 
     Parameters
@@ -102,7 +115,9 @@ def fit_glm(response, design_matrix, penalty=None, tolerance=1e-5):
     )
 
 
-def poisson_log_likelihood(spikes, conditional_intensity):
+def poisson_log_likelihood(
+    spikes: np.ndarray, conditional_intensity: np.ndarray
+) -> np.ndarray:
     """Probability of parameters given spiking at a particular time.
 
     Parameters
@@ -114,7 +129,7 @@ def poisson_log_likelihood(spikes, conditional_intensity):
 
     Returns
     -------
-    poisson_log_likelihood : array_like, shape (n_time, n_place_bins)
+    poisson_log_likelihood : np.ndarray, shape (n_time, n_place_bins)
 
     """
     # Logarithm of the absolute value of the gamma function is always 0 when
@@ -124,7 +139,9 @@ def poisson_log_likelihood(spikes, conditional_intensity):
     )
 
 
-def combined_likelihood(spikes, conditional_intensity):
+def combined_likelihood(
+    spikes: np.ndarray, conditional_intensity: np.ndarray
+) -> np.ndarray:
     """Combines the likelihoods of all the cells.
 
     Parameters
@@ -143,7 +160,11 @@ def combined_likelihood(spikes, conditional_intensity):
     return log_likelihood
 
 
-def estimate_spiking_likelihood(spikes, conditional_intensity, is_track_interior=None):
+def estimate_spiking_likelihood(
+    spikes: np.ndarray,
+    conditional_intensity: np.ndarray,
+    is_track_interior: Optional[np.ndarray] = None,
+) -> np.ndarray:
     """
 
     Parameters
@@ -155,6 +176,7 @@ def estimate_spiking_likelihood(spikes, conditional_intensity, is_track_interior
     Returns
     -------
     likelihood : np.ndarray, shape (n_time, n_bins)
+
     """
     if is_track_interior is not None:
         is_track_interior = is_track_interior.ravel(order="F")
@@ -171,16 +193,16 @@ def estimate_spiking_likelihood(spikes, conditional_intensity, is_track_interior
 
 
 def estimate_place_fields(
-    position,
-    spikes,
-    place_bin_centers,
-    place_bin_edges,
-    edges=None,
-    is_track_boundary=None,
-    is_track_interior=None,
-    penalty=1e-1,
-    knot_spacing=10,
-):
+    position: np.ndarray,
+    spikes: np.ndarray,
+    place_bin_centers: np.ndarray,
+    place_bin_edges: np.ndarray,
+    edges: Optional[np.ndarray] = None,
+    is_track_boundary: Optional[np.ndarray] = None,
+    is_track_interior: Optional[np.ndarray] = None,
+    penalty: float = 1e-1,
+    knot_spacing: int = 10,
+) -> xr.DataArray:
     """Gives the conditional intensity of the neurons' spiking with respect to
     position.
 
@@ -199,7 +221,7 @@ def estimate_place_fields(
 
     Returns
     -------
-    conditional_intensity : np.ndarray, shape (n_bins, n_neurons)
+    conditional_intensity : xr.DataArray, shape (n_bins, n_neurons)
 
     """
     if np.any(np.ptp(place_bin_edges, axis=0) <= knot_spacing):

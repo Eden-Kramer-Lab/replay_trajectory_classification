@@ -1,31 +1,36 @@
 """Estimates a Poisson likelihood using place fields estimated with a KDE
 using GPUs"""
+from typing import Optional, Union
+
 import numpy as np
 import pandas as pd
 import xarray as xr
+from tqdm.auto import tqdm
+
 from replay_trajectory_classification.core import atleast_2d
 from replay_trajectory_classification.likelihoods.diffusion import (
     diffuse_each_bin,
     estimate_diffusion_position_density,
 )
-from tqdm.auto import tqdm
 
 try:
     import cupy as cp
 
-    def gaussian_pdf(x, mean, sigma):
+    def gaussian_pdf(x: np.ndarray, mean: np.ndarray, sigma: np.ndarray) -> np.ndarray:
         """Compute the value of a Gaussian probability density function at x with
         given mean and sigma."""
         return np.exp(-0.5 * ((x - mean) / sigma) ** 2) / (sigma * np.sqrt(2.0 * np.pi))
 
-    def estimate_position_distance(place_bin_centers, positions, position_std):
+    def estimate_position_distance(
+        place_bin_centers: np.ndarray, positions: np.ndarray, position_std: np.ndarray
+    ) -> np.ndarray:
         """Estimates the Euclidean distance between positions and position bins.
 
         Parameters
         ----------
         place_bin_centers : np.ndarray, shape (n_position_bins, n_position_dims)
         positions : np.ndarray, shape (n_time, n_position_dims)
-        position_std : array_like, shape (n_position_dims,)
+        position_std : np.ndarray, shape (n_position_dims,)
 
         Returns
         -------
@@ -50,8 +55,11 @@ try:
         return position_distance
 
     def estimate_position_density(
-        place_bin_centers, positions, position_std, block_size=100
-    ):
+        place_bin_centers: np.ndarray,
+        positions: np.ndarray,
+        position_std: Union[float, np.ndarray],
+        block_size: int = 100,
+    ) -> np.ndarray:
         """Estimates a kernel density estimate over position bins using
         Euclidean distances.
 
@@ -69,10 +77,8 @@ try:
         n_time = positions.shape[0]
         n_position_bins = place_bin_centers.shape[0]
 
-        if n_time > 0:
+        if block_size is None:
             block_size = n_time
-        else:
-            block_size = 1
 
         position_density = np.empty((n_position_bins,))
         for start_ind in range(0, n_position_bins, block_size):
@@ -86,15 +92,15 @@ try:
         return position_density
 
     def get_firing_rate(
-        is_spike,
-        position,
-        place_bin_centers,
-        is_track_interior,
-        not_nan_position,
-        occupancy,
-        position_std,
-        block_size=None,
-    ):
+        is_spike: np.ndarray,
+        position: np.ndarray,
+        place_bin_centers: np.ndarray,
+        is_track_interior: np.ndarray,
+        not_nan_position: np.ndarray,
+        occupancy: np.ndarray,
+        position_std: np.ndarray,
+        block_size: Optional[int] = None,
+    ) -> np.ndarray:
         if is_spike.sum() > 0:
             mean_rate = is_spike.mean()
             marginal_density = np.zeros((place_bin_centers.shape[0],), dtype=np.float32)
@@ -112,13 +118,13 @@ try:
             return np.zeros_like(occupancy)
 
     def get_diffusion_firing_rate(
-        is_spike,
-        position,
-        edges,
-        bin_diffusion_distances,
-        occupancy,
-        not_nan_position,
-    ):
+        is_spike: np.ndarray,
+        position: np.ndarray,
+        edges: list[np.ndarray],
+        bin_diffusion_distances: np.ndarray,
+        occupancy: np.ndarray,
+        not_nan_position: np.ndarray,
+    ) -> np.ndarray:
         if is_spike.sum() > 0:
             mean_rate = is_spike.mean()
             marginal_density = estimate_diffusion_position_density(
@@ -134,17 +140,17 @@ try:
             return np.zeros_like(occupancy)
 
     def estimate_place_fields_kde_gpu(
-        position,
-        spikes,
-        place_bin_centers,
-        position_std,
-        is_track_boundary=None,
-        is_track_interior=None,
-        edges=None,
-        place_bin_edges=None,
-        use_diffusion=False,
-        block_size=None,
-    ):
+        position: np.ndarray,
+        spikes: np.ndarray,
+        place_bin_centers: np.ndarray,
+        position_std: Union[float, np.ndarray],
+        is_track_boundary: Optional[np.ndarray] = None,
+        is_track_interior: Optional[np.ndarray] = None,
+        edges: Optional[list[np.ndarray]] = None,
+        place_bin_edges: Optional[np.ndarray] = None,
+        use_diffusion: bool = False,
+        block_size: Optional[int] = None,
+    ) -> xr.DataArray:
         """Gives the conditional intensity of the neurons' spiking with respect to
         position.
 
@@ -167,7 +173,7 @@ try:
 
         Returns
         -------
-        conditional_intensity : np.ndarray, shape (n_bins, n_neurons)
+        conditional_intensity : xr.DataArray, shape (n_bins, n_neurons)
 
         """
 
@@ -244,19 +250,21 @@ try:
 
         return xr.DataArray(data=place_fields, coords=coords, dims=DIMS)
 
-    def poisson_log_likelihood(spikes, conditional_intensity):
+    def poisson_log_likelihood(
+        spikes: cp.ndarray, conditional_intensity: cp.ndarray
+    ) -> cp.ndarray:
         """Probability of parameters given spiking at a particular time.
 
         Parameters
         ----------
-        spikes : np.ndarray, shape (n_time,)
+        spikes : cp.ndarray, shape (n_time,)
             Indicator of spike or no spike at current time.
-        conditional_intensity : np.ndarray, shape (n_place_bins,)
+        conditional_intensity : cp.ndarray, shape (n_place_bins,)
             Instantaneous probability of observing a spike
 
         Returns
         -------
-        poisson_log_likelihood : array_like, shape (n_time, n_place_bins)
+        poisson_log_likelihood : cp.ndarray, shape (n_time, n_place_bins)
 
         """
         # Logarithm of the absolute value of the gamma function is always 0 when
@@ -267,7 +275,9 @@ try:
             - conditional_intensity[cp.newaxis, :]
         )
 
-    def combined_likelihood(spikes, conditional_intensity):
+    def combined_likelihood(
+        spikes: np.ndarray, conditional_intensity: np.ndarray
+    ) -> np.ndarray:
         """
 
         Parameters
@@ -291,8 +301,10 @@ try:
         return cp.asnumpy(log_likelihood)
 
     def estimate_spiking_likelihood_kde_gpu(
-        spikes, conditional_intensity, is_track_interior=None
-    ):
+        spikes: np.ndarray,
+        conditional_intensity: np.ndarray,
+        is_track_interior: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
         """
 
         Parameters
@@ -304,6 +316,7 @@ try:
         Returns
         -------
         likelihood : np.ndarray, shape (n_time, n_bins)
+
         """
         spikes = np.asarray(spikes, dtype=np.float32)
 

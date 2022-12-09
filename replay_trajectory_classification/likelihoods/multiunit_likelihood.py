@@ -2,23 +2,28 @@
  features of the spike waveform. Features are float32."""
 
 
+from typing import Optional, Union
+
 import numpy as np
+from tqdm.autonotebook import tqdm
+
 from replay_trajectory_classification.core import atleast_2d
 from replay_trajectory_classification.likelihoods.diffusion import (
     diffuse_each_bin,
     estimate_diffusion_position_density,
     estimate_diffusion_position_distance,
 )
-from tqdm.autonotebook import tqdm
 
 
-def gaussian_pdf(x, mean, sigma):
+def gaussian_pdf(x: np.ndarray, mean: np.ndarray, sigma: np.ndarray) -> np.ndarray:
     """Compute the value of a Gaussian probability density function at x with
     given mean and sigma."""
     return np.exp(-0.5 * ((x - mean) / sigma) ** 2) / (sigma * np.sqrt(2.0 * np.pi))
 
 
-def estimate_position_distance(place_bin_centers, positions, position_std):
+def estimate_position_distance(
+    place_bin_centers: np.ndarray, positions: np.ndarray, position_std: np.ndarray
+) -> np.ndarray:
     """Estimates the Euclidean distance between positions and position bins.
 
     Parameters
@@ -51,8 +56,11 @@ def estimate_position_distance(place_bin_centers, positions, position_std):
 
 
 def estimate_position_density(
-    place_bin_centers, positions, position_std, block_size=100
-):
+    place_bin_centers: np.ndarray,
+    positions: np.ndarray,
+    position_std: np.ndarray,
+    block_size: int = 100,
+) -> np.ndarray:
     """Estimates a kernel density estimate over position bins using
     Euclidean distances.
 
@@ -85,12 +93,16 @@ def estimate_position_density(
     return position_density
 
 
-def estimate_log_intensity(density, occupancy, mean_rate):
+def estimate_log_intensity(
+    density: np.ndarray, occupancy: np.ndarray, mean_rate: float
+) -> np.ndarray:
     """Calculates intensity in log space."""
     return np.log(mean_rate) + np.log(density) - np.log(occupancy)
 
 
-def estimate_intensity(density, occupancy, mean_rate):
+def estimate_intensity(
+    density: np.ndarray, occupancy: np.ndarray, mean_rate: float
+) -> np.ndarray:
     """Calculates intensity.
 
     Parameters
@@ -108,17 +120,17 @@ def estimate_intensity(density, occupancy, mean_rate):
 
 
 def estimate_log_joint_mark_intensity(
-    decoding_marks,
-    encoding_marks,
-    mark_std,
-    occupancy,
-    mean_rate,
-    place_bin_centers=None,
-    encoding_positions=None,
-    position_std=None,
-    max_mark_diff=6000,
-    set_diag_zero=False,
-    position_distance=None,
+    decoding_marks: np.ndarray,
+    encoding_marks: np.ndarray,
+    mark_std: np.ndarray,
+    occupancy: np.ndarray,
+    mean_rate: float,
+    place_bin_centers: Optional[np.ndarray] = None,
+    encoding_positions: Optional[np.ndarray] = None,
+    position_std: Union[np.ndarray, float, None] = None,
+    max_mark_diff: int = 6000,
+    set_diag_zero: bool = False,
+    position_distance: Optional[np.ndarray] = None,
 ):
     """Finds the joint intensity of the marks and positions in log space.
 
@@ -172,18 +184,18 @@ def estimate_log_joint_mark_intensity(
 
 
 def fit_multiunit_likelihood(
-    position,
-    multiunits,
-    place_bin_centers,
-    mark_std,
-    position_std,
-    is_track_boundary=None,
-    is_track_interior=None,
-    edges=None,
-    block_size=100,
-    use_diffusion=False,
+    position: np.ndarray,
+    multiunits: np.ndarray,
+    place_bin_centers: np.ndarray,
+    mark_std: Union[np.ndarray, float],
+    position_std: Union[np.ndarray, float],
+    is_track_boundary: Optional[np.ndarray] = None,
+    is_track_interior: Optional[np.ndarray] = None,
+    edges: Optional[list[np.ndarray]] = None,
+    block_size: int = 100,
+    use_diffusion: bool = False,
     **kwargs
-):
+) -> dict:
     """Fits the clusterless place field model.
 
     Parameters
@@ -322,26 +334,26 @@ def fit_multiunit_likelihood(
 
 
 def estimate_multiunit_likelihood(
-    multiunits,
-    encoding_marks,
-    mark_std,
-    place_bin_centers,
-    encoding_positions,
-    position_std,
-    occupancy,
-    mean_rates,
-    summed_ground_process_intensity,
-    bin_diffusion_distances,
-    edges,
-    max_mark_diff=6000,
-    set_diag_zero=False,
-    is_track_interior=None,
-    time_bin_size=1,
-    block_size=100,
-    ignore_no_spike=False,
-    disable_progress_bar=False,
-    use_diffusion=False,
-):
+    multiunits: np.ndarray,
+    encoding_marks: np.ndarray,
+    mark_std: np.ndarray,
+    place_bin_centers: np.ndarray,
+    encoding_positions: np.ndarray,
+    position_std: Union[float, np.ndarray],
+    occupancy: np.ndarray,
+    mean_rates: np.ndarray,
+    summed_ground_process_intensity: np.ndarray,
+    bin_diffusion_distances: np.ndarray,
+    edges: list[np.ndarray],
+    max_mark_diff: int = 6000,
+    set_diag_zero: bool = False,
+    is_track_interior: Optional[np.ndarray] = None,
+    time_bin_size: int = 1,
+    block_size: int = 100,
+    ignore_no_spike: bool = False,
+    disable_progress_bar: bool = False,
+    use_diffusion: bool = False,
+) -> np.ndarray:
     """Estimates the likelihood of position bins given multiunit marks.
 
     Parameters

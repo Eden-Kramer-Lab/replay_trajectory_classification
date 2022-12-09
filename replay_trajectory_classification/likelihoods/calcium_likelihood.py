@@ -7,19 +7,23 @@ References
 """
 
 import logging
+from typing import Optional
 
 import dask
 import numpy as np
 import pandas as pd
 import xarray as xr
 from dask.distributed import Client, get_client
-from patsy import build_design_matrices, dmatrix
+from patsy import DesignInfo, DesignMatrix, build_design_matrices, dmatrix
 from regularized_glm import penalized_IRLS
-from replay_trajectory_classification.environments import get_n_bins
 from statsmodels.api import families
 
+from replay_trajectory_classification.environments import get_n_bins
 
-def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
+
+def make_spline_design_matrix(
+    position: np.ndarray, place_bin_edges: np.ndarray, knot_spacing: int = 10
+) -> DesignMatrix:
     """Creates a design matrix for regression with a position spline basis.
 
     Parameters
@@ -29,7 +33,7 @@ def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
 
     Returns
     -------
-    design_matrix : statsmodels.DesignMatrix
+    design_matrix : patsy.DesignMatrix
 
     """
     # TODO: Add history dependence
@@ -55,7 +59,9 @@ def make_spline_design_matrix(position, place_bin_edges, knot_spacing=10):
     return dmatrix(formula, data)
 
 
-def make_spline_predict_matrix(design_info, place_bin_centers):
+def make_spline_predict_matrix(
+    design_info: DesignInfo, place_bin_centers: np.ndarray
+) -> DesignMatrix:
     """Make a design matrix for position bins"""
     predict_data = {}
     for ind in range(place_bin_centers.shape[1]):
@@ -63,7 +69,7 @@ def make_spline_predict_matrix(design_info, place_bin_centers):
     return build_design_matrices([design_info], predict_data)[0]
 
 
-def get_activity_rate(design_matrix, results):
+def get_activity_rate(design_matrix: DesignMatrix, results: tuple) -> np.ndarray:
     """Predicts the calcium activity trace given fitted model coefficents."""
     rate = design_matrix @ results.coefficients
     rate[rate < 0.1] = 0.1
@@ -71,7 +77,12 @@ def get_activity_rate(design_matrix, results):
 
 
 @dask.delayed
-def fit_glm(response, design_matrix, penalty=None, tolerance=1e-5):
+def fit_glm(
+    response: np.ndarray,
+    design_matrix: np.ndarray,
+    penalty: Optional[float] = None,
+    tolerance: float = 1e-5,
+) -> tuple:
     """Fits a L2-penalized GLM.
 
     Parameters
@@ -104,7 +115,9 @@ def fit_glm(response, design_matrix, penalty=None, tolerance=1e-5):
     )
 
 
-def gamma_log_likelihood(calcium_activity, place_field, scale):
+def gamma_log_likelihood(
+    calcium_activity: np.ndarray, place_field: np.ndarray, scale: float
+) -> np.ndarray:
     """Probability of parameters given spiking at a particular time.
 
     Parameters
@@ -115,7 +128,7 @@ def gamma_log_likelihood(calcium_activity, place_field, scale):
 
     Returns
     -------
-    gamma_log_likelihood : array_like, shape (n_time, n_place_bins)
+    gamma_log_likelihood : np.ndarray, shape (n_time, n_place_bins)
 
     """
     # return scipy.stats.gamma.logpdf(v * calcium_activity / mu, v)
@@ -132,7 +145,9 @@ def gamma_log_likelihood(calcium_activity, place_field, scale):
     )
 
 
-def combined_likelihood(calcium_activity, place_fields, scales):
+def combined_likelihood(
+    calcium_activity: np.ndarray, place_fields: np.ndarray, scales: np.ndarray
+) -> np.ndarray:
     """Combines the likelihoods of all the cells.
 
     Parameters
@@ -154,8 +169,11 @@ def combined_likelihood(calcium_activity, place_fields, scales):
 
 
 def estimate_calcium_likelihood(
-    calcium_activity, place_fields, scales, is_track_interior=None
-):
+    calcium_activity: np.ndarray,
+    place_fields: np.ndarray,
+    scales: np.ndarray,
+    is_track_interior: Optional[np.ndarray] = None,
+) -> np.ndarray:
     """Find the likelihood given a fitted place field model.
 
     Parameters
@@ -185,13 +203,13 @@ def estimate_calcium_likelihood(
 
 
 def estimate_calcium_place_fields(
-    position,
-    calcium_activity,
-    place_bin_centers,
-    place_bin_edges,
-    penalty=1e-1,
-    knot_spacing=10,
-):
+    position: np.ndarray,
+    calcium_activity: np.ndarray,
+    place_bin_centers: np.ndarray,
+    place_bin_edges: np.ndarray,
+    penalty: float = 1e-1,
+    knot_spacing: int = 10,
+) -> xr.DataArray:
     """Gives the conditional intensity of the neurons' spiking with respect to
     position.
 
@@ -207,7 +225,7 @@ def estimate_calcium_place_fields(
 
     Returns
     -------
-    conditional_intensity : np.ndarray, shape (n_bins, n_neurons)
+    conditional_intensity :xr.DataArray, shape (n_bins, n_neurons)
 
     """
     if np.any(np.ptp(place_bin_edges, axis=0) <= knot_spacing):

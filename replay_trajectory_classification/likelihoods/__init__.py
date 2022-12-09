@@ -1,3 +1,4 @@
+"""Functions to fit the position intensities and likelihoods for each data type"""
 # flake8: noqa
 from replay_trajectory_classification.likelihoods.calcium_likelihood import (
     estimate_calcium_likelihood,
@@ -67,4 +68,8 @@ _SORTED_SPIKES_ALGORITHMS = {
         estimate_place_fields_kde_gpu,
         estimate_spiking_likelihood_kde_gpu,
     ),
+}
+
+_CALCIUM_ALGORITHMS = {
+    "calcium_likelihood": (estimate_calcium_place_fields, estimate_calcium_likelihood)
 }
