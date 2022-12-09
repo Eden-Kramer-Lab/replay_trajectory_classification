@@ -3,7 +3,6 @@ dask[distributed]
 numpydoc==1.1.0
 sphinx
 pydata-sphinx-theme
-furo
 sphinx-autobuild
 sphinx-copybutton
 sphinx-design
