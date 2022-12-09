@@ -24,7 +24,7 @@ def make_simulated_run_data(
     sampling_frequency: int = SAMPLING_FREQUENCY,
     track_height: float = TRACK_HEIGHT,
     running_speed: float = RUNNING_SPEED,
-    n_run: int = N_RUNS,
+    n_runs: int = N_RUNS,
     place_field_variance: float = PLACE_FIELD_VARIANCE,
     place_field_means: np.ndarray = PLACE_FIELD_MEANS,
     n_tetrodes: int = N_TETRODES,
