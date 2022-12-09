@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Optional, Union
 
 import joblib
+import matplotlib
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -141,7 +142,7 @@ class Environment:
 
         return self
 
-    def plot_grid(self, ax: plt.axes = None):
+    def plot_grid(self, ax: matplotlib.axes.Axes = None):
         """Plot the fitted spatial grid of the environment.
 
         Parameters
@@ -229,7 +230,7 @@ def get_grid(
     position: np.ndarray,
     bin_size: float = 2.5,
     position_range: Optional[list[np.ndarray]] = None,
-) -> tuple(np.ndarray, np.ndarray, np.ndarray, tuple):
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, tuple]:
     """Gets the spatial grid of bins.
 
     Parameters
