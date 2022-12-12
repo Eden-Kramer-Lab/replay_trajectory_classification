@@ -3,44 +3,46 @@ import numpy as np
 from replay_trajectory_classification.core import atleast_2d
 from scipy.stats import multivariate_normal
 
+from typing import Optional
+
 
 def simulate_time(n_samples: int, sampling_frequency: float) -> np.ndarray:
-    """Simulate a time vector.
+    """Simulate a time in seconds.
 
     Parameters
     ----------
     n_samples : int
         The number of samples to generate.
     sampling_frequency : float
-        The sampling frequency to use.
+        Samples per second.
 
     Returns
     -------
     time : ndarray, shape (n_samples,)
-        The simulated time vector.
+        Time in seconds
 
     """
     return np.arange(n_samples) / sampling_frequency
 
 
-def simulate_linear_distance(
+def simulate_position(
     time: np.ndarray, track_height: float, running_speed: float = 15
 ) -> np.ndarray:
-    """Simulate a linear distance vector.
+    """Simulate animal moving through linear space.
 
     Parameters
     ----------
     time : ndarray, shape (n_time,)
-        The time vector.
+        Time in seconds.
     track_height : float
-        The height of the track.
+        The height of the simulated track.
     running_speed : float, optional
-        The running speed (default is 15).
+        The running speed of the simulated animal (default is 15).
 
     Returns
     -------
-    distance : ndarray, shape (n_time,)
-        The simulated linear distance vector.
+    position : ndarray, shape (n_time,)
+       The simulated position of the animal.
 
     """
     half_height = track_height / 2
@@ -48,14 +50,14 @@ def simulate_linear_distance(
     return half_height * np.sin(freq * 2 * np.pi * time - np.pi / 2) + half_height
 
 
-def simulate_linear_distance_with_pauses(
+def simulate_position_with_pauses(
     time: np.ndarray,
     track_height: float,
     running_speed: float = 15,
     pause: float = 0.5,
     sampling_frequency: float = 1,
 ) -> np.ndarray:
-    """Simulate a linear distance vector with pauses.
+    """Simulate an animal moving with pauses.
 
     Parameters
     ----------
@@ -72,29 +74,30 @@ def simulate_linear_distance_with_pauses(
 
     Returns
     -------
-    distance : ndarray, shape (n_time,)
-        The simulated linear distance vector with pauses.
+    position : ndarray, shape (n_time,)
+        The simulated position of the animal with pauses.
 
     """
-    linear_distance = simulate_linear_distance(time, track_height, running_speed)
-    peaks = np.nonzero(np.isclose(linear_distance, track_height))[0]
+    position = simulate_position(time, track_height, running_speed)
+    peaks = np.nonzero(np.isclose(position, track_height))[0]
     n_pause_samples = int(pause * sampling_frequency)
-    pause_linear_distance = np.zeros((time.size + n_pause_samples * peaks.size,))
+    pause_position = np.zeros((time.size + n_pause_samples * peaks.size,))
     pause_ind = peaks[:, np.newaxis] + np.arange(n_pause_samples)
     pause_ind += np.arange(peaks.size)[:, np.newaxis] * n_pause_samples
 
-    pause_linear_distance[pause_ind.ravel()] = track_height
-    pause_linear_distance[pause_linear_distance == 0] = linear_distance
-    return pause_linear_distance[: time.size]
+    pause_position[pause_ind.ravel()] = track_height
+    pause_position[pause_position == 0] = position
+
+    return pause_position[: time.size]
 
 
-def simulate_poisson_spikes(rate, sampling_frequency):
+def simulate_poisson_spikes(rate: np.ndarray, sampling_frequency: int) -> np.ndarray:
     """Given a rate, returns a time series of spikes.
 
     Parameters
     ----------
     rate : np.ndarray, shape (n_time,)
-    sampling_frequency : float
+    sampling_frequency : int
 
     Returns
     -------
@@ -105,8 +108,12 @@ def simulate_poisson_spikes(rate, sampling_frequency):
 
 
 def simulate_place_field_firing_rate(
-    means, position, max_rate=15, variance=10, is_condition=None
-):
+    means: np.ndarray,
+    position: np.ndarray,
+    max_rate: float = 15.0,
+    variance: float = 10.0,
+    is_condition: Optional[np.ndarray] = None,
+) -> np.ndarray:
     """Simulates the firing rate of a neuron with a place field at `means`.
 
     Parameters
@@ -134,8 +141,13 @@ def simulate_place_field_firing_rate(
 
 
 def simulate_neuron_with_place_field(
-    means, position, max_rate=15, variance=36, sampling_frequency=500, is_condition=None
-):
+    means: np.ndarray,
+    position: np.ndarray,
+    max_rate: float = 15.0,
+    variance: float = 36.0,
+    sampling_frequency: int = 500,
+    is_condition: Optional[np.ndarray] = None,
+) -> np.ndarray:
     """Simulates the spiking of a neuron with a place field at `means`.
 
     Parameters
@@ -159,16 +171,16 @@ def simulate_neuron_with_place_field(
 
 
 def simulate_multiunit_with_place_fields(
-    place_means,
-    position,
-    mark_spacing=5,
-    n_mark_dims=4,
-    place_variance=36.0,
-    mark_variance=1.0,
-    max_rate=100,
-    sampling_frequency=1000,
-    is_condition=None,
-):
+    place_means: np.ndarray,
+    position: np.ndarray,
+    mark_spacing: int = 5,
+    n_mark_dims: int = 4,
+    place_variance: float = 36.0,
+    mark_variance: float = 1.0,
+    max_rate: float = 100.0,
+    sampling_frequency: int = 1000,
+    is_condition: Optional[np.ndarray] = None,
+) -> np.ndarray:
     """Simulates a multiunit with neurons at `place_means`
 
     Parameters
@@ -177,6 +189,10 @@ def simulate_multiunit_with_place_fields(
     position : np.ndarray, shape (n_time, n_position_dims)
     mark_spacing : int, optional
     n_mark_dims : int, optional
+    place_variance : float
+    max_rate : float
+    sampling_frequency : int
+    is_condition : np.ndarray or None
 
     Returns
     -------
@@ -206,6 +222,17 @@ def simulate_multiunit_with_place_fields(
     return marks
 
 
-def get_trajectory_direction(linear_distance):
-    is_inbound = np.insert(np.diff(linear_distance) < 0, 0, False)
+def get_trajectory_direction(position: np.ndarray) -> np.ndarray:
+    """Find if the trajectory is inbound or outbound.
+
+    Parameters
+    ----------
+    position : np.ndarray, shape (n_time,)
+
+    Returns
+    -------
+    is_inbound : np.ndarray, shape (n_time,)
+
+    """
+    is_inbound = np.insert(np.diff(position) < 0, 0, False)
     return np.where(is_inbound, "Inbound", "Outbound")

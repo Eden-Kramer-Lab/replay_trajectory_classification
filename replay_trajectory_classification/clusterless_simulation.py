@@ -3,7 +3,7 @@
 import numpy as np
 from replay_trajectory_classification.simulate import (
     get_trajectory_direction,
-    simulate_linear_distance,
+    simulate_position,
     simulate_multiunit_with_place_fields,
     simulate_time,
 )
@@ -45,7 +45,7 @@ def make_simulated_run_data(
     place_field_variance : float, optional
         Spatial extent of place fields
     place_field_means : np.ndarray, shape (n_neurons,), optional
-        Center of place fields
+        Location of the center of the Gaussian place fields.
     n_tetrodes : int, optional
         Total number of tetrodes to simulate
     make_inbound_outbound_neurons : bool, optional
@@ -64,7 +64,7 @@ def make_simulated_run_data(
     n_samples = int(n_runs * sampling_frequency * 2 * track_height / running_speed)
 
     time = simulate_time(n_samples, sampling_frequency)
-    position = simulate_linear_distance(time, track_height, running_speed)
+    position = simulate_position(time, track_height, running_speed)
 
     multiunits = []
     if not make_inbound_outbound_neurons:
@@ -100,21 +100,48 @@ def make_simulated_run_data(
 
 
 def make_continuous_replay(
-    sampling_frequency=SAMPLING_FREQUENCY,
-    track_height=TRACK_HEIGHT,
-    running_speed=RUNNING_SPEED,
-    place_field_means=PLACE_FIELD_MEANS,
-    replay_speedup=REPLAY_SPEEDUP,
-    n_tetrodes=N_TETRODES,
-    n_features=N_FEATURES,
-    mark_spacing=MARK_SPACING,
-):
+    sampling_frequency: int = SAMPLING_FREQUENCY,
+    track_height: float = TRACK_HEIGHT,
+    running_speed: float = RUNNING_SPEED,
+    place_field_means: np.ndarray = PLACE_FIELD_MEANS,
+    replay_speedup: int = REPLAY_SPEEDUP,
+    n_tetrodes: int = N_TETRODES,
+    n_features: int = N_FEATURES,
+    mark_spacing: float = MARK_SPACING,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Creates a simulated continuous replay.
+
+    Parameters
+    ----------
+    sampling_frequency : int, optional
+        Samples per second
+    track_height : float, optional
+        Height of the simulated track
+    running_speed : float, optional
+        Simualted speed of the animal
+    place_field_means : np.ndarray, optional
+        Location of the center of the Gaussian place fields.
+    replay_speedup : int, optional
+        Number of times faster the replay event is faster than the running speed
+    n_tetrodes : int, optional
+        Number of simulated tetrodes
+    n_features : int, optional
+        Number of simulated features
+    mark_spacing : float, optional
+        Spacing between Gaussian mark features
+
+    Returns
+    -------
+    replay_time : np.ndarray, shape (n_time,)
+        Time in seconds.
+    test_multiunits : np.ndarray, shape (n_time, n_features, n_tetrodes)
+        Binned clusterless spike times and features. NaN indicates no spike. Non-Nan indicates spike.
+    """
+
     replay_speed = running_speed * replay_speedup
     n_samples = int(0.5 * sampling_frequency * 2 * track_height / replay_speed)
     replay_time = simulate_time(n_samples, sampling_frequency)
-    true_replay_position = simulate_linear_distance(
-        replay_time, track_height, replay_speed
-    )
+    true_replay_position = simulate_position(replay_time, track_height, replay_speed)
     place_field_means = place_field_means.reshape(((n_tetrodes, -1)))
 
     min_times_ind = np.argmin(
@@ -137,13 +164,37 @@ def make_continuous_replay(
 
 
 def make_hover_replay(
-    hover_neuron_ind=None,
-    place_field_means=PLACE_FIELD_MEANS,
-    sampling_frequency=SAMPLING_FREQUENCY,
-    n_tetrodes=N_TETRODES,
-    n_features=N_FEATURES,
-    mark_spacing=MARK_SPACING,
-):
+    hover_neuron_ind: int = None,
+    place_field_means: np.ndarray = PLACE_FIELD_MEANS,
+    sampling_frequency: int = SAMPLING_FREQUENCY,
+    n_tetrodes: int = N_TETRODES,
+    n_features: int = N_FEATURES,
+    mark_spacing: float = MARK_SPACING,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Creates a simulated stationary replay.
+
+    Parameters
+    ----------
+    hover_neuron_ind : int, optional
+        Index of which neuron is the stationary neuron.
+    place_field_means : np.ndarray, optional
+        Location of the center of the Gaussian place fields.
+    sampling_frequency : int, optional
+        Samples per second
+    n_tetrodes : int, optional
+        Number of simulated tetrodes
+    n_features : int, optional
+        Number of simulated features
+    mark_spacing : float, optional
+        Spacing between Gaussian mark features
+
+    Returns
+    -------
+    replay_time : np.ndarray, shape (n_time,)
+        Time in seconds.
+    test_multiunits : np.ndarray, shape (n_time, n_features, n_tetrodes)
+        Binned clusterless spike times and features. NaN indicates no spike. Non-Nan indicates spike.
+    """
 
     place_field_means = place_field_means.reshape(((n_tetrodes, -1)))
 
@@ -166,12 +217,35 @@ def make_hover_replay(
 
 
 def make_fragmented_replay(
-    place_field_means=PLACE_FIELD_MEANS,
-    sampling_frequency=SAMPLING_FREQUENCY,
-    n_tetrodes=N_TETRODES,
-    n_features=N_FEATURES,
-    mark_spacing=MARK_SPACING,
-):
+    place_field_means: np.ndarray = PLACE_FIELD_MEANS,
+    sampling_frequency: int = SAMPLING_FREQUENCY,
+    n_tetrodes: int = N_TETRODES,
+    n_features: int = N_FEATURES,
+    mark_spacing: float = MARK_SPACING,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Creates a simulated fragmented replay.
+
+    Parameters
+    ----------
+    place_field_means : np.ndarray, optional
+        Location of the center of the Gaussian place fields.
+    sampling_frequency : int, optional
+        Samples per second
+    n_tetrodes : int, optional
+        Number of simulated tetrodes
+    n_features : int, optional
+        Number of simulated features
+    mark_spacing : float, optional
+        Spacing between Gaussian mark features
+
+    Returns
+    -------
+    replay_time : np.ndarray, shape (n_time,)
+        Time in seconds.
+    test_multiunits : np.ndarray, shape (n_time, n_features, n_tetrodes)
+        Binned clusterless spike times and features. NaN indicates no spike. Non-Nan indicates spike.
+    """
+
     N_TIME = 10
 
     place_field_means = place_field_means.reshape(((n_tetrodes, -1)))
@@ -192,8 +266,25 @@ def make_fragmented_replay(
 
 
 def make_hover_continuous_hover_replay(
-    sampling_frequency=SAMPLING_FREQUENCY, place_field_means=PLACE_FIELD_MEANS
-):
+    sampling_frequency: int = SAMPLING_FREQUENCY,
+    place_field_means: np.ndarray = PLACE_FIELD_MEANS,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Make a simulated replay that first is stationary, then is continuous, then is stationary again.
+
+    Parameters
+    ----------
+    sampling_frequency : int, optional
+        Samples per second
+    place_field_means : np.ndarray, optional
+        Location of the center of the Gaussian place fields.
+
+    Returns
+    -------
+    replay_time : np.ndarray, shape (n_time,)
+        Time in seconds.
+    test_multiunits : np.ndarray, shape (n_time, n_features, n_tetrodes)
+        Binned clusterless spike times and features. NaN indicates no spike. Non-Nan indicates spike.
+    """
     _, test_multiunits1 = make_hover_replay(hover_neuron_ind=0)
     _, test_multiunits2 = make_continuous_replay()
     n_total_neurons = place_field_means.size
@@ -207,7 +298,23 @@ def make_hover_continuous_hover_replay(
     return replay_time, test_multiunits
 
 
-def make_fragmented_hover_fragmented_replay(sampling_frequency=SAMPLING_FREQUENCY):
+def make_fragmented_hover_fragmented_replay(
+    sampling_frequency: int = SAMPLING_FREQUENCY,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Makes a simulated replay that first is fragmented, then is stationary, then is fragmented again.
+
+    Parameters
+    ----------
+    sampling_frequency : int, optional
+        Samples per second
+
+    Returns
+    -------
+    replay_time : np.ndarray, shape (n_time,)
+        Time in seconds.
+    test_multiunits : np.ndarray, shape (n_time, n_features, n_tetrodes)
+        Binned clusterless spike times and features. NaN indicates no spike. Non-Nan indicates spike.
+    """
     _, test_multiunits1 = make_fragmented_replay()
     _, test_multiunits2 = make_hover_replay(hover_neuron_ind=6)
     _, test_multiunits3 = make_fragmented_replay()
@@ -220,7 +327,24 @@ def make_fragmented_hover_fragmented_replay(sampling_frequency=SAMPLING_FREQUENC
     return replay_time, test_multiunits
 
 
-def make_fragmented_continuous_fragmented_replay(sampling_frequency=SAMPLING_FREQUENCY):
+def make_fragmented_continuous_fragmented_replay(
+    sampling_frequency: int = SAMPLING_FREQUENCY,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Makes a simulated replay that first is fragmented, then is continuous, then is fragmented again.
+
+    Parameters
+    ----------
+    sampling_frequency : int, optional
+        Samples per second
+
+    Returns
+    -------
+    replay_time : np.ndarray, shape (n_time,)
+        Time in seconds.
+    test_multiunits : np.ndarray, shape (n_time, n_features, n_tetrodes)
+        Binned clusterless spike times and features. NaN indicates no spike. Non-Nan indicates spike.
+
+    """
     _, test_multiunits1 = make_fragmented_replay()
     _, test_multiunits2 = make_continuous_replay()
     _, test_multiunits3 = make_fragmented_replay()
