@@ -541,18 +541,8 @@ class _ClassifierBase(BaseEstimator):
             time = np.arange(n_time)
 
         if state_names is None:
-            diag_transition_names = np.diag(
-                np.asarray(self.continuous_transition_types)
-            )
-            if len(np.unique(self.observation_models)) == 1:
-                state_names = diag_transition_names
-            else:
-                state_names = [
-                    f"{obs.encoding_group}-{transition}"
-                    for obs, transition in zip(
-                        self.observation_models, diag_transition_names
-                    )
-                ]
+            n_states = len(self.discrete_state_transition_)
+            state_names = np.arange(n_states, dtype=int)
 
         results = {
             "most_likely_state": np.asarray(state_names)[state_ind][
@@ -715,18 +705,8 @@ class _ClassifierBase(BaseEstimator):
 
         """
         if state_names is None:
-            diag_transition_names = np.diag(
-                np.asarray(self.continuous_transition_types)
-            )
-            if len(np.unique(self.observation_models)) == 1:
-                state_names = diag_transition_names
-            else:
-                state_names = [
-                    f"{obs.encoding_group}-{transition}"
-                    for obs, transition in zip(
-                        self.observation_models, diag_transition_names
-                    )
-                ]
+            n_states = len(self.discrete_state_transition_)
+            state_names = np.arange(n_states, dtype=int)
         state_names = np.asarray(state_names)[state_ind]
 
         dims = ["time", "state"]
