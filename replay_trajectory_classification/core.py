@@ -145,7 +145,6 @@ def smoother(
 
 
 def viterbi(initial_conditions, log_likelihood, transition_matrix):
-
     EPS = 1e-15
     n_time, n_states = log_likelihood.shape
 
@@ -221,6 +220,10 @@ try:
         log_likelihood: cp.ndarray,
         transition_matrix: cp.ndarray,
     ) -> tuple[cp.ndarray, cp.ndarray, float]:
+        log_likelihood = cp.asarray(log_likelihood)
+        initial_conditions = cp.asarray(initial_conditions)
+        transition_matrix = cp.asarray(transition_matrix)
+
         n_time = log_likelihood.shape[0]
 
         predictive_distribution = cp.zeros_like(log_likelihood)
@@ -249,13 +252,16 @@ try:
 
         return causal_posterior, predictive_distribution, marginal_likelihood
 
-    @cp.fuse()
     def smoother_gpu(
         causal_posterior: cp.ndarray,
         predictive_distribution: cp.ndarray,
         transition_matrix: cp.ndarray,
     ) -> cp.ndarray:
         n_time = causal_posterior.shape[0]
+
+        causal_posterior = cp.asarray(causal_posterior)
+        transition_matrix = cp.asarray(transition_matrix)
+        predictive_distribution = cp.asarray(predictive_distribution)
 
         acausal_posterior = cp.zeros_like(causal_posterior)
         acausal_posterior[-1] = causal_posterior[-1]
@@ -280,7 +286,6 @@ try:
         log_likelihood: cp.ndarray,
         transition_matrix: cp.ndarray,
     ):
-
         EPS = 1e-15
         n_time, n_states = log_likelihood.shape
 

@@ -653,9 +653,9 @@ class _ClassifierBase(BaseEstimator):
         n_states = len(self.discrete_state_transition_)
         self.predictive_distribution_ = np.zeros((n_time, n_states))
         for ind in range(n_states):
-            self.predictive_distribution_[:, ind] = predictive_distribution[
+            self.predictive_distribution_[:, ind] = _convert_array(predictive_distribution[
                 :, state_ind == ind
-            ].sum(axis=1)
+            ].sum(axis=1))
 
         if is_compute_acausal:
             logger.info("Estimating acausal posterior...")
@@ -723,9 +723,8 @@ class _ClassifierBase(BaseEstimator):
         else:
             for pos, dim_name in zip(state_position.T, ["x", "y", "z"]):
                 coords[f"{dim_name}_position"] = ("state", pos)
-
         results = xr.Dataset(
-            {key: (dims, value) for key, value in results.items()},
+            {key: (dims, _convert_array(value)) for key, value in results.items()},
             coords=coords,
             attrs=attrs,
         ).where(state_is_track_interior[np.newaxis])
@@ -931,7 +930,7 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         """
         try:
-            for (env, enc) in self.place_fields_:
+            for env, enc in self.place_fields_:
                 is_track_interior = self.environments[
                     self.environments.index(env)
                 ].is_track_interior_[np.newaxis]
@@ -1333,3 +1332,10 @@ class ClusterlessClassifier(_ClassifierBase):
         return self._get_results(
             log_likelihood, time, is_compute_acausal, use_gpu, state_names
         )
+
+
+def _convert_array(x):
+    try:
+        return x.get()
+    except AttributeError:
+        return x
