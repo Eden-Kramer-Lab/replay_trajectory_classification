@@ -22,15 +22,15 @@ from replay_trajectory_classification.continuous_state_transitions import (
     Uniform,
 )
 from replay_trajectory_classification.core import (
-    forward,
-    forward_gpu,
-    smoother,
-    smoother_gpu,
-    make_transition_matrix,
     atleast_2d,
     check_converged,
-    get_centers,
-    mask,
+    forward,
+    forward_gpu,
+    make_transition_matrix,
+    smoother,
+    smoother_gpu,
+    viterbi,
+    viterbi_gpu,
 )
 from replay_trajectory_classification.discrete_state_transitions import (
     DiagonalDiscrete,
@@ -339,7 +339,6 @@ class _ClassifierBase(BaseEstimator):
         log_likelihood_change = np.inf
         converged = False
         n_iter = 0
-        n_time = len(results.time)
 
         logger.info(f"iteration {n_iter}, likelihood: {data_log_likelihoods[-1]}")
         get_results_args = {
@@ -357,9 +356,7 @@ class _ClassifierBase(BaseEstimator):
                 )
 
             if store_likelihood:
-                results = self._get_results(
-                    self.likelihood_, n_time, **get_results_args
-                )
+                results = self._get_results(self.log_likelihood_, **get_results_args)
             else:
                 results = self.predict(**predict_args)
 
@@ -496,10 +493,97 @@ class _ClassifierBase(BaseEstimator):
             .to_numpy()
         )
 
+    def _get_most_likely_state(
+        self,
+        log_likelihood_dict: dict,
+        time: Optional[np.ndarray] = None,
+        use_gpu: bool = False,
+        state_names: Optional[list[str]] = None,
+        dtype=np.float32,
+    ):
+        get_most_likely_state = viterbi_gpu if use_gpu else viterbi
+
+        state_ind = []
+        state_environment = []
+        state_encoding_group = []
+        state_position = []
+        log_likelihood = []
+
+        for ind, obs in enumerate(self.observation_models):
+            env = self.environments[self.environments.index(obs.environment_name)]
+            state_position.append(env.place_bin_centers_)
+            n_bins = env.place_bin_centers_.shape[0]
+            state_ind.append(ind * np.ones((n_bins,), dtype=int))
+            state_environment.append(np.repeat(obs.environment_name, n_bins))
+            state_encoding_group.append(np.repeat(obs.encoding_group, n_bins))
+            log_likelihood.append(
+                log_likelihood_dict[(obs.environment_name, obs.encoding_group)]
+            )
+
+        state_ind = np.concatenate(state_ind)
+        state_environment = np.concatenate(state_environment)
+        state_encoding_group = np.concatenate(state_encoding_group)
+        state_position = np.concatenate(state_position)
+        log_likelihood = np.concatenate(log_likelihood, axis=1).astype(dtype)
+
+        transition_matrix = make_transition_matrix(
+            self.discrete_state_transition_,
+            self.continuous_state_transition_,
+            state_ind,
+        ).astype(dtype)
+
+        most_likely_state_sequence_ind, _ = get_most_likely_state(
+            self.initial_conditions_, log_likelihood, transition_matrix
+        )
+
+        if time is None:
+            n_time = log_likelihood.shape[0]
+            time = np.arange(n_time)
+
+        if state_names is None:
+            diag_transition_names = np.diag(
+                np.asarray(self.continuous_transition_types)
+            )
+            if len(np.unique(self.observation_models)) == 1:
+                state_names = diag_transition_names
+            else:
+                state_names = [
+                    f"{obs.encoding_group}-{transition}"
+                    for obs, transition in zip(
+                        self.observation_models, diag_transition_names
+                    )
+                ]
+
+        results = {
+            "most_likely_state": np.asarray(state_names)[state_ind][
+                most_likely_state_sequence_ind
+            ],
+            "most_likely_environment": state_environment[
+                most_likely_state_sequence_ind
+            ],
+            "most_likely_encoding_group": state_encoding_group[
+                most_likely_state_sequence_ind
+            ],
+        }
+
+        if state_position.shape[1] == 1:
+            results["most_likely_position"] = state_position[
+                most_likely_state_sequence_ind
+            ]
+        else:
+            for pos, dim_name in zip(
+                state_position[most_likely_state_sequence_ind].T, ["x", "y", "z"]
+            ):
+                results[f"most_likely_{dim_name}_position"] = pos
+
+        return xr.Dataset(
+            {key: (["time"], value.squeeze()) for key, value in results.items()},
+            coords=dict(time=time),
+        )
+
     def _get_results(
         self,
-        likelihood: np.ndarray,
-        n_time: int,
+        log_likelihood_dict: dict,
         time: Optional[np.ndarray] = None,
         is_compute_acausal: bool = True,
         use_gpu: bool = False,
@@ -544,7 +628,7 @@ class _ClassifierBase(BaseEstimator):
             state_environment.append(np.repeat(obs.environment_name, n_bins))
             state_encoding_group.append(np.repeat(obs.encoding_group, n_bins))
             log_likelihood.append(
-                likelihood[(obs.environment_name, obs.encoding_group)]
+                log_likelihood_dict[(obs.environment_name, obs.encoding_group)]
             )
 
         state_ind = np.concatenate(state_ind)
@@ -555,7 +639,7 @@ class _ClassifierBase(BaseEstimator):
         log_likelihood = np.concatenate(log_likelihood, axis=1).astype(dtype)
 
         results["likelihood"] = np.exp(log_likelihood)
-
+        n_time = log_likelihood.shape[0]
         if time is None:
             time = np.arange(n_time)
 
@@ -630,10 +714,10 @@ class _ClassifierBase(BaseEstimator):
         results : xr.Dataset
 
         """
-        attrs = {"data_log_likelihood": data_log_likelihood}
-        diag_transition_names = np.diag(np.asarray(self.continuous_transition_types))
-
         if state_names is None:
+            diag_transition_names = np.diag(
+                np.asarray(self.continuous_transition_types)
+            )
             if len(np.unique(self.observation_models)) == 1:
                 state_names = diag_transition_names
             else:
@@ -652,6 +736,7 @@ class _ClassifierBase(BaseEstimator):
             environment=("state", state_environment),
             encoding_group=("state", state_encoding_group),
         )
+        attrs = {"data_log_likelihood": data_log_likelihood}
 
         if state_position.shape[1] == 1:
             coords["position"] = ("state", state_position.squeeze())
@@ -983,25 +1068,50 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         """
         spikes = np.asarray(spikes)
-        n_time = spikes.shape[0]
 
         # likelihood
         logger.info("Estimating likelihood...")
-        likelihood = {}
+        log_likelihood = {}
         for (env_name, enc_group), place_fields in self.place_fields_.items():
             env_ind = self.environments.index(env_name)
             is_track_interior = self.environments[env_ind].is_track_interior_.ravel(
                 order="F"
             )
-            likelihood[(env_name, enc_group)] = _SORTED_SPIKES_ALGORITHMS[
+            log_likelihood[(env_name, enc_group)] = _SORTED_SPIKES_ALGORITHMS[
                 self.sorted_spikes_algorithm
             ][1](spikes, place_fields.values, is_track_interior)
         if store_likelihood:
-            self.likelihood_ = likelihood
+            self.log_likelihood_ = log_likelihood
 
         return self._get_results(
-            likelihood, n_time, time, is_compute_acausal, use_gpu, state_names
+            log_likelihood, time, is_compute_acausal, use_gpu, state_names
         )
+
+    def most_likely_state(
+        self,
+        spikes: np.ndarray,
+        time: Optional[np.ndarray] = None,
+        use_gpu: bool = False,
+        state_names: Optional[list[str]] = None,
+        store_likelihood: bool = False,
+    ):
+        spikes = np.asarray(spikes)
+
+        # likelihood
+        logger.info("Estimating likelihood...")
+        log_likelihood = {}
+        for (env_name, enc_group), place_fields in self.place_fields_.items():
+            env_ind = self.environments.index(env_name)
+            is_track_interior = self.environments[env_ind].is_track_interior_.ravel(
+                order="F"
+            )
+            log_likelihood[(env_name, enc_group)] = _SORTED_SPIKES_ALGORITHMS[
+                self.sorted_spikes_algorithm
+            ][1](spikes, place_fields.values, is_track_interior)
+        if store_likelihood:
+            self.log_likelihood_ = log_likelihood
+
+        return self._get_most_likely_state(log_likelihood, time, use_gpu, state_names)
 
 
 class ClusterlessClassifier(_ClassifierBase):
@@ -1219,10 +1329,9 @@ class ClusterlessClassifier(_ClassifierBase):
 
         """
         multiunits = np.asarray(multiunits)
-        n_time = multiunits.shape[0]
 
         logger.info("Estimating likelihood...")
-        likelihood = {}
+        log_likelihood = {}
 
         compute_likelihood = _ClUSTERLESS_ALGORITHMS[self.clusterless_algorithm][1]
 
@@ -1232,15 +1341,15 @@ class ClusterlessClassifier(_ClassifierBase):
                 order="F"
             )
             place_bin_centers = self.environments[env_ind].place_bin_centers_
-            likelihood[(env_name, enc_group)] = compute_likelihood(
+            log_likelihood[(env_name, enc_group)] = compute_likelihood(
                 multiunits=multiunits,
                 place_bin_centers=place_bin_centers,
                 is_track_interior=is_track_interior,
                 **encoding_params,
             )
         if store_likelihood:
-            self.likelihood_ = likelihood
+            self.log_likelihood_ = log_likelihood
 
         return self._get_results(
-            likelihood, n_time, time, is_compute_acausal, use_gpu, state_names
+            log_likelihood, time, is_compute_acausal, use_gpu, state_names
         )
