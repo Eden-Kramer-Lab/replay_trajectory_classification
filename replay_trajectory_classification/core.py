@@ -149,8 +149,8 @@ def viterbi(initial_conditions, log_likelihood, transition_matrix):
     EPS = 1e-15
     n_time, n_states = log_likelihood.shape
 
-    log_state_transition = np.log(transition_matrix + EPS)
-    log_initial_conditions = np.log(initial_conditions + EPS)
+    log_state_transition = np.log(np.clip(transition_matrix, a_min=EPS, a_max=1.0))
+    log_initial_conditions = np.log(np.clip(initial_conditions, a_min=EPS, a_max=1.0))
 
     path_log_prob = np.ones_like(log_likelihood)
     back_pointer = np.zeros_like(log_likelihood, dtype=int)
@@ -284,8 +284,10 @@ try:
         EPS = 1e-15
         n_time, n_states = log_likelihood.shape
 
-        log_state_transition = cp.log(transition_matrix + EPS)
-        log_initial_conditions = cp.log(initial_conditions + EPS)
+        log_state_transition = cp.log(cp.clip(transition_matrix, a_min=EPS, a_max=1.0))
+        log_initial_conditions = cp.log(
+            cp.clip(initial_conditions, a_min=EPS, a_max=1.0)
+        )
 
         path_log_prob = cp.ones_like(log_likelihood)
         back_pointer = cp.zeros_like(log_likelihood, dtype=int)
