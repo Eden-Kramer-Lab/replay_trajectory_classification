@@ -268,8 +268,7 @@ def poisson_log_likelihood(
 
     """
     return (
-        np.log(conditional_intensity[np.newaxis, :] + np.spacing(1))
-        * spikes[:, np.newaxis]
+        np.log(conditional_intensity[np.newaxis, :]) * spikes[:, np.newaxis]
         - conditional_intensity[np.newaxis, :]
     )
 
@@ -288,6 +287,8 @@ def combined_likelihood(
     n_time = spikes.shape[0]
     n_bins = conditional_intensity.shape[0]
     log_likelihood = np.zeros((n_time, n_bins))
+
+    conditional_intensity = np.clip(conditional_intensity, a_min=1e-15, a_max=None)
 
     for is_spike, ci in zip(tqdm(spikes.T), conditional_intensity.T):
         log_likelihood += poisson_log_likelihood(is_spike, ci)

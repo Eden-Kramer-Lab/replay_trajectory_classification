@@ -270,8 +270,7 @@ try:
         # Logarithm of the absolute value of the gamma function is always 0 when
         # spikes are 0 or 1
         return (
-            cp.log(conditional_intensity[cp.newaxis, :] + np.spacing(1))
-            * spikes[:, np.newaxis]
+            cp.log(conditional_intensity[cp.newaxis, :]) * spikes[:, np.newaxis]
             - conditional_intensity[cp.newaxis, :]
         )
 
@@ -289,6 +288,8 @@ try:
         n_time = spikes.shape[0]
         n_bins = conditional_intensity.shape[0]
         log_likelihood = cp.zeros((n_time, n_bins))
+
+        conditional_intensity = np.clip(conditional_intensity, a_min=1e-15, a_max=None)
 
         mempool = cp.get_default_memory_pool()
 

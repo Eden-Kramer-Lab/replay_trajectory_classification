@@ -315,7 +315,9 @@ def fit_multiunit_likelihood(
         )
         encoding_positions.append(position[is_spike & not_nan_position])
 
-    summed_ground_process_intensity = summed_ground_process_intensity + np.spacing(1)
+    summed_ground_process_intensity = np.clip(
+        summed_ground_process_intensity, a_min=1e-15, a_max=None
+    )
 
     return {
         "encoding_marks": encoding_marks,

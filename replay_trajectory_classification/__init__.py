@@ -12,10 +12,6 @@ from replay_trajectory_classification.continuous_state_transitions import (
     Uniform,
     estimate_movement_var,
 )
-from replay_trajectory_classification.decoder import (
-    ClusterlessDecoder,
-    SortedSpikesDecoder,
-)
 from replay_trajectory_classification.discrete_state_transitions import (
     DiagonalDiscrete,
     RandomDiscrete,

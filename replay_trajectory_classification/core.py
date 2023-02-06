@@ -33,241 +33,147 @@ def get_centers(bin_edges: np.ndarray) -> np.ndarray:
     return bin_edges[:-1] + np.diff(bin_edges) / 2
 
 
-@njit(parallel=True, error_model="numpy")
-def normalize_to_probability(distribution: np.ndarray) -> np.ndarray:
-    """Ensure the distribution integrates to 1 so that it is a probability
-    distribution.
-
-    Parameters
-    ----------
-    distribution : np.ndarray
-
-    Returns
-    -------
-    normalized_distribution : np.ndarray
-
-    """
-    return distribution / np.nansum(distribution)
-
-
-@njit(nogil=True, error_model="numpy", cache=False)
-def _causal_decode(
-    initial_conditions: np.ndarray, state_transition: np.ndarray, likelihood: np.ndarray
-) -> tuple[np.ndarray, float]:
-    """Adaptive filter to iteratively calculate the posterior probability
-    of a state variable using past information.
-
-    Parameters
-    ----------
-    initial_conditions : np.ndarray, shape (n_bins,)
-    state_transition : np.ndarray, shape (n_bins, n_bins)
-    likelihood : np.ndarray, shape (n_time, n_bins)
-
-    Returns
-    -------
-    posterior : np.ndarray, shape (n_time, n_bins)
-    log_data_likelihood : float
-
-    """
-
-    n_time = likelihood.shape[0]
-    posterior = np.zeros_like(likelihood)
-
-    posterior[0] = initial_conditions.copy() * likelihood[0]
-    norm = np.nansum(posterior[0])
-    log_data_likelihood = np.log(norm)
-    posterior[0] /= norm
-
-    for k in np.arange(1, n_time):
-        posterior[k] = state_transition.T @ posterior[k - 1] * likelihood[k]
-        norm = np.nansum(posterior[k])
-        log_data_likelihood += np.log(norm)
-        posterior[k] /= norm
-
-    return posterior, log_data_likelihood
-
-
-@njit(nogil=True, error_model="numpy", cache=False)
-def _acausal_decode(
-    causal_posterior: np.ndarray, state_transition: np.ndarray
+def make_transition_matrix(
+    discrete_state_transitions: np.ndarray,
+    continuous_state_transitions: np.ndarray,
+    state_ind: np.ndarray,
 ) -> np.ndarray:
-    """Uses past and future information to estimate the state.
+    """_summary_
 
     Parameters
     ----------
-    causal_posterior : np.ndarray, shape (n_time, n_bins, 1)
-    state_transition : np.ndarray, shape (n_bins, n_bins)
+    discrete_state_transitions : np.ndarray, shape (n_states, n_states)
+    continuous_state_transitions : np.ndarray, shape (n_bins, n_bins)
+    state_ind : np.ndarray, shape (n_bins,)
 
-    Return
-    ------
-    acausal_posterior : np.ndarray, shape (n_time, n_bins, 1)
+    Returns
+    -------
+    transition_matrix : np.ndarray, shape (n_bins, n_bins)
 
     """
-    acausal_posterior = np.zeros_like(causal_posterior)
-    acausal_posterior[-1] = causal_posterior[-1].copy()
-    n_time, n_bins = causal_posterior.shape[0], causal_posterior.shape[-2]
-    weights = np.zeros((n_bins, 1))
-
-    eps = np.spacing(1)
-
-    for time_ind in np.arange(n_time - 2, -1, -1):
-        acausal_prior = state_transition.T @ causal_posterior[time_ind]
-        log_ratio = np.log(acausal_posterior[time_ind + 1, ..., 0] + eps) - np.log(
-            acausal_prior[..., 0] + eps
-        )
-        weights[..., 0] = np.exp(log_ratio) @ state_transition
-
-        acausal_posterior[time_ind] = normalize_to_probability(
-            weights * causal_posterior[time_ind]
-        )
-
-    return acausal_posterior
+    return (
+        discrete_state_transitions[np.ix_(state_ind, state_ind)]
+        * continuous_state_transitions
+    )
 
 
-@njit(nogil=True, error_model="numpy", cache=False)
-def _causal_classify(
+def forward(
     initial_conditions: np.ndarray,
-    continuous_state_transition: np.ndarray,
-    discrete_state_transition: np.ndarray,
-    likelihood: np.ndarray,
-) -> tuple[np.ndarray, float]:
-    """Adaptive filter to iteratively calculate the posterior probability
-    of a state variable using past information.
+    log_likelihood: np.ndarray,
+    transition_matrix: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, float]:
+    """_summary_
 
     Parameters
     ----------
-    initial_conditions : np.ndarray, shape (n_states, n_bins, 1)
-    continuous_state_transition : np.ndarray, shape (n_states, n_states, n_bins, n_bins)
-    discrete_state_transition : np.ndarray, shape (n_states, n_states)
-    likelihood : np.ndarray, shape (n_time, n_states, n_bins, 1)
+    initial_conditions : np.ndarray, shape (n_states,)
+    log_likelihood : np.ndarray, shape (n_time, n_states)
+    transition_matrix : np.ndarray, shape (n_states, n_states)
 
     Returns
     -------
-    causal_posterior : np.ndarray, shape (n_time, n_states, n_bins, 1)
-    log_data_likelihood : float
+    causal_posterior : np.ndarray, shape (n_time, n_states)
+    predictive_distribution : np.ndarray, shape (n_time, n_states)
+    marginal_likelihood : float
 
     """
-    n_time, n_states, n_bins, _ = likelihood.shape
-    posterior = np.zeros_like(likelihood)
+    n_time = log_likelihood.shape[0]
 
-    posterior[0] = initial_conditions.copy() * likelihood[0]
-    norm = np.nansum(posterior[0])
-    log_data_likelihood = np.log(norm)
-    posterior[0] /= norm
+    predictive_distribution = np.zeros_like(log_likelihood)
+    causal_posterior = np.zeros_like(log_likelihood)
+    max_log_likelihood = np.max(log_likelihood, axis=1, keepdims=True)
+    likelihood = np.exp(log_likelihood - max_log_likelihood)
+    likelihood = np.clip(likelihood, a_min=1e-15, a_max=1.0)
 
-    for k in np.arange(1, n_time):
-        prior = np.zeros((n_states, n_bins, 1))
-        for state_k in np.arange(n_states):
-            for state_k_1 in np.arange(n_states):
-                prior[state_k, :] += (
-                    discrete_state_transition[state_k_1, state_k]
-                    * continuous_state_transition[state_k_1, state_k].T
-                    @ posterior[k - 1, state_k_1]
-                )
-        posterior[k] = prior * likelihood[k]
-        norm = np.nansum(posterior[k])
-        log_data_likelihood += np.log(norm)
-        posterior[k] /= norm
+    predictive_distribution[0] = initial_conditions
+    causal_posterior[0] = initial_conditions * likelihood[0]
+    norm = np.nansum(causal_posterior[0])
+    marginal_likelihood = np.log(norm)
+    causal_posterior[0] /= norm
 
-    return posterior, log_data_likelihood
+    for t in range(1, n_time):
+        # Predict
+        predictive_distribution[t] = transition_matrix.T @ causal_posterior[t - 1]
+        # Update
+        causal_posterior[t] = predictive_distribution[t] * likelihood[t]
+        # Normalize
+        norm = np.nansum(causal_posterior[t])
+        marginal_likelihood += np.log(norm)
+        causal_posterior[t] /= norm
+
+    marginal_likelihood += np.sum(max_log_likelihood)
+
+    return causal_posterior, predictive_distribution, marginal_likelihood
 
 
-@njit(nogil=True, error_model="numpy", cache=False)
-def _acausal_classify(
+def smoother(
     causal_posterior: np.ndarray,
-    continuous_state_transition: np.ndarray,
-    discrete_state_transition: np.ndarray,
+    predictive_distribution: np.ndarray,
+    transition_matrix: np.ndarray,
 ) -> np.ndarray:
-    """Uses past and future information to estimate the state.
+    """_summary_
 
     Parameters
     ----------
-    causal_posterior : np.ndarray, shape (n_time, n_states, n_bins, 1)
-    continuous_state_transition : np.ndarray, shape (n_states, n_states, n_bins, n_bins)
-    discrete_state_transition : np.ndarray, shape (n_states, n_states)
+    causal_posterior : np.ndarray, shape (n_time, n_states)
+    predictive_distribution : np.ndarray, shape (n_time, n_states)
+    transition_matrix : np.ndarray, shape (n_states, n_states)
 
-    Return
-    ------
-    acausal_posterior : np.ndarray, shape (n_time, n_states, n_bins, 1)
+    Returns
+    -------
+    acausal_posterior : np.ndarray, shape (n_time, n_states)
 
     """
+    n_time = causal_posterior.shape[0]
+
     acausal_posterior = np.zeros_like(causal_posterior)
-    acausal_posterior[-1] = causal_posterior[-1].copy()
-    n_time, n_states, n_bins, _ = causal_posterior.shape
-    eps = np.spacing(1)
+    acausal_posterior[-1] = causal_posterior[-1]
 
-    for k in np.arange(n_time - 2, -1, -1):
-        # Prediction Step -- p(x_{k+1}, I_{k+1} | y_{1:k})
-        prior = np.zeros((n_states, n_bins, 1))
-        for state_k_1 in np.arange(n_states):
-            for state_k in np.arange(n_states):
-                prior[state_k_1, :] += (
-                    discrete_state_transition[state_k, state_k_1]
-                    * continuous_state_transition[state_k, state_k_1].T
-                    @ causal_posterior[k, state_k]
-                )
-
-        # Backwards Update
-        weights = np.zeros((n_states, n_bins, 1))
-        ratio = np.exp(np.log(acausal_posterior[k + 1] + eps) - np.log(prior + eps))
-        for state_k in np.arange(n_states):
-            for state_k_1 in np.arange(n_states):
-                weights[state_k] += (
-                    discrete_state_transition[state_k, state_k_1]
-                    * continuous_state_transition[state_k, state_k_1]
-                    @ ratio[state_k_1]
-                )
-
-        acausal_posterior[k] = normalize_to_probability(weights * causal_posterior[k])
+    for t in range(n_time - 2, -1, -1):
+        # Handle divide by zero
+        relative_distribution = np.where(
+            np.isclose(predictive_distribution[t + 1], 0.0),
+            0.0,
+            acausal_posterior[t + 1] / predictive_distribution[t + 1],
+        )
+        acausal_posterior[t] = causal_posterior[t] * (
+            transition_matrix @ relative_distribution
+        )
+        acausal_posterior[t] /= acausal_posterior[t].sum()
 
     return acausal_posterior
 
 
-def scaled_likelihood(log_likelihood: np.ndarray, axis: int = 1) -> np.ndarray:
-    """Scale the likelihood so the maximum value is 1.
+def viterbi(initial_conditions, log_likelihood, transition_matrix):
 
-    Parameters
-    ----------
-    log_likelihood : np.ndarray, shape (n_time, n_bins)
-    axis : int
+    EPS = 1e-15
+    n_time, n_states = log_likelihood.shape
 
-    Returns
-    -------
-    scaled_log_likelihood : np.ndarray, shape (n_time, n_bins)
+    log_state_transition = np.log(transition_matrix + EPS)
+    log_initial_conditions = np.log(initial_conditions + EPS)
 
-    """
-    max_log_likelihood = np.nanmax(log_likelihood, axis=axis, keepdims=True)
-    # If maximum is infinity, set to zero
-    if max_log_likelihood.ndim > 0:
-        max_log_likelihood[~np.isfinite(max_log_likelihood)] = 0.0
-    elif not np.isfinite(max_log_likelihood):
-        max_log_likelihood = 0.0
+    path_log_prob = np.ones_like(log_likelihood)
+    back_pointer = np.zeros_like(log_likelihood, dtype=int)
 
-    # Maximum likelihood is always 1
-    likelihood = np.exp(log_likelihood - max_log_likelihood)
-    # avoid zero likelihood
-    likelihood += np.spacing(1, dtype=likelihood.dtype)
-    return likelihood
+    path_log_prob[0] = log_initial_conditions + log_likelihood[0]
 
+    for time_ind in range(1, n_time):
+        prior = path_log_prob[time_ind - 1] + log_state_transition
+        for state_ind in range(n_states):
+            back_pointer[time_ind, state_ind] = np.argmax(prior[state_ind])
+            path_log_prob[time_ind, state_ind] = (
+                prior[state_ind, back_pointer[time_ind, state_ind]]
+                + log_likelihood[time_ind, state_ind]
+            )
 
-def mask(value: np.ndarray, is_track_interior: np.ndarray) -> np.ndarray:
-    """Set bins that are not part of the track to NaN.
+    # Find the best accumulated path prob in the last time bin
+    # and then trace back the best path
+    best_path = np.zeros((n_time,), dtype=int)
+    best_path[-1] = np.argmax(path_log_prob[-1])
+    for time_ind in range(n_time - 2, -1, -1):
+        best_path[time_ind] = back_pointer[time_ind + 1, best_path[time_ind + 1]]
 
-    Parameters
-    ----------
-    value : np.ndarray, shape (..., n_bins)
-    is_track_interior : np.ndarray, shape (n_bins,)
-
-    Returns
-    -------
-    masked_value : np.ndarray
-
-    """
-    try:
-        value[..., ~is_track_interior] = np.nan
-    except IndexError:
-        value[..., ~is_track_interior, :] = np.nan
-    return value
+    return best_path, np.exp(np.max(path_log_prob[-1]))
 
 
 def check_converged(
@@ -310,197 +216,99 @@ try:
     import cupy as cp
 
     @cp.fuse()
-    def _causal_decode_gpu(
-        initial_conditions: np.ndarray,
-        state_transition: np.ndarray,
-        likelihood: np.ndarray,
-    ) -> tuple[np.ndarray, float]:
-        """Adaptive filter to iteratively calculate the posterior probability
-        of a state variable using past information.
+    def forward_gpu(
+        initial_conditions: cp.ndarray,
+        log_likelihood: cp.ndarray,
+        transition_matrix: cp.ndarray,
+    ) -> tuple[cp.ndarray, cp.ndarray, float]:
+        n_time = log_likelihood.shape[0]
 
-        Parameters
-        ----------
-        initial_conditions : np.ndarray, shape (n_bins,)
-        state_transition : np.ndarray, shape (n_bins, n_bins)
-        likelihood : np.ndarray, shape (n_time, n_bins)
+        predictive_distribution = cp.zeros_like(log_likelihood)
+        causal_posterior = cp.zeros_like(log_likelihood)
+        max_log_likelihood = cp.max(log_likelihood, axis=1, keepdims=True)
+        likelihood = cp.exp(log_likelihood - max_log_likelihood)
+        likelihood = cp.clip(likelihood, a_min=1e-15, a_max=1.0)
 
-        Returns
-        -------
-        posterior : np.ndarray, shape (n_time, n_bins)
-        log_data_likelihood : float
+        predictive_distribution[0] = initial_conditions
+        causal_posterior[0] = initial_conditions * likelihood[0]
+        norm = cp.nansum(causal_posterior[0])
+        marginal_likelihood = cp.log(norm)
+        causal_posterior[0] /= norm
 
-        """
+        for t in range(1, n_time):
+            # Predict
+            predictive_distribution[t] = transition_matrix.T @ causal_posterior[t - 1]
+            # Update
+            causal_posterior[t] = predictive_distribution[t] * likelihood[t]
+            # Normalize
+            norm = np.nansum(causal_posterior[t])
+            marginal_likelihood += cp.log(norm)
+            causal_posterior[t] /= norm
 
-        initial_conditions = cp.asarray(initial_conditions, dtype=cp.float32)
-        state_transition = cp.asarray(state_transition, dtype=cp.float32)
-        likelihood = cp.asarray(likelihood, dtype=cp.float32)
+        marginal_likelihood += cp.sum(max_log_likelihood)
 
-        n_time = likelihood.shape[0]
-        posterior = cp.zeros_like(likelihood)
-
-        posterior[0] = initial_conditions * likelihood[0]
-        norm = cp.nansum(posterior[0])
-        log_data_likelihood = cp.log(norm)
-        posterior[0] /= norm
-
-        for k in np.arange(1, n_time):
-            posterior[k] = state_transition.T @ posterior[k - 1] * likelihood[k]
-            norm = np.nansum(posterior[k])
-            log_data_likelihood += cp.log(norm)
-            posterior[k] /= norm
-
-        return cp.asnumpy(posterior), cp.asnumpy(log_data_likelihood)
+        return causal_posterior, predictive_distribution, marginal_likelihood
 
     @cp.fuse()
-    def _acausal_decode_gpu(
-        causal_posterior: np.ndarray, state_transition: np.ndarray
-    ) -> np.ndarray:
-        """Uses past and future information to estimate the state.
-
-        Parameters
-        ----------
-        causal_posterior : np.ndarray, shape (n_time, n_bins, 1)
-        state_transition : np.ndarray, shape (n_bins, n_bins)
-
-        Return
-        ------
-        acausal_posterior : np.ndarray, shape (n_time, n_bins, 1)
-
-        """
-        causal_posterior = cp.asarray(causal_posterior, dtype=cp.float32)
-        state_transition = cp.asarray(state_transition, dtype=cp.float32)
+    def smoother_gpu(
+        causal_posterior: cp.ndarray,
+        predictive_distribution: cp.ndarray,
+        transition_matrix: cp.ndarray,
+    ) -> cp.ndarray:
+        n_time = causal_posterior.shape[0]
 
         acausal_posterior = cp.zeros_like(causal_posterior)
         acausal_posterior[-1] = causal_posterior[-1]
-        n_time, n_bins = causal_posterior.shape[0], causal_posterior.shape[-2]
-        weights = cp.zeros((n_bins, 1))
-        eps = np.spacing(1, dtype=np.float32)
 
-        for time_ind in np.arange(n_time - 2, -1, -1):
-            acausal_prior = state_transition.T @ causal_posterior[time_ind]
-            log_ratio = cp.log(acausal_posterior[time_ind + 1, ..., 0] + eps) - cp.log(
-                acausal_prior[..., 0] + eps
+        for t in range(n_time - 2, -1, -1):
+            # Handle divide by zero
+            relative_distribution = cp.where(
+                cp.isclose(predictive_distribution[t + 1], 0.0),
+                0.0,
+                acausal_posterior[t + 1] / predictive_distribution[t + 1],
             )
-            weights[..., 0] = cp.exp(log_ratio) @ state_transition
+            acausal_posterior[t] = causal_posterior[t] * (
+                transition_matrix @ relative_distribution
+            )
+            acausal_posterior[t] /= acausal_posterior[t].sum()
 
-            acausal_posterior[time_ind] = weights * causal_posterior[time_ind]
-            acausal_posterior[time_ind] /= np.nansum(acausal_posterior[time_ind])
-
-        return cp.asnumpy(acausal_posterior)
-
-    @cp.fuse()
-    def _causal_classify_gpu(
-        initial_conditions: np.ndarray,
-        continuous_state_transition: np.ndarray,
-        discrete_state_transition: np.ndarray,
-        likelihood: np.ndarray,
-    ) -> tuple(np.ndarray, float):
-        """Adaptive filter to iteratively calculate the posterior probability
-        of a state variable using past information.
-
-        Parameters
-        ----------
-        initial_conditions : np.ndarray, shape (n_states, n_bins, 1)
-        continuous_state_transition : np.ndarray, shape (n_states, n_states, n_bins, n_bins)
-        discrete_state_transition : np.ndarray, shape (n_states, n_states)
-        likelihood : np.ndarray, shape (n_time, n_states, n_bins, 1)
-
-        Returns
-        -------
-        causal_posterior : np.ndarray, shape (n_time, n_states, n_bins, 1)
-        log_data_likelihood : float
-
-        """
-        initial_conditions = cp.asarray(initial_conditions, dtype=cp.float32)
-        continuous_state_transition = cp.asarray(
-            continuous_state_transition, dtype=cp.float32
-        )
-        discrete_state_transition = cp.asarray(
-            discrete_state_transition, dtype=cp.float32
-        )
-        likelihood = cp.asarray(likelihood, dtype=cp.float32)
-
-        n_time, n_states, n_bins, _ = likelihood.shape
-        posterior = cp.zeros_like(likelihood)
-
-        posterior[0] = initial_conditions * likelihood[0]
-        norm = cp.nansum(posterior[0])
-        log_data_likelihood = cp.log(norm)
-        posterior[0] /= norm
-
-        for k in np.arange(1, n_time):
-            for state_k in np.arange(n_states):
-                for state_k_1 in np.arange(n_states):
-                    posterior[k, state_k] += (
-                        discrete_state_transition[state_k_1, state_k]
-                        * continuous_state_transition[state_k_1, state_k].T
-                        @ posterior[k - 1, state_k_1]
-                    )
-            posterior[k] *= likelihood[k]
-            norm = cp.nansum(posterior[k])
-            log_data_likelihood += cp.log(norm)
-            posterior[k] /= norm
-
-        return cp.asnumpy(posterior), cp.asnumpy(log_data_likelihood)
+        return acausal_posterior
 
     @cp.fuse()
-    def _acausal_classify_gpu(
-        causal_posterior: np.ndarray,
-        continuous_state_transition: np.ndarray,
-        discrete_state_transition: np.ndarray,
-    ) -> np.ndarray:
-        """Uses past and future information to estimate the state.
+    def viterbi_gpu(
+        initial_conditions: cp.ndarray,
+        log_likelihood: cp.ndarray,
+        transition_matrix: cp.ndarray,
+    ):
 
-        Parameters
-        ----------
-        causal_posterior : np.ndarray, shape (n_time, n_states, n_bins, 1)
-        continuous_state_transition : np.ndarray, shape (n_states, n_states, n_bins, n_bins)
-        discrete_state_transition : np.ndarray, shape (n_states, n_states)
+        EPS = 1e-15
+        n_time, n_states = log_likelihood.shape
 
-        Return
-        ------
-        acausal_posterior : np.ndarray, shape (n_time, n_states, n_bins, 1)
+        log_state_transition = cp.log(transition_matrix + EPS)
+        log_initial_conditions = cp.log(initial_conditions + EPS)
 
-        """
-        causal_posterior = cp.asarray(causal_posterior, dtype=cp.float32)
-        continuous_state_transition = cp.asarray(
-            continuous_state_transition, dtype=cp.float32
-        )
-        discrete_state_transition = cp.asarray(
-            discrete_state_transition, dtype=cp.float32
-        )
+        path_log_prob = cp.ones_like(log_likelihood)
+        back_pointer = cp.zeros_like(log_likelihood, dtype=int)
 
-        acausal_posterior = cp.zeros_like(causal_posterior)
-        acausal_posterior[-1] = causal_posterior[-1]
-        n_time, n_states, n_bins, _ = causal_posterior.shape
-        eps = np.spacing(1, dtype=np.float32)
+        path_log_prob[0] = log_initial_conditions + log_likelihood[0]
 
-        for k in np.arange(n_time - 2, -1, -1):
-            # Prediction Step -- p(x_{k+1}, I_{k+1} | y_{1:k})
-            prior = cp.zeros((n_states, n_bins, 1))
-            for state_k_1 in np.arange(n_states):
-                for state_k in np.arange(n_states):
-                    prior[state_k_1, :] += (
-                        discrete_state_transition[state_k, state_k_1]
-                        * continuous_state_transition[state_k, state_k_1].T
-                        @ causal_posterior[k, state_k]
-                    )
+        for time_ind in range(1, n_time):
+            prior = path_log_prob[time_ind - 1] + log_state_transition
+            for state_ind in range(n_states):
+                back_pointer[time_ind, state_ind] = cp.argmax(prior[state_ind])
+                path_log_prob[time_ind, state_ind] = (
+                    prior[state_ind, back_pointer[time_ind, state_ind]]
+                    + log_likelihood[time_ind, state_ind]
+                )
 
-            # Backwards Update
-            weights = cp.zeros((n_states, n_bins, 1))
-            ratio = cp.exp(cp.log(acausal_posterior[k + 1] + eps) - cp.log(prior + eps))
-            for state_k in np.arange(n_states):
-                for state_k_1 in np.arange(n_states):
-                    weights[state_k] += (
-                        discrete_state_transition[state_k, state_k_1]
-                        * continuous_state_transition[state_k, state_k_1]
-                        @ ratio[state_k_1]
-                    )
+        # Find the best accumulated path prob in the last time bin
+        # and then trace back the best path
+        best_path = cp.zeros((n_time,), dtype=int)
+        best_path[-1] = cp.argmax(path_log_prob[-1])
+        for time_ind in range(n_time - 2, -1, -1):
+            best_path[time_ind] = back_pointer[time_ind + 1, best_path[time_ind + 1]]
 
-            acausal_posterior[k] = weights * causal_posterior[k]
-            acausal_posterior[k] /= cp.nansum(acausal_posterior[k])
-
-        return cp.asnumpy(acausal_posterior)
+        return best_path, cp.exp(cp.max(path_log_prob[-1]))
 
 except ImportError:
     from logging import getLogger
@@ -511,14 +319,11 @@ except ImportError:
         " Ignore this message if not using GPU"
     )
 
-    def _causal_decode_gpu(*args, **kwargs):
+    def forward_gpu(*args, **kwargs):
         logger.error("No GPU detected...")
 
-    def _acausal_decode_gpu(*args, **kwargs):
+    def smoother_gpu(*args, **kwargs):
         logger.error("No GPU detected...")
 
-    def _causal_classify_gpu(*args, **kwargs):
-        logger.error("No GPU detected...")
-
-    def _acausal_classify_gpu(*args, **kwargs):
+    def viterbi_gpu(*args, **kwargs):
         logger.error("No GPU detected...")

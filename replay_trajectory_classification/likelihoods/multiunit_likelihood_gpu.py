@@ -333,9 +333,9 @@ try:
             )
             encoding_positions.append(position[is_spike & not_nan_position])
 
-        summed_ground_process_intensity = cp.asnumpy(
-            summed_ground_process_intensity
-        ) + np.spacing(1)
+        summed_ground_process_intensity = np.clip(
+            cp.asnumpy(summed_ground_process_intensity), a_min=1e-15, a_max=None
+        )
 
         return {
             "encoding_marks": encoding_marks,

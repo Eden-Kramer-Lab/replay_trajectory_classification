@@ -22,15 +22,15 @@ from replay_trajectory_classification.continuous_state_transitions import (
     Uniform,
 )
 from replay_trajectory_classification.core import (
-    _acausal_classify,
-    _acausal_classify_gpu,
-    _causal_classify,
-    _causal_classify_gpu,
+    forward,
+    forward_gpu,
+    smoother,
+    smoother_gpu,
+    make_transition_matrix,
     atleast_2d,
     check_converged,
     get_centers,
     mask,
-    scaled_likelihood,
 )
 from replay_trajectory_classification.discrete_state_transitions import (
     DiagonalDiscrete,
@@ -143,16 +143,12 @@ class _ClassifierBase(BaseEstimator):
         environment_names_to_state = [
             obs.environment_name for obs in self.observation_models
         ]
-        n_states = len(self.observation_models)
-        initial_conditions = self.initial_conditions_type.make_initial_conditions(
-            self.environments, environment_names_to_state
-        )
 
-        self.initial_conditions_ = np.zeros(
-            (n_states, self.max_pos_bins_, 1), dtype=np.float64
+        self.initial_conditions_ = np.concatenate(
+            self.initial_conditions_type.make_initial_conditions(
+                self.environments, environment_names_to_state
+            )
         )
-        for state_ind, ic in enumerate(initial_conditions):
-            self.initial_conditions_[state_ind, : ic.shape[0]] = ic[..., np.newaxis]
 
     def fit_continuous_state_transition(
         self,
@@ -204,9 +200,9 @@ class _ClassifierBase(BaseEstimator):
         self.continuous_transition_types = continuous_transition_types
         continuous_state_transition = []
 
-        for row in self.continuous_transition_types:
+        for row_ind, row in enumerate(self.continuous_transition_types):
             continuous_state_transition.append([])
-            for transition in row:
+            for column_ind, transition in enumerate(row):
                 if isinstance(transition, EmpiricalMovement):
                     continuous_state_transition[-1].append(
                         transition.make_state_transition(
@@ -222,16 +218,7 @@ class _ClassifierBase(BaseEstimator):
                         transition.make_state_transition(self.environments)
                     )
 
-        n_states = len(self.continuous_transition_types)
-        self.continuous_state_transition_ = np.zeros(
-            (n_states, n_states, self.max_pos_bins_, self.max_pos_bins_)
-        )
-
-        for row_ind, row in enumerate(continuous_state_transition):
-            for column_ind, st in enumerate(row):
-                self.continuous_state_transition_[
-                    row_ind, column_ind, : st.shape[0], : st.shape[1]
-                ] = st
+        self.continuous_state_transition_ = np.block(continuous_state_transition)
 
     def fit_discrete_state_transition(self):
         """Constructs the transition matrix for the discrete states."""
@@ -351,7 +338,6 @@ class _ClassifierBase(BaseEstimator):
         data_log_likelihoods = [results.data_log_likelihood]
         log_likelihood_change = np.inf
         converged = False
-        increasing = True
         n_iter = 0
         n_time = len(results.time)
 
@@ -364,9 +350,7 @@ class _ClassifierBase(BaseEstimator):
 
         while not converged and (n_iter < max_iter):
             if estimate_initial_conditions:
-                self.initial_conditions_ = results.isel(
-                    time=0
-                ).acausal_posterior.values[..., np.newaxis]
+                self.initial_conditions_ = results.isel(time=0).acausal_posterior.values
             if estimate_discrete_transition:
                 self.discrete_state_transition_ = estimate_discrete_state_transition(
                     self, results
@@ -383,7 +367,7 @@ class _ClassifierBase(BaseEstimator):
             log_likelihood_change = data_log_likelihoods[-1] - data_log_likelihoods[-2]
             n_iter += 1
 
-            converged, increasing = check_converged(
+            converged, _ = check_converged(
                 data_log_likelihoods[-1], data_log_likelihoods[-2], tolerance
             )
 
@@ -520,6 +504,7 @@ class _ClassifierBase(BaseEstimator):
         is_compute_acausal: bool = True,
         use_gpu: bool = False,
         state_names: Optional[list[str]] = None,
+        dtype=np.float32,
     ) -> xr.Dataset:
         """Computes the causal and acausal posterior after the likelihood has been computed.
 
@@ -537,95 +522,98 @@ class _ClassifierBase(BaseEstimator):
         results : xr.Dataset
 
         """
-        n_states = self.discrete_state_transition_.shape[0]
+
         results = {}
-        dtype = np.float32 if use_gpu else np.float64
 
-        results["likelihood"] = np.full(
-            (n_time, n_states, self.max_pos_bins_, 1), np.nan, dtype=dtype
-        )
-        compute_causal = _causal_classify_gpu if use_gpu else _causal_classify
-        compute_acausal = _acausal_classify_gpu if use_gpu else _acausal_classify
+        compute_causal = forward_gpu if use_gpu else forward
+        compute_acausal = smoother_gpu if use_gpu else smoother
 
-        for state_ind, obs in enumerate(self.observation_models):
-            likelihood_name = (obs.environment_name, obs.encoding_group)
-            n_bins = likelihood[likelihood_name].shape[1]
-            results["likelihood"][:, state_ind, :n_bins] = likelihood[likelihood_name][
-                ..., np.newaxis
-            ]
+        state_ind = []
+        state_environment = []
+        state_encoding_group = []
+        state_position = []
+        state_is_track_interior = []
+        log_likelihood = []
 
-        results["likelihood"] = scaled_likelihood(results["likelihood"], axis=(1, 2))
-        results["likelihood"][np.isnan(results["likelihood"])] = 0.0
+        for ind, obs in enumerate(self.observation_models):
+            env = self.environments[self.environments.index(obs.environment_name)]
+            state_position.append(env.place_bin_centers_)
+            state_is_track_interior.append(env.is_track_interior_.ravel(order="F"))
+            n_bins = env.place_bin_centers_.shape[0]
+            state_ind.append(ind * np.ones((n_bins,), dtype=int))
+            state_environment.append(np.repeat(obs.environment_name, n_bins))
+            state_encoding_group.append(np.repeat(obs.encoding_group, n_bins))
+            log_likelihood.append(
+                likelihood[(obs.environment_name, obs.encoding_group)]
+            )
 
-        n_environments = len(self.environments)
+        state_ind = np.concatenate(state_ind)
+        state_environment = np.concatenate(state_environment)
+        state_encoding_group = np.concatenate(state_encoding_group)
+        state_position = np.concatenate(state_position)
+        state_is_track_interior = np.concatenate(state_is_track_interior)
+        log_likelihood = np.concatenate(log_likelihood, axis=1).astype(dtype)
+
+        results["likelihood"] = np.exp(log_likelihood)
 
         if time is None:
             time = np.arange(n_time)
 
-        if n_environments == 1:
-            logger.info("Estimating causal posterior...")
-            is_track_interior = self.environments[0].is_track_interior_.ravel(order="F")
-            n_position_bins = len(is_track_interior)
-            is_states = np.ones((n_states,), dtype=bool)
-            st_interior_ind = np.ix_(
-                is_states, is_states, is_track_interior, is_track_interior
+        transition_matrix = make_transition_matrix(
+            self.discrete_state_transition_,
+            self.continuous_state_transition_,
+            state_ind,
+        ).astype(dtype)
+
+        logger.info("Estimating causal posterior...")
+        (
+            results["causal_posterior"],
+            predictive_distribution,
+            data_log_likelihood,
+        ) = compute_causal(
+            self.initial_conditions_.astype(dtype),
+            log_likelihood,
+            transition_matrix,
+        )
+
+        n_states = len(self.discrete_state_transition_)
+        self.predictive_distribution_ = np.zeros((n_time, n_states))
+        for ind in range(n_states):
+            self.predictive_distribution_[:, ind] = predictive_distribution[
+                :, state_ind == ind
+            ].sum(axis=1)
+
+        if is_compute_acausal:
+            logger.info("Estimating acausal posterior...")
+
+            results["acausal_posterior"] = compute_acausal(
+                results["causal_posterior"],
+                predictive_distribution,
+                transition_matrix,
             )
 
-            results["causal_posterior"] = np.full(
-                (n_time, n_states, n_position_bins, 1), np.nan, dtype=dtype
-            )
-            (
-                results["causal_posterior"][:, :, is_track_interior],
-                data_log_likelihood,
-            ) = compute_causal(
-                self.initial_conditions_[:, is_track_interior].astype(dtype),
-                self.continuous_state_transition_[st_interior_ind].astype(dtype),
-                self.discrete_state_transition_.astype(dtype),
-                results["likelihood"][:, :, is_track_interior].astype(dtype),
-            )
-
-            if is_compute_acausal:
-                logger.info("Estimating acausal posterior...")
-
-                results["acausal_posterior"] = np.full(
-                    (n_time, n_states, n_position_bins, 1), np.nan, dtype=dtype
-                )
-                results["acausal_posterior"][:, :, is_track_interior] = compute_acausal(
-                    results["causal_posterior"][:, :, is_track_interior].astype(dtype),
-                    self.continuous_state_transition_[st_interior_ind].astype(dtype),
-                    self.discrete_state_transition_.astype(dtype),
-                )
-
-            return self._convert_results_to_xarray(
-                results, time, state_names, data_log_likelihood
-            )
-
-        else:
-            logger.info("Estimating causal posterior...")
-            (results["causal_posterior"], data_log_likelihood) = compute_causal(
-                self.initial_conditions_.astype(dtype),
-                self.continuous_state_transition_.astype(dtype),
-                self.discrete_state_transition_.astype(dtype),
-                results["likelihood"].astype(dtype),
-            )
-
-            if is_compute_acausal:
-                logger.info("Estimating acausal posterior...")
-                results["acausal_posterior"] = compute_acausal(
-                    results["causal_posterior"].astype(dtype),
-                    self.continuous_state_transition_.astype(dtype),
-                    self.discrete_state_transition_.astype(dtype),
-                )
-
-            return self._convert_results_to_xarray_mutienvironment(
-                results, time, state_names, data_log_likelihood
-            )
+        return self._convert_results_to_xarray(
+            results,
+            time,
+            state_names,
+            state_ind,
+            state_environment,
+            state_encoding_group,
+            state_position,
+            state_is_track_interior,
+            data_log_likelihood,
+        )
 
     def _convert_results_to_xarray(
         self,
         results: dict,
         time: np.ndarray,
         state_names: list,
+        state_ind: np.ndarray,
+        state_environment: np.ndarray,
+        state_encoding_group: np.ndarray,
+        state_position: np.ndarray,
+        state_is_track_interior: np.ndarray,
         data_log_likelihood: float,
     ) -> xr.Dataset:
         """Converts the results dict into a collection of labeled arrays.
@@ -643,8 +631,8 @@ class _ClassifierBase(BaseEstimator):
 
         """
         attrs = {"data_log_likelihood": data_log_likelihood}
-        n_position_dims = self.environments[0].place_bin_centers_.shape[1]
         diag_transition_names = np.diag(np.asarray(self.continuous_transition_types))
+
         if state_names is None:
             if len(np.unique(self.observation_models)) == 1:
                 state_names = diag_transition_names
@@ -655,116 +643,27 @@ class _ClassifierBase(BaseEstimator):
                         self.observation_models, diag_transition_names
                     )
                 ]
-        n_time = time.shape[0]
-        n_states = len(state_names)
-        is_track_interior = self.environments[0].is_track_interior_.ravel(order="F")
-        edges = self.environments[0].edges_
+        state_names = np.asarray(state_names)[state_ind]
 
-        if n_position_dims > 1:
-            centers_shape = self.environments[0].centers_shape_
-            new_shape = (n_time, n_states, *centers_shape)
-            dims = ["time", "state", "x_position", "y_position"]
-            coords = dict(
-                time=time,
-                x_position=get_centers(edges[0]),
-                y_position=get_centers(edges[1]),
-                state=state_names,
-            )
-            results = xr.Dataset(
-                {
-                    key: (
-                        dims,
-                        (
-                            mask(value, is_track_interior)
-                            .squeeze(axis=-1)
-                            .reshape(new_shape, order="F")
-                        ),
-                    )
-                    for key, value in results.items()
-                },
-                coords=coords,
-                attrs=attrs,
-            )
+        dims = ["time", "state"]
+        coords = dict(
+            time=time,
+            state=state_names,
+            environment=("state", state_environment),
+            encoding_group=("state", state_encoding_group),
+        )
+
+        if state_position.shape[1] == 1:
+            coords["position"] = ("state", state_position.squeeze())
         else:
-            dims = ["time", "state", "position"]
-            coords = dict(
-                time=time,
-                position=get_centers(edges[0]),
-                state=state_names,
-            )
-            results = xr.Dataset(
-                {
-                    key: (dims, (mask(value, is_track_interior).squeeze(axis=-1)))
-                    for key, value in results.items()
-                },
-                coords=coords,
-                attrs=attrs,
-            )
+            for pos, dim_name in zip(state_position.T, ["x", "y", "z"]):
+                coords[f"{dim_name}_position"] = ("state", pos)
 
-        return results
-
-    def _convert_results_to_xarray_mutienvironment(
-        self,
-        results: dict,
-        time: np.ndarray,
-        state_names: list,
-        data_log_likelihood: float,
-    ) -> xr.Dataset:
-        """Converts the results dict into a collection of labeled arrays when there are multiple environments.
-
-        Parameters
-        ----------
-        results : dict
-        time : np.ndarray
-        state_names : list
-        data_log_likelihood : float
-
-        Returns
-        -------
-        results : xr.Dataset
-
-        """
-        if state_names is None:
-            state_names = [
-                f"{obs.environment_name}-{obs.encoding_group}"
-                for obs in self.observation_models
-            ]
-
-        attrs = {"data_log_likelihood": data_log_likelihood}
-        n_position_dims = self.environments[0].place_bin_centers_.shape[1]
-
-        if n_position_dims > 1:
-            dims = ["time", "state", "position"]
-            coords = dict(
-                time=time,
-                state=state_names,
-            )
-            for env in self.environments:
-                coords[env.environment_name + "_x_position"] = get_centers(
-                    env.edges_[0]
-                )
-                coords[env.environment_name + "_y_position"] = get_centers(
-                    env.edges_[1]
-                )
-            results = xr.Dataset(
-                {key: (dims, value.squeeze(axis=-1)) for key, value in results.items()},
-                coords=coords,
-                attrs=attrs,
-            )
-        else:
-            dims = ["time", "state", "position"]
-            coords = dict(
-                time=time,
-                state=state_names,
-            )
-            for env in self.environments:
-                coords[env.environment_name + "_position"] = get_centers(env.edges_[0])
-
-            results = xr.Dataset(
-                {key: (dims, value.squeeze(axis=-1)) for key, value in results.items()},
-                coords=coords,
-                attrs=attrs,
-            )
+        results = xr.Dataset(
+            {key: (dims, value) for key, value in results.items()},
+            coords=coords,
+            attrs=attrs,
+        ).where(state_is_track_interior[np.newaxis])
 
         return results
 
@@ -1324,15 +1223,16 @@ class ClusterlessClassifier(_ClassifierBase):
 
         logger.info("Estimating likelihood...")
         likelihood = {}
+
+        compute_likelihood = _ClUSTERLESS_ALGORITHMS[self.clusterless_algorithm][1]
+
         for (env_name, enc_group), encoding_params in self.encoding_model_.items():
             env_ind = self.environments.index(env_name)
             is_track_interior = self.environments[env_ind].is_track_interior_.ravel(
                 order="F"
             )
             place_bin_centers = self.environments[env_ind].place_bin_centers_
-            likelihood[(env_name, enc_group)] = _ClUSTERLESS_ALGORITHMS[
-                self.clusterless_algorithm
-            ][1](
+            likelihood[(env_name, enc_group)] = compute_likelihood(
                 multiunits=multiunits,
                 place_bin_centers=place_bin_centers,
                 is_track_interior=is_track_interior,

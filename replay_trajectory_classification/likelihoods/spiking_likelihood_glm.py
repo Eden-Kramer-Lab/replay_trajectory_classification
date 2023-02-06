@@ -135,7 +135,7 @@ def poisson_log_likelihood(
     # Logarithm of the absolute value of the gamma function is always 0 when
     # spikes are 0 or 1
     return scipy.stats.poisson.logpmf(
-        spikes[:, np.newaxis], conditional_intensity[np.newaxis, :] + np.spacing(1)
+        spikes[:, np.newaxis], conditional_intensity[np.newaxis, :]
     )
 
 
@@ -153,6 +153,8 @@ def combined_likelihood(
     n_time = spikes.shape[0]
     n_bins = conditional_intensity.shape[0]
     log_likelihood = np.zeros((n_time, n_bins))
+
+    conditional_intensity = np.clip(conditional_intensity, a_min=1e-15, a_max=None)
 
     for is_spike, ci in zip(spikes.T, conditional_intensity.T):
         log_likelihood += poisson_log_likelihood(is_spike, ci)

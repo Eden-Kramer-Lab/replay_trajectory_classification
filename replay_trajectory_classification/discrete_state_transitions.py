@@ -150,30 +150,30 @@ def estimate_discrete_state_transition(
     new_transition_matrix : np.ndarray, shape (n_states, n_states)
 
     """
-    likelihood = results.likelihood.sum("position").values
-    causal_prob = results.causal_posterior.sum("position").values
-    acausal_prob = results.acausal_posterior.sum("position").values
+
+    causal_posterior = results.causal_posterior.groupby("state").sum().values
+    acausal_posterior = results.acausal_posterior.groupby("state").sum().values
+    predictive_distribution = classifier.predictive_distribution_
     transition_matrix = classifier.discrete_state_transition_
 
-    n_time, n_states = causal_prob.shape
+    relative_distribution = np.where(
+        np.isclose(predictive_distribution[1:], 0.0),
+        0.0,
+        acausal_posterior[1:] / predictive_distribution[1:],
+    )[:, np.newaxis]
 
-    # probability of state 1 in time t and state 2 in time t+1
-    xi = np.zeros((n_time - 1, n_states, n_states))
+    # p(I_t, I_{t+1} | O_{1:T})
+    joint_distribution = (
+        transition_matrix[np.newaxis]
+        * causal_posterior[:-1, :, np.newaxis]
+        * relative_distribution
+    )
 
-    for from_state in range(n_states):
-        for to_state in range(n_states):
-            xi[:, from_state, to_state] = (
-                causal_prob[:-1, from_state]
-                * likelihood[1:, to_state]
-                * acausal_prob[1:, to_state]
-                * transition_matrix[from_state, to_state]
-                / (causal_prob[1:, to_state] + np.spacing(1))
-            )
+    new_transition_matrix = (
+        joint_distribution.sum(axis=0)
+        / acausal_posterior[:-1].sum(axis=0, keepdims=True).T
+    )
 
-    xi = xi / xi.sum(axis=(1, 2), keepdims=True)
-
-    summed_xi = xi.sum(axis=0)
-
-    new_transition_matrix = summed_xi / summed_xi.sum(axis=1, keepdims=True)
+    new_transition_matrix /= new_transition_matrix.sum(axis=1, keepdims=True)
 
     return new_transition_matrix
