@@ -329,7 +329,7 @@ try:
 
         log_likelihood = combined_likelihood(spikes, conditional_intensity)
 
-        mask = np.ones_like(is_track_interior, dtype=np.float)
+        mask = np.ones_like(is_track_interior, dtype=np.float32)
         mask[~is_track_interior] = np.nan
 
         return log_likelihood * mask
