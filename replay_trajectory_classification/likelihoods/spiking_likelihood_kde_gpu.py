@@ -287,7 +287,7 @@ try:
         """
         n_time = spikes.shape[0]
         n_bins = conditional_intensity.shape[0]
-        log_likelihood = cp.zeros((n_time, n_bins))
+        log_likelihood = cp.zeros((n_time, n_bins), dtype=cp.float32)
 
         conditional_intensity = np.clip(conditional_intensity, a_min=1e-15, a_max=None)
 
