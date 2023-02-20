@@ -27,6 +27,8 @@ jobs:
       with:
         activate-environment: replay_trajectory_classification
         environment-file: environment.yml
+        miniforge-variant: Mambaforge
+        miniforge-version: latest
     - name: Install replay_trajectory_classification
       shell: bash -l {0}
       run: |
