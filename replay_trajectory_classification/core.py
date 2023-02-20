@@ -394,7 +394,7 @@ try:
         continuous_state_transition: np.ndarray,
         discrete_state_transition: np.ndarray,
         likelihood: np.ndarray,
-    ) -> tuple(np.ndarray, float):
+    ) -> tuple[np.ndarray, float]:
         """Adaptive filter to iteratively calculate the posterior probability
         of a state variable using past information.
 
