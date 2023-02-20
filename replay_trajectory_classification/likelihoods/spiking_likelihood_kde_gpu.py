@@ -288,7 +288,7 @@ try:
         """
         n_time = spikes.shape[0]
         n_bins = conditional_intensity.shape[0]
-        log_likelihood = cp.zeros((n_time, n_bins))
+        log_likelihood = cp.zeros((n_time, n_bins), dtype=cp.float32)
 
         mempool = cp.get_default_memory_pool()
 
