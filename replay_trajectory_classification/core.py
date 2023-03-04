@@ -81,6 +81,7 @@ def forward(
 
     predictive_distribution = np.zeros_like(log_likelihood)
     causal_posterior = np.zeros_like(log_likelihood)
+    log_likelihood = np.where(np.isnan(log_likelihood), 0.0, log_likelihood)
     max_log_likelihood = np.max(log_likelihood, axis=1, keepdims=True)
     likelihood = np.exp(log_likelihood - max_log_likelihood)
     likelihood = np.clip(likelihood, a_min=1e-15, a_max=1.0)
@@ -228,6 +229,7 @@ try:
 
         predictive_distribution = cp.zeros_like(log_likelihood)
         causal_posterior = cp.zeros_like(log_likelihood)
+        log_likelihood = cp.where(cp.isnan(log_likelihood), 0.0, log_likelihood)
         max_log_likelihood = cp.max(log_likelihood, axis=1, keepdims=True)
         likelihood = cp.exp(log_likelihood - max_log_likelihood)
         likelihood = cp.clip(likelihood, a_min=1e-15, a_max=1.0)
