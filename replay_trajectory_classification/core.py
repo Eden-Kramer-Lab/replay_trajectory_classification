@@ -288,7 +288,6 @@ try:
     ):
         EPS = 1e-15
         n_time, n_states = log_likelihood.shape
-
         log_state_transition = cp.log(cp.clip(transition_matrix, a_min=EPS, a_max=1.0))
         log_initial_conditions = cp.log(
             cp.clip(initial_conditions, a_min=EPS, a_max=1.0)

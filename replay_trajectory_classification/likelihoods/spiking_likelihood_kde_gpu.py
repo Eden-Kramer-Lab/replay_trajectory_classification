@@ -294,7 +294,8 @@ try:
         mempool = cp.get_default_memory_pool()
 
         for is_spike, ci in zip(
-            tqdm(cp.asarray(spikes).T), cp.asarray(conditional_intensity).T
+            tqdm(cp.asarray(spikes, dtype=cp.float32).T),
+            cp.asarray(conditional_intensity, dtype=cp.float32).T,
         ):
             log_likelihood += poisson_log_likelihood(is_spike, ci)
             mempool.free_all_blocks()
