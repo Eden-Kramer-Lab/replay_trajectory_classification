@@ -192,7 +192,7 @@ def estimate_calcium_likelihood(
         is_track_interior = is_track_interior.ravel(order="F")
     else:
         n_bins = place_fields.shape[0]
-        is_track_interior = np.ones((n_bins,), dtype=np.bool)
+        is_track_interior = np.ones((n_bins,), dtype=bool)
 
     log_likelihood = combined_likelihood(calcium_activity, place_fields, scales)
 

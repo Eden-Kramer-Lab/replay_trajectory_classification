@@ -124,7 +124,7 @@ class _DecoderBase(BaseEstimator):
 
         if isinstance(self.transition_type, EmpiricalMovement):
             if is_training is None:
-                is_training = np.ones((position.shape[0],), dtype=np.bool)
+                is_training = np.ones((position.shape[0],), dtype=bool)
             is_training = np.asarray(is_training).squeeze()
             n_time = position.shape[0]
             encoding_group_labels = np.zeros((n_time,), dtype=np.int32)
@@ -407,7 +407,7 @@ class SortedSpikesDecoder(_DecoderBase):
         """
         logger.info("Fitting place fields...")
         if is_training is None:
-            is_training = np.ones((position.shape[0],), dtype=np.bool)
+            is_training = np.ones((position.shape[0],), dtype=bool)
         is_training = np.asarray(is_training).squeeze()
         kwargs = self.sorted_spikes_algorithm_params
         if kwargs is None:
@@ -584,7 +584,7 @@ class ClusterlessDecoder(_DecoderBase):
         """
         logger.info("Fitting multiunits...")
         if is_training is None:
-            is_training = np.ones((position.shape[0],), dtype=np.bool)
+            is_training = np.ones((position.shape[0],), dtype=bool)
         is_training = np.asarray(is_training).squeeze()
 
         kwargs = self.clusterless_algorithm_params

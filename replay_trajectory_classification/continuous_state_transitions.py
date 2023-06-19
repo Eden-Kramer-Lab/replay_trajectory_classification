@@ -310,15 +310,15 @@ class EmpiricalMovement:
 
         n_time = position.shape[0]
         if is_training is None:
-            is_training = np.ones((n_time,), dtype=np.bool)
+            is_training = np.ones((n_time,), dtype=bool)
 
         if encoding_group_labels is None:
-            is_encoding = np.ones((n_time,), dtype=np.bool)
+            is_encoding = np.ones((n_time,), dtype=bool)
         else:
             is_encoding = encoding_group_labels == self.encoding_group
 
         if environment_labels is None:
-            is_environment = np.ones((n_time,), dtype=np.bool)
+            is_environment = np.ones((n_time,), dtype=bool)
         else:
             is_environment = environment_labels == self.environment_name
 

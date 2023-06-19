@@ -268,7 +268,7 @@ try:
 
         """
         if is_track_interior is None:
-            is_track_interior = np.ones((place_bin_centers.shape[0],), dtype=np.bool)
+            is_track_interior = np.ones((place_bin_centers.shape[0],), dtype=bool)
 
         position = atleast_2d(position)
         place_bin_centers = atleast_2d(place_bin_centers)
@@ -444,7 +444,7 @@ try:
         """
 
         if is_track_interior is None:
-            is_track_interior = np.ones((place_bin_centers.shape[0],), dtype=np.bool)
+            is_track_interior = np.ones((place_bin_centers.shape[0],), dtype=bool)
         else:
             is_track_interior = is_track_interior.ravel(order="F")
 

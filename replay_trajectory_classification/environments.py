@@ -110,7 +110,7 @@ class Environment:
                     self.bin_count_threshold,
                 )
             elif self.is_track_interior is None and not self.infer_track_interior:
-                self.is_track_interior_ = np.ones(self.centers_shape_, dtype=np.bool)
+                self.is_track_interior_ = np.ones(self.centers_shape_, dtype=bool)
 
             if len(self.edges_) > 1:
                 self.is_track_boundary_ = get_track_boundary(

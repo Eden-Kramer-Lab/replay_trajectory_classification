@@ -182,7 +182,7 @@ def estimate_spiking_likelihood(
         is_track_interior = is_track_interior.ravel(order="F")
     else:
         n_bins = conditional_intensity.shape[0]
-        is_track_interior = np.ones((n_bins,), dtype=np.bool)
+        is_track_interior = np.ones((n_bins,), dtype=bool)
 
     log_likelihood = combined_likelihood(spikes, conditional_intensity)
 

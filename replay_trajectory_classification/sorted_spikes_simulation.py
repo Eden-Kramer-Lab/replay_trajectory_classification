@@ -221,7 +221,7 @@ def make_hover_replay(
     spike_time_ind = np.arange(0, N_TIME, 2)
 
     test_spikes = np.zeros((N_TIME, n_neurons))
-    neuron_ind = np.ones((N_TIME // 2,), dtype=np.int) * hover_neuron_ind
+    neuron_ind = np.ones((N_TIME // 2,), dtype=int) * hover_neuron_ind
 
     test_spikes[(spike_time_ind, neuron_ind)] = 1.0
 
