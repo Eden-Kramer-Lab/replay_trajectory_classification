@@ -15,6 +15,7 @@ from replay_trajectory_classification.likelihoods.diffusion import (
 
 try:
     import cupy as cp
+    from cupyx.scipy.special import xlogy
 
     def gaussian_pdf(x: np.ndarray, mean: np.ndarray, sigma: np.ndarray) -> np.ndarray:
         """Compute the value of a Gaussian probability density function at x with
@@ -270,8 +271,7 @@ try:
         # Logarithm of the absolute value of the gamma function is always 0 when
         # spikes are 0 or 1
         return (
-            cp.log(conditional_intensity[cp.newaxis, :] + np.spacing(1))
-            * spikes[:, np.newaxis]
+            xlogy(spikes[:, np.newaxis], conditional_intensity[cp.newaxis, :])
             - conditional_intensity[cp.newaxis, :]
         )
 
@@ -289,6 +289,8 @@ try:
         n_time = spikes.shape[0]
         n_bins = conditional_intensity.shape[0]
         log_likelihood = cp.zeros((n_time, n_bins), dtype=cp.float32)
+
+        conditional_intensity = np.clip(conditional_intensity, a_min=1e-15, a_max=None)
 
         mempool = cp.get_default_memory_pool()
 
@@ -329,7 +331,7 @@ try:
 
         log_likelihood = combined_likelihood(spikes, conditional_intensity)
 
-        mask = np.ones_like(is_track_interior, dtype=np.float)
+        mask = np.ones_like(is_track_interior, dtype=np.float32)
         mask[~is_track_interior] = np.nan
 
         return log_likelihood * mask

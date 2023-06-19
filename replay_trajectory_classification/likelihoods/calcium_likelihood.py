@@ -105,7 +105,7 @@ def fit_glm(
         penalty = np.ones((design_matrix.shape[1],)) * penalty
         penalty[0] = 0.0  # don't penalize the intercept
     else:
-        penalty = np.finfo(np.float).eps
+        penalty = np.finfo(float).eps
     return penalized_IRLS(
         design_matrix,
         response.squeeze(),
@@ -196,7 +196,7 @@ def estimate_calcium_likelihood(
 
     log_likelihood = combined_likelihood(calcium_activity, place_fields, scales)
 
-    mask = np.ones_like(is_track_interior, dtype=np.float)
+    mask = np.ones_like(is_track_interior, dtype=float)
     mask[~is_track_interior] = np.nan
 
     return log_likelihood * mask
