@@ -87,7 +87,7 @@ def predict_mark_likelihood(
                     tetrode_likelihood[time_index == time_bin_ind], axis=0
                 )
 
-    mask = np.ones_like(is_track_interior, dtype=np.float)
+    mask = np.ones_like(is_track_interior, dtype=float)
     mask[~is_track_interior] = np.nan
 
     log_likelihood = log_likelihood * mask
@@ -129,7 +129,7 @@ def predict_poisson_likelihood(
     )
     log_likelihood -= dt * np.sum(place_fields, axis=1)
 
-    mask = np.ones_like(is_track_interior, dtype=np.float)
+    mask = np.ones_like(is_track_interior, dtype=float)
     mask[~is_track_interior] = np.nan
 
     return scaled_likelihood(log_likelihood) * mask, time_bin_centers

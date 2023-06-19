@@ -232,15 +232,15 @@ class _DecoderBase(BaseEstimator):
         logger.info("Estimating causal posterior...")
         if not use_gpu:
             results["causal_posterior"] = np.full(
-                (n_time, n_position_bins), np.nan, dtype=np.float64
+                (n_time, n_position_bins), np.nan, dtype=float
             )
             (
                 results["causal_posterior"][:, is_track_interior],
                 data_log_likelihood,
             ) = _causal_decode(
-                self.initial_conditions_[is_track_interior].astype(np.float64),
-                self.state_transition_[st_interior_ind].astype(np.float64),
-                results["likelihood"][:, is_track_interior].astype(np.float64),
+                self.initial_conditions_[is_track_interior].astype(float),
+                self.state_transition_[st_interior_ind].astype(float),
+                results["likelihood"][:, is_track_interior].astype(float),
             )
         else:
             results["causal_posterior"] = np.full(
@@ -259,13 +259,13 @@ class _DecoderBase(BaseEstimator):
             logger.info("Estimating acausal posterior...")
             if not use_gpu:
                 results["acausal_posterior"] = np.full(
-                    (n_time, n_position_bins, 1), np.nan, dtype=np.float64
+                    (n_time, n_position_bins, 1), np.nan, dtype=float
                 )
                 results["acausal_posterior"][:, is_track_interior] = _acausal_decode(
                     results["causal_posterior"][
                         :, is_track_interior, np.newaxis
-                    ].astype(np.float64),
-                    self.state_transition_[st_interior_ind].astype(np.float64),
+                    ].astype(float),
+                    self.state_transition_[st_interior_ind].astype(float),
                 )
             else:
                 results["acausal_posterior"] = np.full(

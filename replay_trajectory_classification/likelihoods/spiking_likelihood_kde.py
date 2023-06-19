@@ -5,6 +5,7 @@ from typing import Optional, Union
 import numpy as np
 import pandas as pd
 import xarray as xr
+from scipy.special import xlogy
 from tqdm.auto import tqdm
 
 from replay_trajectory_classification.core import atleast_2d
@@ -268,7 +269,7 @@ def poisson_log_likelihood(
 
     """
     return (
-        np.log(conditional_intensity[np.newaxis, :]) * spikes[:, np.newaxis]
+        xlogy(spikes[:, np.newaxis], conditional_intensity[np.newaxis, :])
         - conditional_intensity[np.newaxis, :]
     )
 
@@ -324,7 +325,7 @@ def estimate_spiking_likelihood_kde(
 
     log_likelihood = combined_likelihood(spikes, conditional_intensity)
 
-    mask = np.ones_like(is_track_interior, dtype=np.float)
+    mask = np.ones_like(is_track_interior, dtype=float)
     mask[~is_track_interior] = np.nan
 
     return log_likelihood * mask
