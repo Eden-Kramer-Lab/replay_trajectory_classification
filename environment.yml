@@ -15,6 +15,7 @@ dependencies:
 - seaborn
 - xarray
 - dask
+- distributed
 - regularized_glm
 - tqdm
 - flake8

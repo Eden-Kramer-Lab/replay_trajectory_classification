@@ -33,6 +33,7 @@ INSTALL_REQUIRES = [
     "scikit-image",
     "regularized_glm",
     "dask",
+    "distributed",
     "patsy",
     "networkx",
     "joblib",
