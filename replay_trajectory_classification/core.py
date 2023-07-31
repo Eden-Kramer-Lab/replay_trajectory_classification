@@ -1,6 +1,7 @@
 """Core algorithms for decoding."""
 import numpy as np
 from numba import njit
+from typing import Tuple
 
 
 def atleast_2d(x: np.ndarray) -> np.ndarray:
@@ -53,7 +54,7 @@ def normalize_to_probability(distribution: np.ndarray) -> np.ndarray:
 @njit(nogil=True, error_model="numpy", cache=False)
 def _causal_decode(
     initial_conditions: np.ndarray, state_transition: np.ndarray, likelihood: np.ndarray
-) -> tuple[np.ndarray, float]:
+) -> Tuple[np.ndarray, float]:
     """Adaptive filter to iteratively calculate the posterior probability
     of a state variable using past information.
 
@@ -130,7 +131,7 @@ def _causal_classify(
     continuous_state_transition: np.ndarray,
     discrete_state_transition: np.ndarray,
     likelihood: np.ndarray,
-) -> tuple[np.ndarray, float]:
+) -> Tuple[np.ndarray, float]:
     """Adaptive filter to iteratively calculate the posterior probability
     of a state variable using past information.
 
@@ -274,7 +275,7 @@ def check_converged(
     log_likelihood: np.ndarray,
     previous_log_likelihood: np.ndarray,
     tolerance: float = 1e-4,
-) -> tuple[bool, bool]:
+) -> Tuple[bool, bool]:
     """We have converged if the slope of the log-likelihood function falls below 'tolerance',
 
     i.e., |f(t) - f(t-1)| / avg < tolerance,
@@ -314,7 +315,7 @@ try:
         initial_conditions: np.ndarray,
         state_transition: np.ndarray,
         likelihood: np.ndarray,
-    ) -> tuple[np.ndarray, float]:
+    ) -> Tuple[np.ndarray, float]:
         """Adaptive filter to iteratively calculate the posterior probability
         of a state variable using past information.
 
@@ -394,7 +395,7 @@ try:
         continuous_state_transition: np.ndarray,
         discrete_state_transition: np.ndarray,
         likelihood: np.ndarray,
-    ) -> tuple[np.ndarray, float]:
+    ) -> Tuple[np.ndarray, float]:
         """Adaptive filter to iteratively calculate the posterior probability
         of a state variable using past information.
 
