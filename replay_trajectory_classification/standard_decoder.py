@@ -1,4 +1,5 @@
 """Functions for common Bayesian decoding algorithms."""
+from __future__ import annotations
 import numpy as np
 from replay_trajectory_classification.core import scaled_likelihood
 from replay_trajectory_classification.likelihoods.multiunit_likelihood import (
@@ -164,7 +165,6 @@ def detect_line_with_radon(
     incorporate_nearby_positions=True,
     nearby_positions_max=15,  # cm
 ):
-
     if incorporate_nearby_positions:
         n_nearby_bins = int(nearby_positions_max / 2 // dp)
         filt = np.ones(2 * n_nearby_bins + 1)

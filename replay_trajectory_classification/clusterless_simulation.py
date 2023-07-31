@@ -1,5 +1,5 @@
 """Simulate clusterless spikes and associated spike waveform features."""
-
+from __future__ import annotations
 import numpy as np
 from replay_trajectory_classification.simulate import (
     get_trajectory_direction,

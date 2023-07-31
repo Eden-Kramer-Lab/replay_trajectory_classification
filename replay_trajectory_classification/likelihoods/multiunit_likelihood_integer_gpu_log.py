@@ -7,7 +7,7 @@
  Marks are converted to integers and KDE uses hash tables to compute Gaussian
  kernels."""
 
-
+from __future__ import annotations
 import math
 
 import numpy as np
@@ -138,7 +138,6 @@ try:
         pos_bin_ind = thread_id % n_position_bins
 
         if (decoding_ind < n_decoding_spikes) and (pos_bin_ind < n_position_bins):
-
             # find maximum
             max_exp = (
                 log_mark_distances[decoding_ind, 0]
@@ -241,7 +240,7 @@ try:
         edges=None,
         block_size=100,
         use_diffusion=False,
-        **kwargs
+        **kwargs,
     ):
         """Fits the clusterless place field model.
 
@@ -319,7 +318,6 @@ try:
         )
 
         for multiunit in np.moveaxis(multiunits, -1, 0):
-
             # ground process intensity
             is_spike = np.any(~np.isnan(multiunit), axis=1)
             log_mean_rates.append(np.log(is_spike.mean()))
