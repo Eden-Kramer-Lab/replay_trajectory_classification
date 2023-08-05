@@ -1,5 +1,5 @@
 """Estimates a Poisson likelihood using place fields estimated with a kernel density estimate."""
-from __future__ import annotations
+
 from typing import Optional, Union
 
 import numpy as np

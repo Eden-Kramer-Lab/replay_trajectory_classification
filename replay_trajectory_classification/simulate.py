@@ -1,5 +1,4 @@
 """Main code for simulating position and sorted spikes or clusterless spikes and waveforms."""
-from __future__ import annotations
 import numpy as np
 from replay_trajectory_classification.core import atleast_2d
 from scipy.stats import multivariate_normal

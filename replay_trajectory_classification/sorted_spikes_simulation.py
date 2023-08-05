@@ -1,5 +1,4 @@
 """Functions for generating clustered spikes data."""
-from __future__ import annotations
 import numpy as np
 from replay_trajectory_classification.simulate import (
     get_trajectory_direction,

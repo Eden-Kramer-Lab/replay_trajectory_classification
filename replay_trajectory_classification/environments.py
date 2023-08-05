@@ -1,5 +1,4 @@
 """Classes for constructing discrete grids representations of spatial environments in 1D and 2D"""
-from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Union
 

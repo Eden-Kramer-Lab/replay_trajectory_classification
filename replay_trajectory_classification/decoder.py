@@ -1,5 +1,5 @@
 """Main classes for decoding trajectories from population spiking"""
-from __future__ import annotations
+
 from copy import deepcopy
 from logging import getLogger
 from typing import Optional, Union
@@ -420,7 +420,7 @@ class SortedSpikesDecoder(_DecoderBase):
             edges=self.environment.edges_,
             is_track_interior=self.environment.is_track_interior_,
             is_track_boundary=self.environment.is_track_boundary_,
-            **kwargs,
+            **kwargs
         )
 
     def plot_place_fields(
@@ -596,7 +596,7 @@ class ClusterlessDecoder(_DecoderBase):
             multiunits=multiunits[is_training],
             place_bin_centers=self.environment.place_bin_centers_,
             is_track_interior=self.environment.is_track_interior_.ravel(order="F"),
-            **kwargs,
+            **kwargs
         )
 
     def fit(
@@ -672,7 +672,7 @@ class ClusterlessDecoder(_DecoderBase):
                 multiunits=multiunits,
                 place_bin_centers=self.environment.place_bin_centers_,
                 is_track_interior=is_track_interior,
-                **self.encoding_model_,
+                **self.encoding_model_
             )
         )
 
