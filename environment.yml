@@ -21,7 +21,6 @@ dependencies:
 - flake8
 - jupyter
 - jupyterlab
-- nb_conda
 - setuptools
 - ripple_detection
 - loren_frank_data_processing
