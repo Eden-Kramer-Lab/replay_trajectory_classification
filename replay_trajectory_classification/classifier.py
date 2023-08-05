@@ -1,6 +1,7 @@
 """State space models that classify trajectories as well as decode the
 trajectory from population spiking
 """
+from __future__ import annotations
 from copy import deepcopy
 from logging import getLogger
 from typing import Optional, Union
@@ -967,7 +968,7 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         """
         try:
-            for (env, enc) in self.place_fields_:
+            for env, enc in self.place_fields_:
                 is_track_interior = self.environments[
                     self.environments.index(env)
                 ].is_track_interior_[np.newaxis]

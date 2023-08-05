@@ -1,7 +1,8 @@
 """Estimates a Poisson likelihood using place fields estimated with a GLM
 with a spline basis"""
+from __future__ import annotations
 import logging
-from typing import Optional, Union
+from typing import Optional
 
 import dask
 import numpy as np

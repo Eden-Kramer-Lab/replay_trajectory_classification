@@ -1,5 +1,5 @@
 """Classes for constructing the initial conditions for the state space models."""
-
+from __future__ import annotations
 from dataclasses import dataclass
 from replay_trajectory_classification.environments import Environment
 

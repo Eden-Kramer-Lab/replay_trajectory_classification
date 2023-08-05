@@ -5,7 +5,7 @@ References
 [1] Farhoodi, S., Plitt, M.H., Giocomo, L., and Eden, U.T. (2020). Estimating Fluctuations in Neural Representations of Uncertain Environments. 20. .
 
 """
-
+from __future__ import annotations
 import logging
 from typing import Optional
 

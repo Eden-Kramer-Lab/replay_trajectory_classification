@@ -1,5 +1,5 @@
 """Class for representing an environment and a condition (trial type, etc.)"""
-
+from __future__ import annotations
 from dataclasses import dataclass
 
 

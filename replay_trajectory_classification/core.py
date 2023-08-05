@@ -1,4 +1,5 @@
 """Core algorithms for decoding."""
+from __future__ import annotations
 import numpy as np
 from numba import njit
 from typing import Tuple

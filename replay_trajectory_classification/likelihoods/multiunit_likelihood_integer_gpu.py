@@ -4,7 +4,7 @@
  Marks are converted to integers and KDE uses hash tables to compute Gaussian
  kernels."""
 
-
+from __future__ import annotations
 from typing import Optional, Union
 
 import numpy as np
@@ -225,7 +225,7 @@ try:
         edges: Optional[list[np.ndarray]] = None,
         block_size: int = 100,
         use_diffusion: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """Fits the clusterless place field model.
 
@@ -301,7 +301,6 @@ try:
         encoding_positions = []
 
         for multiunit in np.moveaxis(multiunits, -1, 0):
-
             # ground process intensity
             is_spike = np.any(~np.isnan(multiunit), axis=1)
             mean_rates.append(is_spike.mean())

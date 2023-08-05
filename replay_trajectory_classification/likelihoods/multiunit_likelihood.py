@@ -1,7 +1,7 @@
 """Estimates a marked point process likelihood where the marks are
  features of the spike waveform. Features are float32."""
 
-
+from __future__ import annotations
 from typing import Optional, Union
 
 import numpy as np
@@ -194,7 +194,7 @@ def fit_multiunit_likelihood(
     edges: Optional[list[np.ndarray]] = None,
     block_size: int = 100,
     use_diffusion: bool = False,
-    **kwargs
+    **kwargs,
 ) -> dict:
     """Fits the clusterless place field model.
 
@@ -276,7 +276,6 @@ def fit_multiunit_likelihood(
         mark_std = np.asarray(mark_std)
 
     for multiunit in np.moveaxis(multiunits, -1, 0):
-
         # ground process intensity
         is_spike = np.any(~np.isnan(multiunit), axis=1)
         mean_rates.append(is_spike.mean())
