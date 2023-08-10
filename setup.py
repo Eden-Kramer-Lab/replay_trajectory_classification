@@ -37,7 +37,7 @@ INSTALL_REQUIRES = [
     "patsy",
     "networkx",
     "joblib",
-    "track_linearization",
+    "track_linearization>=2.3.1",
     "tqdm",
     "seaborn",
 ]
