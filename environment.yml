@@ -10,4 +10,20 @@ dependencies:
 - pandas
 - numba
 - scikit-learn
-- scikit-image
+- joblib
+- seaborn
+- xarray
+- dask
+- distributed
+- regularized_glm
+- tqdm
+- flake8
+- jupyter
+- jupyterlab
+- setuptools
+- ripple_detection
+- loren_frank_data_processing
+- track_linearization
+- pip
+- pip:
+  - 'black[jupyter]'
