@@ -25,13 +25,12 @@ jobs:
     - name: Set up conda environment
       uses: conda-incubator/setup-miniconda@v2
       with:
-        python-version: ${{ matrix.python }}
         miniforge-version: latest
         use-mamba: true
         channels: conda-forge, franklab, edeno, defaults
         channel-priority: true
         activate-environment: replay_trajectory_classification
-        environment-file: environment.yml
+
     - name: Install replay_trajectory_classification
       shell: bash -l {0}
       run: |
