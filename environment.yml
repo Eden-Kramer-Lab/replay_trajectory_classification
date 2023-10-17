@@ -24,7 +24,7 @@ dependencies:
 - setuptools
 - ripple_detection
 - loren_frank_data_processing
-- "track_linearization>=2.3.1"
+- track_linearization
 - pip
 - pip:
   - 'black[jupyter]'
