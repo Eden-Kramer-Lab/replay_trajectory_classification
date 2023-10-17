@@ -1,5 +1,8 @@
 name: replay_trajectory_classification
 channels:
 - conda-forge
+- franklab
+- edeno
+- defaults
 dependencies:
 - numpy
