@@ -9,6 +9,3 @@ dependencies:
 - scipy
 - pandas
 - numba
-- scikit-learn
-- scikit-image
-- joblib
