@@ -6,3 +6,18 @@ channels:
 - defaults
 dependencies:
 - numpy
+- scipy
+- pandas
+- numba
+- scikit-learn
+- scikit-image
+- joblib
+- seaborn
+- xarray
+- dask
+- distributed
+- tqdm
+- flake8
+- jupyter
+- jupyterlab
+- setuptools
