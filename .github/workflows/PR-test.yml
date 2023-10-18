@@ -28,7 +28,7 @@ jobs:
         python-version: '3.11.*'
         miniforge-version: latest
         use-mamba: true
-        channels: conda-forge,franklab,edeno,defaults
+        channels: conda-forge,franklab,edeno
         channel-priority: true
         activate-environment: replay_trajectory_classification
         environment-file: environment.yml
