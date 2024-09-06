@@ -325,8 +325,8 @@ class _DecoderBase(BaseEstimator):
                     key: (
                         dims,
                         mask(value, is_track_interior)
-                        .reshape(new_shape)
-                        .swapaxes(-1, -2),
+                        .squeeze(axis=-1)
+                        .reshape(new_shape, order="F"),
                     )
                     for key, value in results.items()
                 },
@@ -336,7 +336,12 @@ class _DecoderBase(BaseEstimator):
         except ValueError:
             results = xr.Dataset(
                 {
-                    key: (dims, mask(value, is_track_interior).reshape(new_shape))
+                    key: (
+                        dims,
+                        mask(value, is_track_interior)
+                        .squeeze(axis=-1)
+                        .reshape(new_shape),
+                    )
                     for key, value in results.items()
                 },
                 coords=coords,
