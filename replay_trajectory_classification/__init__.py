@@ -33,4 +33,4 @@ from replay_trajectory_classification.environments import Environment
 from replay_trajectory_classification.initial_conditions import UniformInitialConditions
 from replay_trajectory_classification.observation_model import ObservationModel
 
-__version__ = "1.3.15"
+__version__ = "1.4.0"
