@@ -8,17 +8,19 @@
  kernels."""
 
 from __future__ import annotations
+
 import math
 
 import numpy as np
 from numba import cuda
+from tqdm.autonotebook import tqdm
+
 from replay_trajectory_classification.core import atleast_2d
 from replay_trajectory_classification.likelihoods.diffusion import (
     diffuse_each_bin,
     estimate_diffusion_position_density,
     estimate_diffusion_position_distance,
 )
-from tqdm.autonotebook import tqdm
 
 try:
     import cupy as cp
@@ -338,15 +340,15 @@ try:
                     log_marginal_density = cp.zeros(
                         (place_bin_centers.shape[0],), dtype=cp.float32
                     )
-                    log_marginal_density[
-                        gpu_is_track_interior
-                    ] = estimate_log_position_density(
-                        interior_place_bin_centers,
-                        cp.asarray(
-                            position[is_spike & not_nan_position], dtype=cp.float32
-                        ),
-                        position_std,
-                        block_size=block_size,
+                    log_marginal_density[gpu_is_track_interior] = (
+                        estimate_log_position_density(
+                            interior_place_bin_centers,
+                            cp.asarray(
+                                position[is_spike & not_nan_position], dtype=cp.float32
+                            ),
+                            position_std,
+                            block_size=block_size,
+                        )
                     )
 
             summed_ground_process_intensity += estimate_intensity(
@@ -507,17 +509,17 @@ try:
 
             for start_ind in range(0, n_decoding_marks, block_size):
                 block_inds = slice(start_ind, start_ind + block_size)
-                log_joint_mark_intensity[
-                    block_inds
-                ] = estimate_log_joint_mark_intensity(
-                    decoding_marks[block_inds],
-                    enc_marks,
-                    mark_std,
-                    log_position_distances,
-                    interior_log_occupancy,
-                    log_mean_rate,
-                    max_mark_diff=max_mark_diff,
-                    set_diag_zero=set_diag_zero,
+                log_joint_mark_intensity[block_inds] = (
+                    estimate_log_joint_mark_intensity(
+                        decoding_marks[block_inds],
+                        enc_marks,
+                        mark_std,
+                        log_position_distances,
+                        interior_log_occupancy,
+                        log_mean_rate,
+                        max_mark_diff=max_mark_diff,
+                        set_diag_zero=set_diag_zero,
+                    )
                 )
             log_likelihood[np.ix_(is_spike, is_track_interior)] += np.nan_to_num(
                 log_joint_mark_intensity

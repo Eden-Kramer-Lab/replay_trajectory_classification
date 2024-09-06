@@ -1,8 +1,11 @@
 """Core algorithms for decoding."""
+
 from __future__ import annotations
+
+from typing import Tuple
+
 import numpy as np
 from numba import njit
-from typing import Tuple
 
 
 def atleast_2d(x: np.ndarray) -> np.ndarray:

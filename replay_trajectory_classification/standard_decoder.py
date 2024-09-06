@@ -1,16 +1,19 @@
 """Functions for common Bayesian decoding algorithms."""
+
 from __future__ import annotations
+
 import numpy as np
-from replay_trajectory_classification.core import scaled_likelihood
-from replay_trajectory_classification.likelihoods.multiunit_likelihood import (
-    estimate_intensity,
-)
 from scipy.signal import convolve
 from scipy.special import cotdg
 from scipy.stats import rv_histogram
 from skimage.transform import radon
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LinearRegression
+
+from replay_trajectory_classification.core import scaled_likelihood
+from replay_trajectory_classification.likelihoods.multiunit_likelihood import (
+    estimate_intensity,
+)
 
 
 def poisson_mark_log_likelihood(

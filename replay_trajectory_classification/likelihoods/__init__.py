@@ -1,4 +1,5 @@
 """Functions to fit the position intensities and likelihoods for each data type"""
+
 # flake8: noqa
 from replay_trajectory_classification.likelihoods.calcium_likelihood import (
     estimate_calcium_likelihood,

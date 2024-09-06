@@ -1,11 +1,14 @@
 """Calculate diffusion distances by simulating diffusion at
 each position bin. This can be used for more accurate 2D kernel density
 estimates with boundaries."""
+
 from __future__ import annotations
-import numpy as np
-from replay_trajectory_classification.environments import diffuse_each_bin, get_bin_ind
 
 from typing import Optional
+
+import numpy as np
+
+from replay_trajectory_classification.environments import diffuse_each_bin, get_bin_ind
 
 
 def estimate_diffusion_position_distance(

@@ -1,6 +1,8 @@
 """Estimates a marked point process likelihood where the marks are
  features of the spike waveform using GPUs. Features are float32."""
+
 from __future__ import annotations
+
 from typing import Optional, Union
 
 import numpy as np
@@ -475,17 +477,17 @@ try:
 
             for start_ind in range(0, n_decoding_marks, block_size):
                 block_inds = slice(start_ind, start_ind + block_size)
-                log_joint_mark_intensity[
-                    block_inds
-                ] = estimate_log_joint_mark_intensity(
-                    decoding_marks[block_inds],
-                    enc_marks,
-                    mark_std[is_mark_features],
-                    interior_occupancy,
-                    mean_rate,
-                    max_mark_diff=max_mark_diff,
-                    set_diag_zero=set_diag_zero,
-                    position_distance=position_distance,
+                log_joint_mark_intensity[block_inds] = (
+                    estimate_log_joint_mark_intensity(
+                        decoding_marks[block_inds],
+                        enc_marks,
+                        mark_std[is_mark_features],
+                        interior_occupancy,
+                        mean_rate,
+                        max_mark_diff=max_mark_diff,
+                        set_diag_zero=set_diag_zero,
+                        position_distance=position_distance,
+                    )
                 )
             log_likelihood[np.ix_(is_spike, is_track_interior)] += np.nan_to_num(
                 log_joint_mark_intensity

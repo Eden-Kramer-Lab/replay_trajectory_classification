@@ -1,5 +1,7 @@
 """Main classes for decoding trajectories from population spiking"""
+
 from __future__ import annotations
+
 from copy import deepcopy
 from logging import getLogger
 from typing import Optional, Union
@@ -271,11 +273,11 @@ class _DecoderBase(BaseEstimator):
                 results["acausal_posterior"] = np.full(
                     (n_time, n_position_bins, 1), np.nan, dtype=np.float32
                 )
-                results["acausal_posterior"][
-                    :, is_track_interior
-                ] = _acausal_decode_gpu(
-                    results["causal_posterior"][:, is_track_interior, np.newaxis],
-                    self.state_transition_[st_interior_ind],
+                results["acausal_posterior"][:, is_track_interior] = (
+                    _acausal_decode_gpu(
+                        results["causal_posterior"][:, is_track_interior, np.newaxis],
+                        self.state_transition_[st_interior_ind],
+                    )
                 )
 
         if time is None:

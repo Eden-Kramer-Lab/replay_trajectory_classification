@@ -2,6 +2,7 @@
  features of the spike waveform. Features are float32."""
 
 from __future__ import annotations
+
 from typing import Optional, Union
 
 import numpy as np
