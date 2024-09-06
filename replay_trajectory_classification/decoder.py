@@ -326,9 +326,7 @@ class _DecoderBase(BaseEstimator):
                 {
                     key: (
                         dims,
-                        mask(value, is_track_interior)
-                        .squeeze(axis=-1)
-                        .reshape(new_shape, order="F"),
+                        mask(value, is_track_interior).reshape(new_shape, order="F"),
                     )
                     for key, value in results.items()
                 },
@@ -340,9 +338,7 @@ class _DecoderBase(BaseEstimator):
                 {
                     key: (
                         dims,
-                        mask(value, is_track_interior)
-                        .squeeze(axis=-1)
-                        .reshape(new_shape),
+                        mask(value, is_track_interior).reshape(new_shape),
                     )
                     for key, value in results.items()
                 },
