@@ -236,7 +236,8 @@ def estimate_place_fields(
     except ValueError:
         client = Client()
     design_matrix = client.scatter(np.asarray(design_matrix), broadcast=True)
-    results = [fit_glm(is_spike, design_matrix, penalty) for is_spike in spikes.T]
+    scattered_spikes = [client.scatter(is_spike) for is_spike in spikes.T]
+    results = [fit_glm(is_spike, design_matrix, penalty) for is_spike in scattered_spikes]
     results = dask.compute(*results)
 
     predict_matrix = make_spline_predict_matrix(design_info, place_bin_centers)
