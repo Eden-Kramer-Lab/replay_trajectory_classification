@@ -1,5 +1,5 @@
 """Estimates a marked point process likelihood where the marks are
- features of the spike waveform using GPUs. Features are float32."""
+features of the spike waveform using GPUs. Features are float32."""
 
 from __future__ import annotations
 
@@ -118,7 +118,9 @@ try:
         intensity : cp.ndarray, shape (n_bins,)
 
         """
-        return cp.exp(estimate_log_intensity(density, occupancy, mean_rate))
+        return cp.clip(
+            cp.exp(estimate_log_intensity(density, occupancy, mean_rate)), a_min=1e-8
+        )
 
     def estimate_log_joint_mark_intensity(
         decoding_marks: cp.ndarray,
@@ -320,6 +322,10 @@ try:
                         position_std,
                         block_size=block_size,
                     )
+            else:
+                marginal_density = cp.zeros(
+                    (place_bin_centers.shape[0],), dtype=cp.float32
+                )
 
             summed_ground_process_intensity += estimate_intensity(
                 marginal_density, occupancy, mean_rates[-1]

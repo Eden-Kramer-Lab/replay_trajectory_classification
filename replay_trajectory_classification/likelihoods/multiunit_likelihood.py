@@ -1,5 +1,5 @@
 """Estimates a marked point process likelihood where the marks are
- features of the spike waveform. Features are float32."""
+features of the spike waveform. Features are float32."""
 
 from __future__ import annotations
 
@@ -301,6 +301,8 @@ def fit_multiunit_likelihood(
                     position_std,
                     block_size=block_size,
                 )
+        else:
+            marginal_density = np.zeros((place_bin_centers.shape[0],), dtype=np.float32)
 
         summed_ground_process_intensity += estimate_intensity(
             marginal_density, occupancy, mean_rates[-1]
