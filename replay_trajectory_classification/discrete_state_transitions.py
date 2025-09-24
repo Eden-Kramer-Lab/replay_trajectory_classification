@@ -34,6 +34,13 @@ class DiagonalDiscrete:
         discrete_state_transition : np.ndarray, shape (n_states, n_states)
 
         """
+        if n_states <= 0:
+            raise ValueError("n_states must be >= 1")
+        if n_states == 1:
+            return np.array([[1.0]], dtype=float)
+        if not (0.0 <= self.diagonal_value <= 1.0):
+            raise ValueError("diagonal_value must be between 0 and 1")
+
         strong_diagonal = np.identity(n_states) * self.diagonal_value
         is_off_diag = ~np.identity(n_states, dtype=bool)
         strong_diagonal[is_off_diag] = (1 - self.diagonal_value) / (n_states - 1)
@@ -81,11 +88,19 @@ class RandomDiscrete:
         discrete_state_transition : np.ndarray, shape (n_states, n_states)
 
         """
-        state_transition = np.random.random_sample(n_states, n_states)
-        state_transition /= state_transition.sum(axis=1, keepdims=True)
+        if n_states <= 0:
+            raise ValueError("n_states must be >= 1")
+        state_transition = np.random.random_sample((n_states, n_states)).astype(float)
 
-        self.state_transition_ = state_transition
-        return self.state_transition_
+        # Guard: if any row accidentally sums to ~0, add a self-loop before normalization
+        row_sums = state_transition.sum(axis=1, keepdims=True)
+        dead = row_sums <= 0.0
+        if np.any(dead):
+            state_transition[dead, :] = 0.0
+            state_transition[dead, np.arange(n_states)] = 1.0  # self-loop
+
+        state_transition /= state_transition.sum(axis=1, keepdims=True)
+        return state_transition
 
 
 @dataclass

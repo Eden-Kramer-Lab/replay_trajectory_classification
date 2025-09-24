@@ -19,6 +19,12 @@ from track_linearization import plot_graph_as_1D
 
 from replay_trajectory_classification.core import atleast_2d, get_centers
 
+try:
+    from networkx.convert_matrix import from_scipy_sparse_array
+except ImportError:  # pragma: no cover
+    # Networkx < 2.6
+    from networkx import from_scipy_sparse_matrix as from_scipy_sparse_array
+
 
 @dataclass
 class Environment:
@@ -771,7 +777,7 @@ def order_boundary(boundary: np.ndarray) -> np.ndarray:
     n_points = boundary.shape[0]
     clf = NearestNeighbors(n_neighbors=2).fit(boundary)
     G = clf.kneighbors_graph()
-    T = nx.from_scipy_sparse_matrix(G)
+    T = from_scipy_sparse_array(G)
 
     paths = [list(nx.dfs_preorder_nodes(T, i)) for i in range(n_points)]
     min_idx, min_dist = 0, np.inf
