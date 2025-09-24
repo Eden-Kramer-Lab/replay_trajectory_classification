@@ -175,16 +175,16 @@ def test_check_converged_true_and_increasing_true():
     prev = 10.0
     curr = 10.00005
     converged, increasing = check_converged(curr, prev, tolerance=1e-3)
-    assert converged == True
-    assert increasing == True
+    assert converged
+    assert increasing
 
 
 def test_check_converged_false_and_increasing_false():
     prev = 10.0
     curr = 9.5
     converged, increasing = check_converged(curr, prev, tolerance=1e-6)
-    assert converged == False
-    assert increasing == False
+    assert not converged
+    assert not increasing
 
 
 # ---------- numerical sanity on random inputs ----------
@@ -199,8 +199,4 @@ def test_scaled_likelihood_random_is_positive(dtype):
     assert np.all(out > 0.0)
     # Max in each row should be close to 1
     row_max = np.nanmax(out, axis=1)
-    np.testing.assert_allclose(row_max, 1.0, rtol=0, atol=1e-6)
-    np.testing.assert_allclose(row_max, 1.0, rtol=0, atol=1e-6)
-    np.testing.assert_allclose(row_max, 1.0, rtol=0, atol=1e-6)
-    np.testing.assert_allclose(row_max, 1.0, rtol=0, atol=1e-6)
     np.testing.assert_allclose(row_max, 1.0, rtol=0, atol=1e-6)

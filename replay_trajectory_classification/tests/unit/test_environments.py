@@ -98,11 +98,3 @@ def test_environment_name_and_equality_semantics():
     except Exception:
         # If not implemented, at least ensure normal equality doesn't crash
         pytest.skip("__eq__ to environment_name not implemented; skipping.")
-        # If not implemented, at least ensure normal equality doesn't crash
-        pytest.skip("__eq__ to environment_name not implemented; skipping.")
-        # If not implemented, at least ensure normal equality doesn't crash
-        pytest.skip("__eq__ to environment_name not implemented; skipping.")
-        # If not implemented, at least ensure normal equality doesn't crash
-        pytest.skip("__eq__ to environment_name not implemented; skipping.")
-        # If not implemented, at least ensure normal equality doesn't crash
-        pytest.skip("__eq__ to environment_name not implemented; skipping.")
