@@ -3,6 +3,7 @@ trajectory from population spiking
 """
 
 from __future__ import annotations
+
 from copy import deepcopy
 from logging import getLogger
 from typing import Optional, Union
