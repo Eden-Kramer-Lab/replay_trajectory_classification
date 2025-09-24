@@ -7,7 +7,7 @@
 ## High-Level Repository Information
 
 - **Size**: ~63MB with 28 Python files
-- **Type**: Scientific Python package for computational neuroscience  
+- **Type**: Scientific Python package for computational neuroscience
 - **Primary Language**: Python 3.11+ (configured for Python 3.13 in current environment)
 - **Key Dependencies**: NumPy, SciPy, scikit-learn, numba, xarray, dask, matplotlib, pandas
 - **Documentation**: Sphinx-based documentation with ReadTheDocs hosting
@@ -25,7 +25,7 @@ conda update -n base conda
 # Create environment from environment.yml (required)
 conda env create -f environment.yml
 
-# Activate environment 
+# Activate environment
 conda activate replay_trajectory_classification
 ```
 
@@ -76,7 +76,7 @@ pip install -r docs/requirements-docs.txt
 
 The repository uses GitHub Actions (`.github/workflows/PR-test.yml`):
 - **Trigger**: All pushes
-- **OS**: Ubuntu latest only 
+- **OS**: Ubuntu latest only
 - **Python**: 3.11 (but environment.yml uses current conda defaults)
 - **Test Process**: Executes all 5 tutorial notebooks sequentially
 - **Environment**: Uses conda with channels: conda-forge, franklab, edeno
@@ -95,7 +95,7 @@ The repository uses GitHub Actions (`.github/workflows/PR-test.yml`):
 ### Key Configuration Files
 - **`environment.yml`**: Conda environment specification with scientific computing stack
 - **`setup.py`**: Package configuration and dependencies
-- **`.readthedocs.yaml`**: Documentation build configuration  
+- **`.readthedocs.yaml`**: Documentation build configuration
 - **`docs/conf.py`**: Sphinx documentation configuration
 - **`docs/requirements-docs.txt`**: Documentation build dependencies
 
@@ -108,7 +108,7 @@ The repository uses GitHub Actions (`.github/workflows/PR-test.yml`):
 ### Tutorials (`notebooks/tutorial/`)
 Five comprehensive Jupyter notebooks demonstrate package usage:
 1. **01-Introduction_and_Data_Format.ipynb**: Data format requirements
-2. **02-Decoding_with_Sorted_Spikes.ipynb**: Single movement model with sorted spikes  
+2. **02-Decoding_with_Sorted_Spikes.ipynb**: Single movement model with sorted spikes
 3. **03-Decoding_with_Clusterless_Spikes.ipynb**: Single movement model with clusterless approach
 4. **04-Classifying_with_Sorted_Spikes.ipynb**: Multiple movement models with sorted spikes
 5. **05-Classifying_with_Clusterless_Spikes.ipynb**: Multiple movement models with clusterless spikes
@@ -126,8 +126,7 @@ Five comprehensive Jupyter notebooks demonstrate package usage:
 - **GPU support** requires CuPy installation (optional, warnings are normal without GPU)
 - **Documentation builds** may require manual intervention due to jupytext path issues
 
-### Testing Approach  
-- **No unit tests**: Validation relies entirely on notebook execution
+### Testing Approach
 - **Integration testing**: All 5 tutorial notebooks must execute successfully
 - **CI dependency**: Notebooks test real scientific workflows, not isolated functions
 
@@ -147,10 +146,10 @@ Key files to exclude from commits:
 ## Validation Checklist for Changes
 
 1. **Environment setup**: Conda environment creates successfully
-2. **Installation**: `python setup.py develop` or `pip install -e .` succeeds  
+2. **Installation**: `python setup.py develop` or `pip install -e .` succeeds
 3. **Import test**: Package imports without errors (GPU warnings OK)
 4. **Lint check**: flake8 passes with specified parameters
-5. **Notebook execution**: At least one tutorial notebook runs successfully
+5. **Notebook execution**: All tutorial notebooks run successfully
 6. **CI compatibility**: Changes don't break the GitHub Actions workflow
 
 ## Final Note
