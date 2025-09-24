@@ -71,7 +71,7 @@ jobs:
         shell: bash -l {0}
         run: |
           python -V
-          pip install --upgrade pip
+          pip install --upgrade pip build
           pip install -e .
 
       # Execute tutorial notebooks to ensure they run end-to-end

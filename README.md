@@ -49,17 +49,19 @@ Also see other work using this code:
 
 ### Installation
 
-`replay_trajectory_classification` can be installed through pypi or conda. Conda is the best way to ensure that all the dependencies are installed properly.
+`replay_trajectory_classification` can be installed through PyPI or conda. **Conda is strongly recommended** to ensure that all complex scientific dependencies are installed properly.
 
+#### Recommended (Conda)
+```bash
+conda install -c edeno replay_trajectory_classification
+```
+
+#### Alternative (PyPI)
 ```bash
 pip install replay_trajectory_classification
 ```
 
-Or
-
-```bash
-conda install -c edeno replay_trajectory_classification
-```
+**Requirements**: Python 3.10+ with scientific computing stack (NumPy, SciPy, pandas, etc.)
 
 ### Documentation
 
@@ -79,20 +81,55 @@ There are five jupyter notebooks introducing the package:
 
 For people who want to expand upon the code for their own use:
 
-1. Install miniconda (or anaconda) if it isn't already installed. Type into bash (or install from the anaconda website):
+#### Prerequisites
+
+Install miniconda (or anaconda) if it isn't already installed:
 
 ```bash
-wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+# Linux/macOS
+wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
 bash miniconda.sh -b -p $HOME/miniconda
 export PATH="$HOME/miniconda/bin:$PATH"
 hash -r
 ```
 
-2. Go to the local repository on your computer (`cd replay_trajectory_classification`) and install the anaconda environment for the repository. Type into bash:
+#### Environment Setup
 
 ```bash
-conda update -n base conda # make sure conda is up to date
-conda env create -f environment.yml # create a conda environment
-conda activate replay_trajectory_classification # activate conda environment
-python setup.py develop
+# Update conda
+conda update -n base conda
+
+# Create environment from environment.yml
+conda env create -f environment.yml
+
+# Activate environment
+conda activate replay_trajectory_classification
+```
+
+#### Development Installation
+
+```bash
+# Modern development installation (recommended)
+pip install -e .
+
+# With optional development tools
+pip install -e '.[dev]'      # Includes ruff, jupyter, testing tools
+pip install -e '.[test]'     # Testing dependencies only
+pip install -e '.[docs]'     # Documentation building tools
+```
+
+#### Verification
+
+Test your installation:
+```bash
+python -c "import replay_trajectory_classification; print('✓ Installation successful')"
+ruff check replay_trajectory_classification/  # Code quality check
+```
+
+#### Building Distribution Packages
+
+```bash
+pip install build
+python -m build --wheel      # Creates wheel in dist/
+python -m build --sdist      # Creates source distribution
 ```
