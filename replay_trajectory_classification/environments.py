@@ -10,9 +10,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-from numpy.typing import NDArray
 import pandas as pd
 from numba import njit
+from numpy.typing import NDArray
 from scipy import ndimage
 from scipy.interpolate import interp1d
 from sklearn.neighbors import NearestNeighbors
@@ -85,7 +85,9 @@ class Environment:
         return self.environment_name == other.environment_name
 
     def fit_place_grid(
-        self, position: Optional[NDArray[np.float64]] = None, infer_track_interior: bool = True
+        self,
+        position: Optional[NDArray[np.float64]] = None,
+        infer_track_interior: bool = True,
     ):
         """Fits a discrete grid of the spatial environment.
 
@@ -102,6 +104,8 @@ class Environment:
 
         """
         if self.track_graph is None:
+            if position is None:
+                raise ValueError("Must provide position if no track graph given.")
             (
                 self.edges_,
                 self.place_bin_edges_,
@@ -217,7 +221,7 @@ def get_n_bins(
     position: NDArray[np.float64],
     bin_size: float = 2.5,
     position_range: Optional[list[NDArray[np.float64]]] = None,
-) -> int:
+) -> NDArray[np.int32]:
     """Get number of bins need to span a range given a bin size.
 
     Parameters
@@ -229,7 +233,7 @@ def get_n_bins(
 
     Returns
     -------
-    n_bins : int
+    n_bins : NDArray[np.int32], shape (n_position_dims,)
 
     """
     if position_range is not None:
@@ -734,7 +738,9 @@ def get_track_grid(
 
 
 def get_track_boundary(
-    is_track_interior: NDArray[np.bool_], n_position_dims: int = 2, connectivity: int = 1
+    is_track_interior: NDArray[np.bool_],
+    n_position_dims: int = 2,
+    connectivity: int = 1,
 ) -> NDArray[np.bool_]:
     """Determines the boundary of the valid interior track bins. The boundary
     are not bins on the track but surround it.
@@ -798,7 +804,9 @@ def order_boundary(boundary: NDArray[np.float64]) -> NDArray[np.float64]:
 
 
 def get_track_boundary_points(
-    is_track_interior: NDArray[np.bool_], edges: list[NDArray[np.float64]], connectivity: int = 1
+    is_track_interior: NDArray[np.bool_],
+    edges: list[NDArray[np.float64]],
+    connectivity: int = 1,
 ) -> NDArray[np.float64]:
     """
 
@@ -991,7 +999,9 @@ def diffuse_each_bin(
     return diffused_grid
 
 
-def get_bin_ind(sample: NDArray[np.float64], edges: list[NDArray[np.float64]]) -> NDArray[np.int64]:
+def get_bin_ind(
+    sample: NDArray[np.float64], edges: list[NDArray[np.float64]]
+) -> NDArray[np.int64]:
     """Figure out which bin a given sample falls into.
 
     Extracted from np.histogramdd.
