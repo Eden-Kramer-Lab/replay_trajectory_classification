@@ -96,7 +96,9 @@ def simulate_position_with_pauses(
     return pause_position[: time.size]
 
 
-def simulate_poisson_spikes(rate: NDArray[np.float64], sampling_frequency: int) -> NDArray[np.float64]:
+def simulate_poisson_spikes(
+    rate: NDArray[np.float64], sampling_frequency: int
+) -> NDArray[np.bool_]:
     """Given a rate, returns a time series of spikes.
 
     Parameters
@@ -106,7 +108,7 @@ def simulate_poisson_spikes(rate: NDArray[np.float64], sampling_frequency: int) 
 
     Returns
     -------
-    spikes : NDArray[np.float64], shape (n_time,)
+    spikes : NDArray[np.bool_], shape (n_time,)
 
     """
     return 1.0 * (np.random.poisson(rate / sampling_frequency) > 0)
