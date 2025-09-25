@@ -7,11 +7,13 @@ from __future__ import annotations
 from copy import deepcopy
 from logging import getLogger
 from typing import Optional, Union
+from typing_extensions import Self
 
 import joblib
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray
 import seaborn as sns
 import sklearn
 import xarray as xr
@@ -116,14 +118,14 @@ class _ClassifierBase(BaseEstimator):
         self.infer_track_interior = infer_track_interior
 
     def fit_environments(
-        self, position: np.ndarray, environment_labels: Optional[np.ndarray] = None
+        self, position: NDArray[np.float64], environment_labels: Optional[NDArray[np.int64]] = None
     ) -> None:
         """Fits the Environment class on the position data to get information about the spatial environment.
 
         Parameters
         ----------
-        position : np.ndarray, shape (n_time, n_position_dims)
-        environment_labels : np.ndarray, optional, shape (n_time,)
+        position : NDArray[np.float64], shape (n_time, n_position_dims)
+        environment_labels : NDArray[np.int64], optional, shape (n_time,)
             Labels for each time points about which environment it corresponds to, by default None
 
         """
@@ -170,10 +172,10 @@ class _ClassifierBase(BaseEstimator):
                 ]
             ]
         ] = _DEFAULT_CONTINUOUS_TRANSITIONS,
-        position: Optional[np.ndarray] = None,
-        is_training: Optional[np.ndarray] = None,
-        encoding_group_labels: Optional[np.ndarray] = None,
-        environment_labels: Optional[np.ndarray] = None,
+        position: Optional[NDArray[np.float64]] = None,
+        is_training: Optional[NDArray[np.bool_]] = None,
+        encoding_group_labels: Optional[NDArray[np.int64]] = None,
+        environment_labels: Optional[NDArray[np.int64]] = None,
     ) -> None:
         """Constructs the transition matrices for the continuous states.
 
@@ -181,14 +183,14 @@ class _ClassifierBase(BaseEstimator):
         ----------
         continuous_transition_types : list of list of transition matrix instances, optional
             Types of transition models, by default _DEFAULT_CONTINUOUS_TRANSITIONS
-        position : np.ndarray, optional
+        position : NDArray[np.float64], optional
             Position of the animal in the environment, by default None
-        is_training : np.ndarray, optional
+        is_training : NDArray[np.bool_], optional
             Boolean array that determines what data to train the place fields on, by default None
-        encoding_group_labels : np.ndarray, shape (n_time,), optional
+        encoding_group_labels : NDArray[np.int64], shape (n_time,), optional
             If place fields should correspond to each state, label each time point with the group name
             For example, Some points could correspond to inbound trajectories and some outbound, by default None
-        environment_labels : np.ndarray, shape (n_time,), optional
+        environment_labels : NDArray[np.int64], shape (n_time,), optional
             If there are multiple environments, label each time point with the environment name, by default None
 
         """
@@ -485,7 +487,7 @@ class _ClassifierBase(BaseEstimator):
 
     def project_1D_position_to_2D(
         self, results: xr.Dataset, posterior_type="acausal_posterior"
-    ) -> np.ndarray:
+    ) -> NDArray[np.float64]:
         """Project the 1D most probable position into the 2D track graph space.
 
         Only works for single environment.
@@ -497,7 +499,7 @@ class _ClassifierBase(BaseEstimator):
 
         Returns
         -------
-        map_position2D : np.ndarray
+        map_position2D : NDArray[np.float64]
 
         """
         if len(self.environments) > 1:
@@ -517,9 +519,9 @@ class _ClassifierBase(BaseEstimator):
 
     def _get_results(
         self,
-        likelihood: np.ndarray,
+        likelihood: NDArray[np.float64],
         n_time: int,
-        time: Optional[np.ndarray] = None,
+        time: Optional[NDArray[np.float64]] = None,
         is_compute_acausal: bool = True,
         use_gpu: bool = False,
         state_names: Optional[list[str]] = None,
@@ -528,9 +530,9 @@ class _ClassifierBase(BaseEstimator):
 
         Parameters
         ----------
-        likelihood : np.ndarray
+        likelihood : NDArray[np.float64]
         n_time : int
-        time : np.ndarray, optional
+        time : NDArray[np.float64], optional
         is_compute_acausal : bool, optional
         use_gpu : bool, optional
         state_names : list[str], optional
@@ -627,7 +629,7 @@ class _ClassifierBase(BaseEstimator):
     def _convert_results_to_xarray(
         self,
         results: dict,
-        time: np.ndarray,
+        time: NDArray[np.float64],
         state_names: list,
         data_log_likelihood: float,
     ) -> xr.Dataset:
@@ -636,7 +638,7 @@ class _ClassifierBase(BaseEstimator):
         Parameters
         ----------
         results : dict
-        time : np.ndarray
+        time : NDArray[np.float64]
         state_names : list
         data_log_likelihood : float
 
@@ -709,7 +711,7 @@ class _ClassifierBase(BaseEstimator):
     def _convert_results_to_xarray_mutienvironment(
         self,
         results: dict,
-        time: np.ndarray,
+        time: NDArray[np.float64],
         state_names: list,
         data_log_likelihood: float,
     ) -> xr.Dataset:
@@ -718,7 +720,7 @@ class _ClassifierBase(BaseEstimator):
         Parameters
         ----------
         results : dict
-        time : np.ndarray
+        time : NDArray[np.float64]
         state_names : list
         data_log_likelihood : float
 
@@ -892,25 +894,25 @@ class SortedSpikesClassifier(_ClassifierBase):
 
     def fit_place_fields(
         self,
-        position: np.ndarray,
-        spikes: np.ndarray,
-        is_training: Optional[np.ndarray] = None,
-        encoding_group_labels: Optional[np.ndarray] = None,
-        environment_labels: Optional[np.ndarray] = None,
+        position: NDArray[np.float64],
+        spikes: NDArray[np.float64],
+        is_training: Optional[NDArray[np.bool_]] = None,
+        encoding_group_labels: Optional[NDArray[np.int64]] = None,
+        environment_labels: Optional[NDArray[np.int64]] = None,
     ) -> None:
         """Fits the place intensity function for each encoding group and environment.
 
         Parameters
         ----------
-        position : np.ndarray, shape (n_time, n_position_dims)
+        position : NDArray[np.float64], shape (n_time, n_position_dims)
             Position of the animal.
-        spikes : np.ndarray, (n_time, n_neurons)
+        spikes : NDArray[np.float64], (n_time, n_neurons)
             Binary indicator of whether there was a spike in a given time bin for a given neuron.
-        is_training : np.ndarray, shape (n_time,), optional
+        is_training : NDArray[np.bool_], shape (n_time,), optional
             Boolean array to indicate which data should be included in fitting of place fields, by default None
-        encoding_group_labels : np.ndarray, shape (n_time,), optional
+        encoding_group_labels : NDArray[np.int64], shape (n_time,), optional
             Label for the corresponding encoding group for each time point
-        environment_labels : np.ndarray, shape (n_time,), optional
+        environment_labels : NDArray[np.int64], shape (n_time,), optional
             Label for the corresponding environment for each time point
 
         """
@@ -1010,26 +1012,26 @@ class SortedSpikesClassifier(_ClassifierBase):
 
     def fit(
         self,
-        position: np.ndarray,
-        spikes: np.ndarray,
-        is_training: Optional[np.ndarray] = None,
-        encoding_group_labels: Optional[np.ndarray] = None,
-        environment_labels: Optional[np.ndarray] = None,
-    ):
+        position: NDArray[np.float64],
+        spikes: NDArray[np.float64],
+        is_training: Optional[NDArray[np.bool_]] = None,
+        encoding_group_labels: Optional[NDArray[np.int64]] = None,
+        environment_labels: Optional[NDArray[np.int64]] = None,
+    ) -> Self:
         """Fit the spatial grid, initial conditions, place field model, and
         transition matrices.
 
         Parameters
         ----------
-        position : np.ndarray, shape (n_time, n_position_dims)
+        position : NDArray[np.float64], shape (n_time, n_position_dims)
             Position of the animal.
-        spikes : np.ndarray, shape (n_time, n_neurons)
+        spikes : NDArray[np.float64], shape (n_time, n_neurons)
             Binary indicator of whether there was a spike in a given time bin for a given neuron.
-        is_training : None or np.ndarray, shape (n_time), optional
+        is_training : None or NDArray[np.bool_], shape (n_time), optional
             Boolean array to indicate which data should be included in fitting of place fields, by default None
-        encoding_group_labels : None or np.ndarray, shape (n_time,)
+        encoding_group_labels : None or NDArray[np.int64], shape (n_time,)
             Label for the corresponding encoding group for each time point
-        environment_labels : None or np.ndarray, shape (n_time,)
+        environment_labels : None or NDArray[np.int64], shape (n_time,)
             Label for the corresponding environment for each time point
 
         Returns
@@ -1057,8 +1059,8 @@ class SortedSpikesClassifier(_ClassifierBase):
 
     def predict(
         self,
-        spikes: np.ndarray,
-        time: Optional[np.ndarray] = None,
+        spikes: NDArray[np.float64],
+        time: Optional[NDArray[np.float64]] = None,
         is_compute_acausal: bool = True,
         use_gpu: bool = False,
         state_names: Optional[list[str]] = None,
@@ -1068,9 +1070,9 @@ class SortedSpikesClassifier(_ClassifierBase):
 
         Parameters
         ----------
-        spikes : np.ndarray, shape (n_time, n_neurons)
+        spikes : NDArray[np.float64], shape (n_time, n_neurons)
             Binary indicator of whether there was a spike in a given time bin for a given neuron.
-        time : np.ndarray or None, shape (n_time,), optional
+        time : NDArray[np.float64] or None, shape (n_time,), optional
             Label the time axis with these values.
         is_compute_acausal : bool, optional
             If True, compute the acausal posterior.
@@ -1174,26 +1176,26 @@ class ClusterlessClassifier(_ClassifierBase):
 
     def fit_multiunits(
         self,
-        position: np.ndarray,
-        multiunits: np.ndarray,
-        is_training: Optional[np.ndarray] = None,
-        encoding_group_labels: Optional[np.ndarray] = None,
-        environment_labels: Optional[np.ndarray] = None,
+        position: NDArray[np.float64],
+        multiunits: NDArray[np.float64],
+        is_training: Optional[NDArray[np.bool_]] = None,
+        encoding_group_labels: Optional[NDArray[np.int64]] = None,
+        environment_labels: Optional[NDArray[np.int64]] = None,
     ):
         """Fit the clusterless place field model.
 
         Parameters
         ----------
-        position : np.ndarray, shape (n_time, n_position_dims)
+        position : NDArray[np.float64], shape (n_time, n_position_dims)
             Position of the animal.
-        multiunits : array_like, shape (n_time, n_marks, n_electrodes)
+        multiunits : NDArray[np.float64], shape (n_time, n_marks, n_electrodes)
             Array where spikes are indicated by non-Nan values that correspond to the waveform features
             for each electrode.
-        is_training : None or np.ndarray, shape (n_time), optional
+        is_training : None or NDArray[np.bool_], shape (n_time), optional
             Boolean array to indicate which data should be included in fitting of place fields, by default None
-        encoding_group_labels : None or np.ndarray, shape (n_time,)
+        encoding_group_labels : None or NDArray[np.int64], shape (n_time,)
             Label for the corresponding encoding group for each time point
-        environment_labels : None or np.ndarray, shape (n_time,)
+        environment_labels : None or NDArray[np.int64], shape (n_time,)
             Label for the corresponding environment for each time point
 
         """
@@ -1243,27 +1245,27 @@ class ClusterlessClassifier(_ClassifierBase):
 
     def fit(
         self,
-        position: np.ndarray,
-        multiunits: np.ndarray,
-        is_training: Optional[np.ndarray] = None,
-        encoding_group_labels: Optional[np.ndarray] = None,
-        environment_labels: Optional[np.ndarray] = None,
-    ):
+        position: NDArray[np.float64],
+        multiunits: NDArray[np.float64],
+        is_training: Optional[NDArray[np.bool_]] = None,
+        encoding_group_labels: Optional[NDArray[np.int64]] = None,
+        environment_labels: Optional[NDArray[np.int64]] = None,
+    ) -> Self:
         """Fit the spatial grid, initial conditions, place field model, and
         transition matrices.
 
         Parameters
         ----------
-        position : np.ndarray, shape (n_time, n_position_dims)
+        position : NDArray[np.float64], shape (n_time, n_position_dims)
             Position of the animal.
-        multiunits : array_like, shape (n_time, n_marks, n_electrodes)
+        multiunits : NDArray[np.float64], shape (n_time, n_marks, n_electrodes)
             Array where spikes are indicated by non-Nan values that correspond to the waveform features
             for each electrode.
-        is_training : None or np.ndarray, shape (n_time), optional
+        is_training : None or NDArray[np.bool_], shape (n_time), optional
             Boolean array to indicate which data should be included in fitting of place fields, by default None
-        encoding_group_labels : None or np.ndarray, shape (n_time,)
+        encoding_group_labels : None or NDArray[np.int64], shape (n_time,)
             Label for the corresponding encoding group for each time point
-        environment_labels : None or np.ndarray, shape (n_time,)
+        environment_labels : None or NDArray[np.int64], shape (n_time,)
             Label for the corresponding environment for each time point
 
         Returns
@@ -1292,8 +1294,8 @@ class ClusterlessClassifier(_ClassifierBase):
 
     def predict(
         self,
-        multiunits: np.ndarray,
-        time: Optional[np.ndarray] = None,
+        multiunits: NDArray[np.float64],
+        time: Optional[NDArray[np.float64]] = None,
         is_compute_acausal: bool = True,
         use_gpu: bool = False,
         state_names: Optional[list[str]] = None,
@@ -1303,10 +1305,10 @@ class ClusterlessClassifier(_ClassifierBase):
 
         Parameters
         ----------
-        multiunits : array_like, shape (n_time, n_marks, n_electrodes)
+        multiunits : NDArray[np.float64], shape (n_time, n_marks, n_electrodes)
             Array where spikes are indicated by non-Nan values that correspond to the waveform features
             for each electrode.
-        time : np.ndarray or None, shape (n_time,), optional
+        time : NDArray[np.float64] or None, shape (n_time,), optional
             Label the time axis with these values.
         is_compute_acausal : bool, optional
             If True, compute the acausal posterior.

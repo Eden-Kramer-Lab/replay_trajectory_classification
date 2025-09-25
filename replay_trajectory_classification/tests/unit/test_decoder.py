@@ -1,7 +1,6 @@
 # replay_trajectory_classification/tests/unit/test_decoder.py
 import numpy as np
 import pytest
-import xarray as xr
 
 from replay_trajectory_classification.decoder import (
     ClusterlessDecoder,

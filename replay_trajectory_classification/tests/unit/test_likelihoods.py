@@ -1,30 +1,37 @@
 # replay_trajectory_classification/tests/unit/test_likelihoods.py
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
 import numpy as np
 import pytest
 
 # Test imports for likelihood modules
 from replay_trajectory_classification.environments import Environment
 
+if TYPE_CHECKING:
+    pass
+
 # Try importing likelihood functions with graceful fallbacks
 try:
     import replay_trajectory_classification.likelihoods.spiking_likelihood_glm as spiking_likelihood_glm
 except ImportError:
-    spiking_likelihood_glm = None
+    spiking_likelihood_glm: Any = None
 
 try:
     import replay_trajectory_classification.likelihoods.spiking_likelihood_kde as spiking_likelihood_kde
 except ImportError:
-    spiking_likelihood_kde = None
+    spiking_likelihood_kde: Any = None
 
 try:
     import replay_trajectory_classification.likelihoods.multiunit_likelihood as multiunit_likelihood
 except ImportError:
-    multiunit_likelihood = None
+    multiunit_likelihood: Any = None
 
 try:
     import replay_trajectory_classification.likelihoods.calcium_likelihood as calcium_likelihood
 except ImportError:
-    calcium_likelihood = None
+    calcium_likelihood: Any = None
 
 
 # ---------------------- Helpers ----------------------
@@ -349,7 +356,7 @@ def test_likelihood_functions_handle_edge_cases():
                 # If it returns something, it should be reasonable
                 if result is not None:
                     assert not (hasattr(result, 'shape') and result.shape == (0,))
-            except (ValueError, RuntimeError, ZeroDivisionError) as e:
+            except (ValueError, RuntimeError, ZeroDivisionError):
                 # These are acceptable exceptions for edge cases
                 continue
             except Exception as e:

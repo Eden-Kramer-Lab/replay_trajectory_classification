@@ -7,29 +7,30 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
+from numpy.typing import NDArray
 
 from replay_trajectory_classification.environments import diffuse_each_bin, get_bin_ind
 
 
 def estimate_diffusion_position_distance(
-    positions: np.ndarray,
-    edges: np.ndarray,
-    is_track_interior: Optional[np.ndarray] = None,
-    is_track_boundary: Optional[np.ndarray] = None,
+    positions: NDArray[np.float64],
+    edges: NDArray[np.float64],
+    is_track_interior: Optional[NDArray[np.bool_]] = None,
+    is_track_boundary: Optional[NDArray[np.bool_]] = None,
     position_std: float = 3.0,
-    bin_distances: Optional[np.ndarray] = None,
-) -> np.ndarray:
+    bin_distances: Optional[NDArray[np.float64]] = None,
+) -> NDArray[np.float64]:
     """Estimates a distance between a given position and all position bins
     using a diffusion.
 
     Parameters
     ----------
-    positions : np.ndarray, shape (n_time, n_position_dims)
+    positions : NDArray[np.float64], shape (n_time, n_position_dims)
     position_std : float
 
     Returns
     -------
-    position_distance : np.ndarray, shape (n_time, n_position_bins)
+    position_distance : NDArray[np.float64], shape (n_time, n_position_bins)
 
     """
     if bin_distances is None:
@@ -54,25 +55,25 @@ def estimate_diffusion_position_distance(
 
 
 def estimate_diffusion_position_density(
-    positions: np.ndarray,
-    edges: np.ndarray,
-    is_track_interior: Optional[np.ndarray] = None,
-    is_track_boundary: Optional[np.ndarray] = None,
+    positions: NDArray[np.float64],
+    edges: NDArray[np.float64],
+    is_track_interior: Optional[NDArray[np.bool_]] = None,
+    is_track_boundary: Optional[NDArray[np.bool_]] = None,
     position_std: float = 3.0,
-    bin_distances: Optional[np.ndarray] = None,
+    bin_distances: Optional[NDArray[np.float64]] = None,
     block_size: Optional[int] = 100,
-) -> np.ndarray:
+) -> NDArray[np.float64]:
     """Kernel density estimate over all position bins using diffusion.
 
     Parameters
     ----------
-    place_bin_centers : np.ndarray, shape (n_position_bins, n_position_dims)
-    positions : np.ndarray, shape (n_time, n_position_dims)
+    place_bin_centers : NDArray[np.float64], shape (n_position_bins, n_position_dims)
+    positions : NDArray[np.float64], shape (n_time, n_position_dims)
     position_std : float
 
     Returns
     -------
-    position_density : np.ndarray, shape (n_position_bins,)
+    position_density : NDArray[np.float64], shape (n_position_bins,)
 
     """
     n_time = positions.shape[0]

@@ -13,6 +13,7 @@ from typing import Optional
 
 import dask
 import numpy as np
+from numpy.typing import NDArray
 import pandas as pd
 import xarray as xr
 from dask.distributed import Client, get_client
@@ -24,14 +25,14 @@ from replay_trajectory_classification.environments import get_n_bins
 
 
 def make_spline_design_matrix(
-    position: np.ndarray, place_bin_edges: np.ndarray, knot_spacing: int = 10
+    position: NDArray[np.float64], place_bin_edges: NDArray[np.float64], knot_spacing: int = 10
 ) -> DesignMatrix:
     """Creates a design matrix for regression with a position spline basis.
 
     Parameters
     ----------
-    position : np.ndarray, shape (n_time, n_position_dims)
-    place_bin_edges : np.ndarray, shape (n_bins, n_position_dims)
+    position : NDArray[np.float64], shape (n_time, n_position_dims)
+    place_bin_edges : NDArray[np.float64], shape (n_bins, n_position_dims)
 
     Returns
     -------
@@ -62,7 +63,7 @@ def make_spline_design_matrix(
 
 
 def make_spline_predict_matrix(
-    design_info: DesignInfo, place_bin_centers: np.ndarray
+    design_info: DesignInfo, place_bin_centers: NDArray[np.float64]
 ) -> DesignMatrix:
     """Make a design matrix for position bins"""
     predict_data = {}
@@ -71,7 +72,7 @@ def make_spline_predict_matrix(
     return build_design_matrices([design_info], predict_data)[0]
 
 
-def get_activity_rate(design_matrix: DesignMatrix, results: tuple) -> np.ndarray:
+def get_activity_rate(design_matrix: DesignMatrix, results: tuple) -> NDArray[np.float64]:
     """Predicts the calcium activity trace given fitted model coefficents."""
     rate = design_matrix @ results.coefficients
     rate[rate < 0.1] = 0.1
@@ -80,8 +81,8 @@ def get_activity_rate(design_matrix: DesignMatrix, results: tuple) -> np.ndarray
 
 @dask.delayed
 def fit_glm(
-    response: np.ndarray,
-    design_matrix: np.ndarray,
+    response: NDArray[np.float64],
+    design_matrix: NDArray[np.float64],
     penalty: Optional[float] = None,
     tolerance: float = 1e-5,
 ) -> tuple:
@@ -89,9 +90,9 @@ def fit_glm(
 
     Parameters
     ----------
-    response : np.ndarray, shape (n_time,)
+    response : NDArray[np.float64], shape (n_time,)
         Calcium activity trace
-    design_matrix : np.ndarray, shape (n_time, n_coefficients)
+    design_matrix : NDArray[np.float64], shape (n_time, n_coefficients)
     penalty : None or float
         L2 penalty on regression. If None, penalty is smallest possible.
     tolerance : float
@@ -118,19 +119,19 @@ def fit_glm(
 
 
 def gamma_log_likelihood(
-    calcium_activity: np.ndarray, place_field: np.ndarray, scale: float
-) -> np.ndarray:
+    calcium_activity: NDArray[np.float64], place_field: NDArray[np.float64], scale: float
+) -> NDArray[np.float64]:
     """Probability of parameters given spiking at a particular time.
 
     Parameters
     ----------
-    calcium_activity : np.ndarray, shape (n_time,)
-    place_field : np.ndaarray, shape (n_place_bins,)
+    calcium_activity : NDArray[np.float64], shape (n_time,)
+    place_field : NDArray[np.float64], shape (n_place_bins,)
     scale : float
 
     Returns
     -------
-    gamma_log_likelihood : np.ndarray, shape (n_time, n_place_bins)
+    gamma_log_likelihood : NDArray[np.float64], shape (n_time, n_place_bins)
 
     """
     # return scipy.stats.gamma.logpdf(v * calcium_activity / mu, v)
@@ -148,16 +149,16 @@ def gamma_log_likelihood(
 
 
 def combined_likelihood(
-    calcium_activity: np.ndarray, place_fields: np.ndarray, scales: np.ndarray
-) -> np.ndarray:
+    calcium_activity: NDArray[np.float64], place_fields: NDArray[np.float64], scales: NDArray[np.float64]
+) -> NDArray[np.float64]:
     """Combines the likelihoods of all the cells.
 
     Parameters
     ----------
-    calcium_activity : np.ndarray, shape (n_time, n_neurons)
+    calcium_activity : NDArray[np.float64], shape (n_time, n_neurons)
         Deconvolved activity rate estimated from the fluorescence level.
-    place_fields : np.ndarray, shape (n_bins, n_neurons)
-    scales : np.ndarray, shape (n_neurons,)
+    place_fields : NDArray[np.float64], shape (n_bins, n_neurons)
+    scales : NDArray[np.float64], shape (n_neurons,)
 
     """
     n_time = calcium_activity.shape[0]
@@ -171,24 +172,24 @@ def combined_likelihood(
 
 
 def estimate_calcium_likelihood(
-    calcium_activity: np.ndarray,
-    place_fields: np.ndarray,
-    scales: np.ndarray,
-    is_track_interior: Optional[np.ndarray] = None,
-) -> np.ndarray:
+    calcium_activity: NDArray[np.float64],
+    place_fields: NDArray[np.float64],
+    scales: NDArray[np.float64],
+    is_track_interior: Optional[NDArray[np.bool_]] = None,
+) -> NDArray[np.float64]:
     """Find the likelihood given a fitted place field model.
 
     Parameters
     ----------
-    calcium_activity : np.ndarray, shape (n_time, n_neurons)
+    calcium_activity : NDArray[np.float64], shape (n_time, n_neurons)
         Deconvolved activity rate estimated from the fluorescence level.
-    place_fields : np.ndarray, shape (n_bins, n_neurons)
-    scales : np.ndarray, shape (n_neurons,)
-    is_track_interior : None or np.ndarray, optional, shape (n_bins, n_position_dims)
+    place_fields : NDArray[np.float64], shape (n_bins, n_neurons)
+    scales : NDArray[np.float64], shape (n_neurons,)
+    is_track_interior : None or NDArray[np.bool_], optional, shape (n_bins, n_position_dims)
 
     Returns
     -------
-    likelihood : np.ndarray, shape (n_time, n_bins)
+    likelihood : NDArray[np.float64], shape (n_time, n_bins)
     """
     if is_track_interior is not None:
         is_track_interior = is_track_interior.ravel(order="F")
@@ -205,23 +206,23 @@ def estimate_calcium_likelihood(
 
 
 def estimate_calcium_place_fields(
-    position: np.ndarray,
-    calcium_activity: np.ndarray,
-    place_bin_centers: np.ndarray,
-    place_bin_edges: np.ndarray,
+    position: NDArray[np.float64],
+    calcium_activity: NDArray[np.float64],
+    place_bin_centers: NDArray[np.float64],
+    place_bin_edges: NDArray[np.float64],
     penalty: float = 1e-1,
     knot_spacing: int = 10,
-) -> xr.DataArray:
+) -> tuple[xr.DataArray, NDArray[np.float64]]:
     """Gives the conditional intensity of the neurons' spiking with respect to
     position.
 
     Parameters
     ----------
-    position : np.ndarray, shape (n_time, n_position_dims)
-    calcium_activity : np.ndarray, shape (n_time, n_neurons)
+    position : NDArray[np.float64], shape (n_time, n_position_dims)
+    calcium_activity : NDArray[np.float64], shape (n_time, n_neurons)
         Deconvolved activity rate estimated from the fluorescence level.
-    place_bin_centers : np.ndarray, shape (n_bins, n_position_dims)
-    place_bin_edges : np.ndarray, shape (n_bins + 1, n_position_dims)
+    place_bin_centers : NDArray[np.float64], shape (n_bins, n_position_dims)
+    place_bin_edges : NDArray[np.float64], shape (n_bins + 1, n_position_dims)
     penalty : float, optional
     knot_spacing : int, optional
 

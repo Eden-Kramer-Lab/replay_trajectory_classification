@@ -6,8 +6,10 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-import dask
 import numpy as np
+from numpy.typing import NDArray
+
+import dask
 import pandas as pd
 import scipy.stats
 import xarray as xr
@@ -20,14 +22,14 @@ from replay_trajectory_classification.environments import get_n_bins
 
 
 def make_spline_design_matrix(
-    position: np.ndarray, place_bin_edges: np.ndarray, knot_spacing: float = 10.0
+    position: NDArray[np.float64], place_bin_edges: NDArray[np.float64], knot_spacing: float = 10.0
 ) -> DesignMatrix:
     """Creates a design matrix for regression with a position spline basis.
 
     Parameters
     ----------
-    position : np.ndarray, shape (n_time, n_position_dims)
-    place_bin_edges : np.ndarray, shape (n_bins, n_position_dims)
+    position : NDArray[np.float64], shape (n_time, n_position_dims)
+    place_bin_edges : NDArray[np.float64], shape (n_bins, n_position_dims)
 
     Returns
     -------
@@ -57,7 +59,7 @@ def make_spline_design_matrix(
 
 
 def make_spline_predict_matrix(
-    design_info: DesignInfo, place_bin_centers: np.ndarray
+    design_info: DesignInfo, place_bin_centers: NDArray[np.float64]
 ) -> DesignMatrix:
     """Make a design matrix for position bins"""
     predict_data = {}
@@ -68,7 +70,7 @@ def make_spline_predict_matrix(
 
 def get_firing_rate(
     design_matrix: DesignMatrix, results: tuple, sampling_frequency: int = 1
-):
+) -> NDArray[np.float64]:
     """Predicts the firing rate given fitted model coefficents."""
     if np.any(np.isnan(results.coefficients)):
         n_time = design_matrix.shape[0]
@@ -81,8 +83,8 @@ def get_firing_rate(
 
 @dask.delayed
 def fit_glm(
-    response: np.ndarray,
-    design_matrix: np.ndarray,
+    response: NDArray[np.float64],
+    design_matrix: NDArray[np.float64],
     penalty: Optional[float] = None,
     tolerance: float = 1e-5,
 ) -> tuple:
@@ -90,9 +92,9 @@ def fit_glm(
 
     Parameters
     ----------
-    response : np.ndarray, shape (n_time,)
+    response : NDArray[np.float64], shape (n_time,)
         Calcium activity trace
-    design_matrix : np.ndarray, shape (n_time, n_coefficients)
+    design_matrix : NDArray[np.float64], shape (n_time, n_coefficients)
     penalty : None or float
         L2 penalty on regression. If None, penalty is smallest possible.
     tolerance : float
@@ -119,20 +121,20 @@ def fit_glm(
 
 
 def poisson_log_likelihood(
-    spikes: np.ndarray, conditional_intensity: np.ndarray
-) -> np.ndarray:
+    spikes: NDArray[np.float64], conditional_intensity: NDArray[np.float64]
+) -> NDArray[np.float64]:
     """Probability of parameters given spiking at a particular time.
 
     Parameters
     ----------
-    spikes : np.ndarray, shape (n_time,)
+    spikes : NDArray[np.float64], shape (n_time,)
         Indicator of spike or no spike at current time.
-    conditional_intensity : np.ndarray, shape (n_place_bins,)
+    conditional_intensity : NDArray[np.float64], shape (n_place_bins,)
         Instantaneous probability of observing a spike
 
     Returns
     -------
-    poisson_log_likelihood : np.ndarray, shape (n_time, n_place_bins)
+    poisson_log_likelihood : NDArray[np.float64], shape (n_time, n_place_bins)
 
     """
     # Logarithm of the absolute value of the gamma function is always 0 when
@@ -143,14 +145,14 @@ def poisson_log_likelihood(
 
 
 def combined_likelihood(
-    spikes: np.ndarray, conditional_intensity: np.ndarray
-) -> np.ndarray:
+    spikes: NDArray[np.float64], conditional_intensity: NDArray[np.float64]
+) -> NDArray[np.float64]:
     """Combines the likelihoods of all the cells.
 
     Parameters
     ----------
-    spikes : np.ndarray, shape (n_time, n_neurons)
-    conditional_intensity : np.ndarray, shape (n_bins, n_neurons)
+    spikes : NDArray[np.float64], shape (n_time, n_neurons)
+    conditional_intensity : NDArray[np.float64], shape (n_bins, n_neurons)
 
     """
     n_time = spikes.shape[0]
@@ -164,21 +166,21 @@ def combined_likelihood(
 
 
 def estimate_spiking_likelihood(
-    spikes: np.ndarray,
-    conditional_intensity: np.ndarray,
-    is_track_interior: Optional[np.ndarray] = None,
-) -> np.ndarray:
+    spikes: NDArray[np.float64],
+    conditional_intensity: NDArray[np.float64],
+    is_track_interior: Optional[NDArray[np.bool_]] = None,
+) -> NDArray[np.float64]:
     """
 
     Parameters
     ----------
-    spikes : np.ndarray, shape (n_time, n_neurons)
-    conditional_intensity : np.ndarray, shape (n_bins, n_neurons)
-    is_track_interior : None or np.ndarray, optional, shape (n_x_position_bins,
-                                                             n_y_position_bins)
+    spikes : NDArray[np.float64], shape (n_time, n_neurons)
+    conditional_intensity : NDArray[np.float64], shape (n_bins, n_neurons)
+    is_track_interior : None or NDArray[np.bool_], optional, shape (n_x_position_bins,
+                                                                   n_y_position_bins)
     Returns
     -------
-    likelihood : np.ndarray, shape (n_time, n_bins)
+    likelihood : NDArray[np.float64], shape (n_time, n_bins)
 
     """
     if is_track_interior is not None:
@@ -196,13 +198,13 @@ def estimate_spiking_likelihood(
 
 
 def estimate_place_fields(
-    position: np.ndarray,
-    spikes: np.ndarray,
-    place_bin_centers: np.ndarray,
-    place_bin_edges: np.ndarray,
-    edges: Optional[np.ndarray] = None,
-    is_track_boundary: Optional[np.ndarray] = None,
-    is_track_interior: Optional[np.ndarray] = None,
+    position: NDArray[np.float64],
+    spikes: NDArray[np.float64],
+    place_bin_centers: NDArray[np.float64],
+    place_bin_edges: NDArray[np.float64],
+    edges: Optional[NDArray[np.float64]] = None,
+    is_track_boundary: Optional[NDArray[np.bool_]] = None,
+    is_track_interior: Optional[NDArray[np.bool_]] = None,
     penalty: float = 1e-1,
     knot_spacing: int = 10,
 ) -> xr.DataArray:
@@ -211,12 +213,12 @@ def estimate_place_fields(
 
     Parameters
     ----------
-    position : np.ndarray, shape (n_time, n_position_dims)
-    spikes : np.ndarray, shape (n_time, n_neurons)
-    place_bin_centers : np.ndarray, shape (n_bins, n_position_dims)
-    place_bin_edges : np.ndarray, shape (n_bins + 1, n_position_dims)
-    is_track_boundary : None or np.ndarray
-    is_track_interior : None or np.ndarray
+    position : NDArray[np.float64], shape (n_time, n_position_dims)
+    spikes : NDArray[np.float64], shape (n_time, n_neurons)
+    place_bin_centers : NDArray[np.float64], shape (n_bins, n_position_dims)
+    place_bin_edges : NDArray[np.float64], shape (n_bins + 1, n_position_dims)
+    is_track_boundary : None or NDArray[np.bool_]
+    is_track_interior : None or NDArray[np.bool_]
     penalty : None or float, optional
         L2 penalty on regression. If None, penalty is smallest possible.
     knot_spacing : int, optional

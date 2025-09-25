@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+
 import numpy as np
+from numpy.typing import NDArray
 
 from replay_trajectory_classification.simulate import (
     get_trajectory_direction,
@@ -35,9 +37,9 @@ def make_simulated_run_data(
     running_speed: float = RUNNING_SPEED,
     n_runs: int = N_RUNS,
     place_field_variance: float = PLACE_FIELD_VARIANCE,
-    place_field_means: np.ndarray = PLACE_FIELD_MEANS,
+    place_field_means: NDArray[np.float64] = PLACE_FIELD_MEANS,
     make_inbound_outbound_neurons: bool = False,
-) -> tuple[np.ndarray, np.ndarray, float, np.ndarray, np.ndarray]:
+) -> tuple[NDArray[np.float64], NDArray[np.float64], float, NDArray[np.float64], NDArray[np.float64]]:
     """Make simulated data of a rat running back and forth
     on a linear maze with sorted spikes.
 
@@ -53,21 +55,21 @@ def make_simulated_run_data(
         Number of runs across the track the simulated animal will perform
     place_field_variance : float, optional
         Spatial variance of the place field
-    place_field_means : np.ndarray, shape (n_neurons,), optional
+    place_field_means : NDArray[np.float64], shape (n_neurons,), optional
         Location of the center of the Gaussian place fields.
     make_inbound_outbound_neurons : bool
         Makes neurons direction selective.
 
     Returns
     -------
-    time : np.ndarray, shape (n_time,)
-    position : np.ndarray, shape (n_time,)
+    time : NDArray[np.float64], shape (n_time,)
+    position : NDArray[np.float64], shape (n_time,)
         Position of the simualted animal
     sampling_frequency : float
         Samples per second
-    spikes : np.ndarray, shape (n_time, n_neurons)
+    spikes : NDArray[np.float64], shape (n_time, n_neurons)
         Binned spike indicator. 1 means spike occured. 0 means no spike occured.
-    place_fields : np.ndarray, shape (n_time, n_neurons)
+    place_fields : NDArray[np.float64], shape (n_time, n_neurons)
 
     """
     n_samples = int(n_runs * sampling_frequency * 2 * track_height / running_speed)
@@ -100,12 +102,12 @@ def make_simulated_run_data(
         )
     else:
         trajectory_direction = get_trajectory_direction(position)
-        place_fields = []
-        spikes = []
+        place_fields_list: list[NDArray[np.float64]] = []
+        spikes_list: list[NDArray[np.float64]] = []
         for direction in np.unique(trajectory_direction):
             is_condition = trajectory_direction == direction
             for place_field_mean in place_field_means:
-                place_fields.append(
+                place_fields_list.append(
                     simulate_place_field_firing_rate(
                         place_field_mean,
                         position,
@@ -113,7 +115,7 @@ def make_simulated_run_data(
                         is_condition=is_condition,
                     )
                 )
-                spikes.append(
+                spikes_list.append(
                     simulate_neuron_with_place_field(
                         place_field_mean,
                         position,
@@ -124,8 +126,8 @@ def make_simulated_run_data(
                     )
                 )
 
-        place_fields = np.stack(place_fields, axis=1)
-        spikes = np.stack(spikes, axis=1)
+        place_fields = np.stack(place_fields_list, axis=1)
+        spikes = np.stack(spikes_list, axis=1)
 
     return time, position, sampling_frequency, spikes, place_fields
 
@@ -134,10 +136,10 @@ def make_continuous_replay(
     sampling_frequency: int = SAMPLING_FREQUENCY,
     track_height: float = TRACK_HEIGHT,
     running_speed: float = RUNNING_SPEED,
-    place_field_means: np.ndarray = PLACE_FIELD_MEANS,
+    place_field_means: NDArray[np.float64] = PLACE_FIELD_MEANS,
     replay_speedup: int = REPLAY_SPEEDUP,
     is_outbound: bool = True,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Make a simulated continuous replay.
 
     Parameters
@@ -148,7 +150,7 @@ def make_continuous_replay(
         Height of the simulated track
     running_speed : float, optional
         Speed of the simulated animal
-    place_field_means : np.ndarray, optional
+    place_field_means : NDArray[np.float64], optional
         Location of the center of the Gaussian place fields.
     replay_speedup : int, optional
         _description_, by default REPLAY_SPEEDUP
@@ -157,9 +159,9 @@ def make_continuous_replay(
 
     Returns
     -------
-    replay_time : np.ndarray, shape (n_time,)
+    replay_time : NDArray[np.float64], shape (n_time,)
         Time in seconds.
-    test_spikes : np.ndarray, shape (n_time, n_neurons)
+    test_spikes : NDArray[np.float64], shape (n_time, n_neurons)
         Binned spike indicator. 1 means spike occured. 0 means no spike occured.
 
     """
@@ -193,25 +195,25 @@ def make_continuous_replay(
 
 def make_hover_replay(
     hover_neuron_ind: int = None,
-    place_field_means: np.ndarray = PLACE_FIELD_MEANS,
+    place_field_means: NDArray[np.float64] = PLACE_FIELD_MEANS,
     sampling_frequency: int = SAMPLING_FREQUENCY,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Make a simulated stationary replay.
 
     Parameters
     ----------
     hover_neuron_ind : int, optional
         _description_, by default None
-    place_field_means : np.ndarray, optional
+    place_field_means : NDArray[np.float64], optional
         _description_, by default PLACE_FIELD_MEANS
     sampling_frequency : int, optional
         Samples per second
 
     Returns
     -------
-    replay_time : np.ndarray, shape (n_time,)
+    replay_time : NDArray[np.float64], shape (n_time,)
         Time in seconds.
-    test_spikes : np.ndarray, shape (n_time, n_neurons)
+    test_spikes : NDArray[np.float64], shape (n_time, n_neurons)
         Binned spike indicator. 1 means spike occured. 0 means no spike occured.
 
     """
@@ -233,23 +235,23 @@ def make_hover_replay(
 
 
 def make_fragmented_replay(
-    place_field_means: np.ndarray = PLACE_FIELD_MEANS,
+    place_field_means: NDArray[np.float64] = PLACE_FIELD_MEANS,
     sampling_frequency: int = SAMPLING_FREQUENCY,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Make a simulated fragmented replay.
 
     Parameters
     ----------
-    place_field_means : np.ndarray, optional
+    place_field_means : NDArray[np.float64], optional
         _description_, by default PLACE_FIELD_MEANS
     sampling_frequency : int, optional
         Samples per second
 
     Returns
     -------
-    replay_time : np.ndarray, shape (n_time,)
+    replay_time : NDArray[np.float64], shape (n_time,)
         Time in seconds.
-    test_spikes : np.ndarray, shape (n_time, n_neurons)
+    test_spikes : NDArray[np.float64], shape (n_time, n_neurons)
         Binned spike indicator. 1 means spike occured. 0 means no spike occured.
 
     """
@@ -265,7 +267,7 @@ def make_fragmented_replay(
 
 def make_hover_continuous_hover_replay(
     sampling_frequency: int = SAMPLING_FREQUENCY,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Make a replay that starts stationary, then is continuous, then is stationary again.
 
     Parameters
@@ -275,9 +277,9 @@ def make_hover_continuous_hover_replay(
 
     Returns
     -------
-    replay_time : np.ndarray, shape (n_time,)
+    replay_time : NDArray[np.float64], shape (n_time,)
         Time in seconds.
-    test_spikes : np.ndarray, shape (n_time, n_neurons)
+    test_spikes : NDArray[np.float64], shape (n_time, n_neurons)
         Binned spike indicator. 1 means spike occured. 0 means no spike occured.
 
     """
@@ -293,7 +295,7 @@ def make_hover_continuous_hover_replay(
 
 def make_fragmented_hover_fragmented_replay(
     sampling_frequency: int = SAMPLING_FREQUENCY,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Make a replay that starts fragmented, then is stationary, and then is fragmented again.
 
     Parameters
@@ -303,9 +305,9 @@ def make_fragmented_hover_fragmented_replay(
 
     Returns
     -------
-    replay_time : np.ndarray, shape (n_time,)
+    replay_time : NDArray[np.float64], shape (n_time,)
         Time in seconds.
-    test_spikes : np.ndarray, shape (n_time, n_neurons)
+    test_spikes : NDArray[np.float64], shape (n_time, n_neurons)
         Binned spike indicator. 1 means spike occured. 0 means no spike occured.
 
     """
@@ -321,7 +323,7 @@ def make_fragmented_hover_fragmented_replay(
 
 def make_fragmented_continuous_fragmented_replay(
     sampling_frequency: int = SAMPLING_FREQUENCY,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Make a replay that is fragmented, then is continuous, then is fragmented again.
 
     Parameters
@@ -331,9 +333,9 @@ def make_fragmented_continuous_fragmented_replay(
 
     Returns
     -------
-    replay_time : np.ndarray, shape (n_time,)
+    replay_time : NDArray[np.float64], shape (n_time,)
         Time in seconds.
-    test_spikes : np.ndarray, shape (n_time, n_neurons)
+    test_spikes : NDArray[np.float64], shape (n_time, n_neurons)
         Binned spike indicator. 1 means spike occured. 0 means no spike occured.
 
     """
@@ -349,7 +351,7 @@ def make_fragmented_continuous_fragmented_replay(
 
 def make_theta_sweep(
     sampling_frequency: int = SAMPLING_FREQUENCY, n_sweeps: int = 5
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Simulate theta sweeping
 
     Parameters
@@ -361,9 +363,9 @@ def make_theta_sweep(
 
     Returns
     -------
-    replay_time : np.ndarray, shape (n_time,)
+    replay_time : NDArray[np.float64], shape (n_time,)
         Time in seconds.
-    test_spikes : np.ndarray, shape (n_time, n_neurons)
+    test_spikes : NDArray[np.float64], shape (n_time, n_neurons)
         Binned spike indicator. 1 means spike occured. 0 means no spike occured.
 
     """

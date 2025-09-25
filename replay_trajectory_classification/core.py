@@ -5,51 +5,59 @@ from __future__ import annotations
 from typing import Tuple
 
 import numpy as np
+from numpy.typing import NDArray
 from numba import njit
 
 
-def atleast_2d(x: np.ndarray) -> np.ndarray:
+def atleast_2d(x: NDArray[np.float64]) -> NDArray[np.float64]:
     """Appends a dimension at the end if `x` is one dimensional
 
     Parameters
     ----------
-    x : np.ndarray
+    x : NDArray[np.float64]
+        Input array of any shape
 
     Returns
     -------
-    x : np.ndarray
+    NDArray[np.float64]
+        2D array with shape (x.shape[0], x.shape[1:]) if x.ndim >= 2,
+        otherwise (x.shape[0], 1)
 
     """
     return np.atleast_2d(x).T if x.ndim < 2 else x
 
 
-def get_centers(bin_edges: np.ndarray) -> np.ndarray:
+def get_centers(bin_edges: NDArray[np.float64]) -> NDArray[np.float64]:
     """Given a set of bin edges, return the center of the bin.
 
     Parameters
     ----------
-    bin_edges : np.ndarray, shape (n_edges,)
+    bin_edges : NDArray[np.float64], shape (n_edges,)
+        Edges of the bins
 
     Returns
     -------
-    bin_centers : np.ndarray, shape (n_edges - 1,)
+    NDArray[np.float64], shape (n_edges - 1,)
+        Centers of the bins
 
     """
     return bin_edges[:-1] + np.diff(bin_edges) / 2
 
 
 @njit(parallel=True, error_model="numpy")
-def normalize_to_probability(distribution: np.ndarray) -> np.ndarray:
+def normalize_to_probability(distribution: NDArray[np.float64]) -> NDArray[np.float64]:
     """Ensure the distribution integrates to 1 so that it is a probability
     distribution.
 
     Parameters
     ----------
-    distribution : np.ndarray
+    distribution : NDArray[np.float64]
+        Probability distribution to normalize
 
     Returns
     -------
-    normalized_distribution : np.ndarray
+    NDArray[np.float64]
+        Normalized probability distribution that sums to 1
 
     """
     return distribution / np.nansum(distribution)
@@ -57,20 +65,20 @@ def normalize_to_probability(distribution: np.ndarray) -> np.ndarray:
 
 @njit(nogil=True, error_model="numpy", cache=False)
 def _causal_decode(
-    initial_conditions: np.ndarray, state_transition: np.ndarray, likelihood: np.ndarray
-) -> Tuple[np.ndarray, float]:
+    initial_conditions: NDArray[np.float64], state_transition: NDArray[np.float64], likelihood: NDArray[np.float64]
+) -> Tuple[NDArray[np.float64], float]:
     """Adaptive filter to iteratively calculate the posterior probability
     of a state variable using past information.
 
     Parameters
     ----------
-    initial_conditions : np.ndarray, shape (n_bins,)
-    state_transition : np.ndarray, shape (n_bins, n_bins)
-    likelihood : np.ndarray, shape (n_time, n_bins)
+    initial_conditions : NDArray[np.float64], shape (n_bins,)
+    state_transition : NDArray[np.float64], shape (n_bins, n_bins)
+    likelihood : NDArray[np.float64], shape (n_time, n_bins)
 
     Returns
     -------
-    posterior : np.ndarray, shape (n_time, n_bins)
+    posterior : NDArray[np.float64], shape (n_time, n_bins)
     log_data_likelihood : float
 
     """
@@ -94,18 +102,18 @@ def _causal_decode(
 
 @njit(nogil=True, error_model="numpy", cache=False)
 def _acausal_decode(
-    causal_posterior: np.ndarray, state_transition: np.ndarray
-) -> np.ndarray:
+    causal_posterior: NDArray[np.float64], state_transition: NDArray[np.float64]
+) -> NDArray[np.float64]:
     """Uses past and future information to estimate the state.
 
     Parameters
     ----------
-    causal_posterior : np.ndarray, shape (n_time, n_bins, 1)
-    state_transition : np.ndarray, shape (n_bins, n_bins)
+    causal_posterior : NDArray[np.float64], shape (n_time, n_bins, 1)
+    state_transition : NDArray[np.float64], shape (n_bins, n_bins)
 
     Return
     ------
-    acausal_posterior : np.ndarray, shape (n_time, n_bins, 1)
+    acausal_posterior : NDArray[np.float64], shape (n_time, n_bins, 1)
 
     """
     acausal_posterior = np.zeros_like(causal_posterior)
@@ -131,24 +139,24 @@ def _acausal_decode(
 
 @njit(nogil=True, error_model="numpy", cache=False)
 def _causal_classify(
-    initial_conditions: np.ndarray,
-    continuous_state_transition: np.ndarray,
-    discrete_state_transition: np.ndarray,
-    likelihood: np.ndarray,
-) -> Tuple[np.ndarray, float]:
+    initial_conditions: NDArray[np.float64],
+    continuous_state_transition: NDArray[np.float64],
+    discrete_state_transition: NDArray[np.float64],
+    likelihood: NDArray[np.float64],
+) -> Tuple[NDArray[np.float64], float]:
     """Adaptive filter to iteratively calculate the posterior probability
     of a state variable using past information.
 
     Parameters
     ----------
-    initial_conditions : np.ndarray, shape (n_states, n_bins, 1)
-    continuous_state_transition : np.ndarray, shape (n_states, n_states, n_bins, n_bins)
-    discrete_state_transition : np.ndarray, shape (n_states, n_states)
-    likelihood : np.ndarray, shape (n_time, n_states, n_bins, 1)
+    initial_conditions : NDArray[np.float64], shape (n_states, n_bins, 1)
+    continuous_state_transition : NDArray[np.float64], shape (n_states, n_states, n_bins, n_bins)
+    discrete_state_transition : NDArray[np.float64], shape (n_states, n_states)
+    likelihood : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
 
     Returns
     -------
-    causal_posterior : np.ndarray, shape (n_time, n_states, n_bins, 1)
+    causal_posterior : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
     log_data_likelihood : float
 
     """
@@ -179,21 +187,21 @@ def _causal_classify(
 
 @njit(nogil=True, error_model="numpy", cache=False)
 def _acausal_classify(
-    causal_posterior: np.ndarray,
-    continuous_state_transition: np.ndarray,
-    discrete_state_transition: np.ndarray,
-) -> np.ndarray:
+    causal_posterior: NDArray[np.float64],
+    continuous_state_transition: NDArray[np.float64],
+    discrete_state_transition: NDArray[np.float64],
+) -> NDArray[np.float64]:
     """Uses past and future information to estimate the state.
 
     Parameters
     ----------
-    causal_posterior : np.ndarray, shape (n_time, n_states, n_bins, 1)
-    continuous_state_transition : np.ndarray, shape (n_states, n_states, n_bins, n_bins)
-    discrete_state_transition : np.ndarray, shape (n_states, n_states)
+    causal_posterior : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
+    continuous_state_transition : NDArray[np.float64], shape (n_states, n_states, n_bins, n_bins)
+    discrete_state_transition : NDArray[np.float64], shape (n_states, n_states)
 
     Return
     ------
-    acausal_posterior : np.ndarray, shape (n_time, n_states, n_bins, 1)
+    acausal_posterior : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
 
     """
     acausal_posterior = np.zeros_like(causal_posterior)
@@ -228,17 +236,17 @@ def _acausal_classify(
     return acausal_posterior
 
 
-def scaled_likelihood(log_likelihood: np.ndarray, axis: int = 1) -> np.ndarray:
+def scaled_likelihood(log_likelihood: NDArray[np.float64], axis: int = 1) -> NDArray[np.float64]:
     """Scale the likelihood so the maximum value is 1.
 
     Parameters
     ----------
-    log_likelihood : np.ndarray, shape (n_time, n_bins)
+    log_likelihood : NDArray[np.float64], shape (n_time, n_bins)
     axis : int
 
     Returns
     -------
-    scaled_log_likelihood : np.ndarray, shape (n_time, n_bins)
+    scaled_log_likelihood : NDArray[np.float64], shape (n_time, n_bins)
 
     """
     max_log_likelihood = np.nanmax(log_likelihood, axis=axis, keepdims=True)
@@ -255,17 +263,17 @@ def scaled_likelihood(log_likelihood: np.ndarray, axis: int = 1) -> np.ndarray:
     return likelihood
 
 
-def mask(value: np.ndarray, is_track_interior: np.ndarray) -> np.ndarray:
+def mask(value: NDArray[np.float64], is_track_interior: NDArray[np.bool_]) -> NDArray[np.float64]:
     """Set bins that are not part of the track to NaN.
 
     Parameters
     ----------
-    value : np.ndarray, shape (..., n_bins)
-    is_track_interior : np.ndarray, shape (n_bins,)
+    value : NDArray[np.float64], shape (..., n_bins)
+    is_track_interior : NDArray[np.bool_], shape (n_bins,)
 
     Returns
     -------
-    masked_value : np.ndarray
+    masked_value : NDArray[np.float64]
 
     """
     try:
@@ -276,8 +284,8 @@ def mask(value: np.ndarray, is_track_interior: np.ndarray) -> np.ndarray:
 
 
 def check_converged(
-    log_likelihood: np.ndarray,
-    previous_log_likelihood: np.ndarray,
+    log_likelihood: NDArray[np.float64],
+    previous_log_likelihood: NDArray[np.float64],
     tolerance: float = 1e-4,
 ) -> Tuple[bool, bool]:
     """We have converged if the slope of the log-likelihood function falls below 'tolerance',
@@ -287,9 +295,9 @@ def check_converged(
 
     Parameters
     ----------
-    log_likelihood : np.ndarray
+    log_likelihood : NDArray[np.float64]
         Current log likelihood
-    previous_log_likelihood : np.ndarray
+    previous_log_likelihood : NDArray[np.float64]
         Previous log likelihood
     tolerance : float, optional
         threshold for similarity, by default 1e-4
@@ -316,22 +324,22 @@ try:
 
     @cp.fuse()
     def _causal_decode_gpu(
-        initial_conditions: np.ndarray,
-        state_transition: np.ndarray,
-        likelihood: np.ndarray,
-    ) -> Tuple[np.ndarray, float]:
+        initial_conditions: NDArray[np.float64],
+        state_transition: NDArray[np.float64],
+        likelihood: NDArray[np.float64],
+    ) -> Tuple[NDArray[np.float64], float]:
         """Adaptive filter to iteratively calculate the posterior probability
         of a state variable using past information.
 
         Parameters
         ----------
-        initial_conditions : np.ndarray, shape (n_bins,)
-        state_transition : np.ndarray, shape (n_bins, n_bins)
-        likelihood : np.ndarray, shape (n_time, n_bins)
+        initial_conditions : NDArray[np.float64], shape (n_bins,)
+        state_transition : NDArray[np.float64], shape (n_bins, n_bins)
+        likelihood : NDArray[np.float64], shape (n_time, n_bins)
 
         Returns
         -------
-        posterior : np.ndarray, shape (n_time, n_bins)
+        posterior : NDArray[np.float64], shape (n_time, n_bins)
         log_data_likelihood : float
 
         """
@@ -358,18 +366,18 @@ try:
 
     @cp.fuse()
     def _acausal_decode_gpu(
-        causal_posterior: np.ndarray, state_transition: np.ndarray
-    ) -> np.ndarray:
+        causal_posterior: NDArray[np.float64], state_transition: NDArray[np.float64]
+    ) -> NDArray[np.float64]:
         """Uses past and future information to estimate the state.
 
         Parameters
         ----------
-        causal_posterior : np.ndarray, shape (n_time, n_bins, 1)
-        state_transition : np.ndarray, shape (n_bins, n_bins)
+        causal_posterior : NDArray[np.float64], shape (n_time, n_bins, 1)
+        state_transition : NDArray[np.float64], shape (n_bins, n_bins)
 
         Return
         ------
-        acausal_posterior : np.ndarray, shape (n_time, n_bins, 1)
+        acausal_posterior : NDArray[np.float64], shape (n_time, n_bins, 1)
 
         """
         causal_posterior = cp.asarray(causal_posterior, dtype=cp.float32)
@@ -395,24 +403,24 @@ try:
 
     @cp.fuse()
     def _causal_classify_gpu(
-        initial_conditions: np.ndarray,
-        continuous_state_transition: np.ndarray,
-        discrete_state_transition: np.ndarray,
-        likelihood: np.ndarray,
-    ) -> Tuple[np.ndarray, float]:
+        initial_conditions: NDArray[np.float64],
+        continuous_state_transition: NDArray[np.float64],
+        discrete_state_transition: NDArray[np.float64],
+        likelihood: NDArray[np.float64],
+    ) -> Tuple[NDArray[np.float64], float]:
         """Adaptive filter to iteratively calculate the posterior probability
         of a state variable using past information.
 
         Parameters
         ----------
-        initial_conditions : np.ndarray, shape (n_states, n_bins, 1)
-        continuous_state_transition : np.ndarray, shape (n_states, n_states, n_bins, n_bins)
-        discrete_state_transition : np.ndarray, shape (n_states, n_states)
-        likelihood : np.ndarray, shape (n_time, n_states, n_bins, 1)
+        initial_conditions : NDArray[np.float64], shape (n_states, n_bins, 1)
+        continuous_state_transition : NDArray[np.float64], shape (n_states, n_states, n_bins, n_bins)
+        discrete_state_transition : NDArray[np.float64], shape (n_states, n_states)
+        likelihood : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
 
         Returns
         -------
-        causal_posterior : np.ndarray, shape (n_time, n_states, n_bins, 1)
+        causal_posterior : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
         log_data_likelihood : float
 
         """
@@ -450,21 +458,21 @@ try:
 
     @cp.fuse()
     def _acausal_classify_gpu(
-        causal_posterior: np.ndarray,
-        continuous_state_transition: np.ndarray,
-        discrete_state_transition: np.ndarray,
-    ) -> np.ndarray:
+        causal_posterior: NDArray[np.float64],
+        continuous_state_transition: NDArray[np.float64],
+        discrete_state_transition: NDArray[np.float64],
+    ) -> NDArray[np.float64]:
         """Uses past and future information to estimate the state.
 
         Parameters
         ----------
-        causal_posterior : np.ndarray, shape (n_time, n_states, n_bins, 1)
-        continuous_state_transition : np.ndarray, shape (n_states, n_states, n_bins, n_bins)
-        discrete_state_transition : np.ndarray, shape (n_states, n_states)
+        causal_posterior : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
+        continuous_state_transition : NDArray[np.float64], shape (n_states, n_states, n_bins, n_bins)
+        discrete_state_transition : NDArray[np.float64], shape (n_states, n_states)
 
         Return
         ------
-        acausal_posterior : np.ndarray, shape (n_time, n_states, n_bins, 1)
+        acausal_posterior : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
 
         """
         causal_posterior = cp.asarray(causal_posterior, dtype=cp.float32)

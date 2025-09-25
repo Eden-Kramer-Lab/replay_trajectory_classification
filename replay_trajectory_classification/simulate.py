@@ -5,12 +5,13 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
+from numpy.typing import NDArray
 from scipy.stats import multivariate_normal
 
 from replay_trajectory_classification.core import atleast_2d
 
 
-def simulate_time(n_samples: int, sampling_frequency: float) -> np.ndarray:
+def simulate_time(n_samples: int, sampling_frequency: float) -> NDArray[np.float64]:
     """Simulate a time in seconds.
 
     Parameters
@@ -30,8 +31,8 @@ def simulate_time(n_samples: int, sampling_frequency: float) -> np.ndarray:
 
 
 def simulate_position(
-    time: np.ndarray, track_height: float, running_speed: float = 15
-) -> np.ndarray:
+    time: NDArray[np.float64], track_height: float, running_speed: float = 15
+) -> NDArray[np.float64]:
     """Simulate animal moving through linear space.
 
     Parameters
@@ -55,12 +56,12 @@ def simulate_position(
 
 
 def simulate_position_with_pauses(
-    time: np.ndarray,
+    time: NDArray[np.float64],
     track_height: float,
     running_speed: float = 15,
     pause: float = 0.5,
     sampling_frequency: float = 1,
-) -> np.ndarray:
+) -> NDArray[np.float64]:
     """Simulate an animal moving with pauses.
 
     Parameters
@@ -95,42 +96,42 @@ def simulate_position_with_pauses(
     return pause_position[: time.size]
 
 
-def simulate_poisson_spikes(rate: np.ndarray, sampling_frequency: int) -> np.ndarray:
+def simulate_poisson_spikes(rate: NDArray[np.float64], sampling_frequency: int) -> NDArray[np.float64]:
     """Given a rate, returns a time series of spikes.
 
     Parameters
     ----------
-    rate : np.ndarray, shape (n_time,)
+    rate : NDArray[np.float64], shape (n_time,)
     sampling_frequency : int
 
     Returns
     -------
-    spikes : np.ndarray, shape (n_time,)
+    spikes : NDArray[np.float64], shape (n_time,)
 
     """
     return 1.0 * (np.random.poisson(rate / sampling_frequency) > 0)
 
 
 def simulate_place_field_firing_rate(
-    means: np.ndarray,
-    position: np.ndarray,
+    means: NDArray[np.float64],
+    position: NDArray[np.float64],
     max_rate: float = 15.0,
     variance: float = 10.0,
-    is_condition: Optional[np.ndarray] = None,
-) -> np.ndarray:
+    is_condition: Optional[NDArray[np.float64]] = None,
+) -> NDArray[np.float64]:
     """Simulates the firing rate of a neuron with a place field at `means`.
 
     Parameters
     ----------
-    means : np.ndarray, shape (n_position_dims,)
-    position : np.ndarray, shape (n_time, n_position_dims)
+    means : NDArray[np.float64], shape (n_position_dims,)
+    position : NDArray[np.float64], shape (n_time, n_position_dims)
     max_rate : float, optional
     variance : float, optional
-    is_condition : None or np.ndarray, (n_time,)
+    is_condition : None or NDArray[np.float64], (n_time,)
 
     Returns
     -------
-    firing_rate : np.ndarray, shape (n_time,)
+    firing_rate : NDArray[np.float64], shape (n_time,)
 
     """
     if is_condition is None:
@@ -145,27 +146,27 @@ def simulate_place_field_firing_rate(
 
 
 def simulate_neuron_with_place_field(
-    means: np.ndarray,
-    position: np.ndarray,
+    means: NDArray[np.float64],
+    position: NDArray[np.float64],
     max_rate: float = 15.0,
     variance: float = 36.0,
     sampling_frequency: int = 500,
-    is_condition: Optional[np.ndarray] = None,
-) -> np.ndarray:
+    is_condition: Optional[NDArray[np.float64]] = None,
+) -> NDArray[np.float64]:
     """Simulates the spiking of a neuron with a place field at `means`.
 
     Parameters
     ----------
-    means : np.ndarray, shape (n_position_dims,)
-    position : np.ndarray, shape (n_time, n_position_dims)
+    means : NDArray[np.float64], shape (n_position_dims,)
+    position : NDArray[np.float64], shape (n_time, n_position_dims)
     max_rate : float, optional
     variance : float, optional
     sampling_frequency : float, optional
-    is_condition : None or np.ndarray, (n_time,)
+    is_condition : None or NDArray[np.float64], (n_time,)
 
     Returns
     -------
-    spikes : np.ndarray, shape (n_time,)
+    spikes : NDArray[np.float64], shape (n_time,)
 
     """
     firing_rate = simulate_place_field_firing_rate(
@@ -175,32 +176,32 @@ def simulate_neuron_with_place_field(
 
 
 def simulate_multiunit_with_place_fields(
-    place_means: np.ndarray,
-    position: np.ndarray,
+    place_means: NDArray[np.float64],
+    position: NDArray[np.float64],
     mark_spacing: int = 5,
     n_mark_dims: int = 4,
     place_variance: float = 36.0,
     mark_variance: float = 1.0,
     max_rate: float = 100.0,
     sampling_frequency: int = 1000,
-    is_condition: Optional[np.ndarray] = None,
-) -> np.ndarray:
+    is_condition: Optional[NDArray[np.float64]] = None,
+) -> NDArray[np.float64]:
     """Simulates a multiunit with neurons at `place_means`
 
     Parameters
     ----------
-    place_means : np.ndarray, shape (n_neurons, n_position_dims)
-    position : np.ndarray, shape (n_time, n_position_dims)
+    place_means : NDArray[np.float64], shape (n_neurons, n_position_dims)
+    position : NDArray[np.float64], shape (n_time, n_position_dims)
     mark_spacing : int, optional
     n_mark_dims : int, optional
     place_variance : float
     max_rate : float
     sampling_frequency : int
-    is_condition : np.ndarray or None
+    is_condition : NDArray[np.float64] or None
 
     Returns
     -------
-    multiunit : np.ndarray, shape (n_time, n_mark_dims)
+    multiunit : NDArray[np.float64], shape (n_time, n_mark_dims)
 
     """
     n_neurons = place_means.shape[0]
@@ -226,16 +227,16 @@ def simulate_multiunit_with_place_fields(
     return marks
 
 
-def get_trajectory_direction(position: np.ndarray) -> np.ndarray:
+def get_trajectory_direction(position: NDArray[np.float64]) -> NDArray[np.float64]:
     """Find if the trajectory is inbound or outbound.
 
     Parameters
     ----------
-    position : np.ndarray, shape (n_time,)
+    position : NDArray[np.float64], shape (n_time,)
 
     Returns
     -------
-    is_inbound : np.ndarray, shape (n_time,)
+    is_inbound : NDArray[np.float64], shape (n_time,)
 
     """
     is_inbound = np.insert(np.diff(position) < 0, 0, False)

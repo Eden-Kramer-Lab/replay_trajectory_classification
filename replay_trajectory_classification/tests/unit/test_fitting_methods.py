@@ -4,7 +4,6 @@ Comprehensive tests for classifier fitting methods, focusing on is_group formati
 and data selection in the likelihoods.
 """
 import numpy as np
-import pytest
 
 from replay_trajectory_classification.classifier import (
     ClusterlessClassifier,

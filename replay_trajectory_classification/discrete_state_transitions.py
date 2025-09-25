@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from numpy.typing import NDArray
 import xarray as xr
 
 
@@ -22,7 +23,7 @@ class DiagonalDiscrete:
 
     diagonal_value: float = 0.98
 
-    def make_state_transition(self, n_states: int) -> np.ndarray:
+    def make_state_transition(self, n_states: int) -> NDArray[np.float64]:
         """Makes discrete state transition matrix.
 
         Parameters
@@ -31,7 +32,7 @@ class DiagonalDiscrete:
 
         Returns
         -------
-        discrete_state_transition : np.ndarray, shape (n_states, n_states)
+        discrete_state_transition : NDArray[np.float64], shape (n_states, n_states)
 
         """
         if n_states <= 0:
@@ -55,7 +56,7 @@ class UniformDiscrete:
     probability.
     """
 
-    def make_state_transition(self, n_states: int) -> np.ndarray:
+    def make_state_transition(self, n_states: int) -> NDArray[np.float64]:
         """Makes discrete state transition matrix.
 
         Parameters
@@ -64,7 +65,7 @@ class UniformDiscrete:
 
         Returns
         -------
-        discrete_state_transition : np.ndarray, shape (n_states, n_states)
+        discrete_state_transition : NDArray[np.float64], shape (n_states, n_states)
 
         """
         self.state_transition_ = np.ones((n_states, n_states)) / n_states
@@ -76,7 +77,7 @@ class UniformDiscrete:
 class RandomDiscrete:
     """All state transitions are random"""
 
-    def make_state_transition(self, n_states: int) -> np.ndarray:
+    def make_state_transition(self, n_states: int) -> NDArray[np.float64]:
         """Makes discrete state transition matrix.
 
         Parameters
@@ -85,7 +86,7 @@ class RandomDiscrete:
 
         Returns
         -------
-        discrete_state_transition : np.ndarray, shape (n_states, n_states)
+        discrete_state_transition : NDArray[np.float64], shape (n_states, n_states)
 
         """
         if n_states <= 0:
@@ -109,12 +110,12 @@ class UserDefinedDiscrete:
 
     Attributes
     ----------
-    state_transition : np.ndarray, shape (n_states, n_states)
+    state_transition : NDArray[np.float64], shape (n_states, n_states)
     """
 
-    state_transition_: np.ndarray
+    state_transition_: NDArray[np.float64]
 
-    def make_state_transition(self, n_states: int) -> np.ndarray:
+    def make_state_transition(self, n_states: int) -> NDArray[np.float64]:
         """Makes discrete state transition matrix.
 
         Parameters
@@ -123,14 +124,14 @@ class UserDefinedDiscrete:
 
         Returns
         -------
-        discrete_state_transition : np.ndarray, shape (n_states, n_states)
+        discrete_state_transition : NDArray[np.float64], shape (n_states, n_states)
 
         """
         return self.state_transition_
 
 
 def expected_duration(
-    discrete_state_transition: np.ndarray, sampling_frequency: int = 1
+    discrete_state_transition: NDArray[np.float64], sampling_frequency: int = 1
 ):
     """The average duration of each discrete state if it follows
     a geometric distribution.
@@ -140,12 +141,12 @@ def expected_duration(
 
     Parameters
     ----------
-    discrete_state_transition : np.ndarray, shape (n_states, n_states)
+    discrete_state_transition : NDArray[np.float64], shape (n_states, n_states)
     sampling_frequency : int, optional
 
     Returns
     -------
-    duration : np.ndarray, shape (n_states)
+    duration : NDArray[np.float64], shape (n_states)
 
     """
     self_transitions = np.diag(discrete_state_transition)
@@ -155,7 +156,7 @@ def expected_duration(
 def estimate_discrete_state_transition(
     classifier,
     results: xr.Dataset,
-) -> np.ndarray:
+) -> NDArray[np.float64]:
     """Estimate a new discrete transition matrix given the old one and updated smoother results.
 
     Parameters
@@ -165,7 +166,7 @@ def estimate_discrete_state_transition(
 
     Returns
     -------
-    new_transition_matrix : np.ndarray, shape (n_states, n_states)
+    new_transition_matrix : NDArray[np.float64], shape (n_states, n_states)
 
     """
     likelihood = results.likelihood.sum("position").values

@@ -9,15 +9,17 @@ import pytest
 from replay_trajectory_classification.environments import Environment
 
 # Try importing likelihood modules with graceful fallbacks
+from typing import Any
+
 try:
     import replay_trajectory_classification.likelihoods.spiking_likelihood_glm as spiking_likelihood_glm
 except ImportError:
-    spiking_likelihood_glm = None
+    spiking_likelihood_glm: Any = None
 
 try:
     import replay_trajectory_classification.likelihoods.multiunit_likelihood as multiunit_likelihood
 except ImportError:
-    multiunit_likelihood = None
+    multiunit_likelihood: Any = None
 
 
 # ---------------------- Helpers ----------------------

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Optional, Union
 
 import numpy as np
+from numpy.typing import NDArray
 import pandas as pd
 import xarray as xr
 from scipy.special import xlogy
@@ -17,26 +18,26 @@ from replay_trajectory_classification.likelihoods.diffusion import (
 )
 
 
-def gaussian_pdf(x: np.ndarray, mean: np.ndarray, sigma: np.ndarray) -> np.ndarray:
+def gaussian_pdf(x: NDArray[np.float64], mean: NDArray[np.float64], sigma: NDArray[np.float64]) -> NDArray[np.float64]:
     """Compute the value of a Gaussian probability density function at x with
     given mean and sigma."""
     return np.exp(-0.5 * ((x - mean) / sigma) ** 2) / (sigma * np.sqrt(2.0 * np.pi))
 
 
 def estimate_position_distance(
-    place_bin_centers: np.ndarray, positions: np.ndarray, position_std: np.ndarray
-) -> np.ndarray:
+    place_bin_centers: NDArray[np.float64], positions: NDArray[np.float64], position_std: NDArray[np.float64]
+) -> NDArray[np.float64]:
     """Estimates the Euclidean distance between positions and position bins.
 
     Parameters
     ----------
-    place_bin_centers : np.ndarray, shape (n_position_bins, n_position_dims)
-    positions : np.ndarray, shape (n_time, n_position_dims)
+    place_bin_centers : NDArray[np.float64], shape (n_position_bins, n_position_dims)
+    positions : NDArray[np.float64], shape (n_time, n_position_dims)
     position_std : array_like, shape (n_position_dims,)
 
     Returns
     -------
-    position_distance : np.ndarray, shape (n_time, n_position_bins)
+    position_distance : NDArray[np.float64], shape (n_time, n_position_bins)
 
     """
     n_time, n_position_dims = positions.shape
@@ -58,24 +59,24 @@ def estimate_position_distance(
 
 
 def estimate_position_density(
-    place_bin_centers: np.ndarray,
-    positions: np.ndarray,
-    position_std: Union[float, np.ndarray],
+    place_bin_centers: NDArray[np.float64],
+    positions: NDArray[np.float64],
+    position_std: Union[float, NDArray[np.float64]],
     block_size: int = 100,
-) -> np.ndarray:
+) -> NDArray[np.float64]:
     """Estimates a kernel density estimate over position bins using
     Euclidean distances.
 
     Parameters
     ----------
-    place_bin_centers : np.ndarray, shape (n_position_bins, n_position_dims)
-    positions : np.ndarray, shape (n_time, n_position_dims)
+    place_bin_centers : NDArray[np.float64], shape (n_position_bins, n_position_dims)
+    positions : NDArray[np.float64], shape (n_time, n_position_dims)
     position_std : float or array_like, shape (n_position_dims,)
     block_size : int
 
     Returns
     -------
-    position_density : np.ndarray, shape (n_position_bins,)
+    position_density : NDArray[np.float64], shape (n_position_bins,)
 
     """
     n_time = positions.shape[0]
@@ -97,15 +98,15 @@ def estimate_position_density(
 
 
 def get_firing_rate(
-    is_spike: np.ndarray,
-    position: np.ndarray,
-    place_bin_centers: np.ndarray,
-    is_track_interior: np.ndarray,
-    not_nan_position: np.ndarray,
-    occupancy: np.ndarray,
-    position_std: np.ndarray,
+    is_spike: NDArray[np.bool_],
+    position: NDArray[np.float64],
+    place_bin_centers: NDArray[np.float64],
+    is_track_interior: NDArray[np.bool_],
+    not_nan_position: NDArray[np.bool_],
+    occupancy: NDArray[np.float64],
+    position_std: NDArray[np.float64],
     block_size: Optional[int] = None,
-) -> np.ndarray:
+) -> NDArray[np.float64]:
     if is_spike.sum() > 0:
         mean_rate = is_spike.mean()
         marginal_density = np.zeros((place_bin_centers.shape[0],), dtype=np.float32)
@@ -122,13 +123,13 @@ def get_firing_rate(
 
 
 def get_diffusion_firing_rate(
-    is_spike: np.ndarray,
-    position: np.ndarray,
-    edges: list[np.ndarray],
-    bin_diffusion_distances: np.ndarray,
-    occupancy: np.ndarray,
-    not_nan_position: np.ndarray,
-) -> np.ndarray:
+    is_spike: NDArray[np.bool_],
+    position: NDArray[np.float64],
+    edges: list[NDArray[np.float64]],
+    bin_diffusion_distances: NDArray[np.float64],
+    occupancy: NDArray[np.float64],
+    not_nan_position: NDArray[np.bool_],
+) -> NDArray[np.float64]:
     if is_spike.sum() > 0:
         mean_rate = is_spike.mean()
         marginal_density = estimate_diffusion_position_density(
@@ -143,14 +144,14 @@ def get_diffusion_firing_rate(
 
 
 def estimate_place_fields_kde(
-    position: np.ndarray,
-    spikes: np.ndarray,
-    place_bin_centers: np.ndarray,
-    position_std: np.ndarray,
-    is_track_boundary: Optional[np.ndarray] = None,
-    is_track_interior: Optional[np.ndarray] = None,
-    edges: Optional[list[np.ndarray]] = None,
-    place_bin_edges: Optional[np.ndarray] = None,
+    position: NDArray[np.float64],
+    spikes: NDArray[np.float64],
+    place_bin_centers: NDArray[np.float64],
+    position_std: NDArray[np.float64],
+    is_track_boundary: Optional[NDArray[np.bool_]] = None,
+    is_track_interior: Optional[NDArray[np.bool_]] = None,
+    edges: Optional[list[NDArray[np.float64]]] = None,
+    place_bin_edges: Optional[NDArray[np.float64]] = None,
     use_diffusion: bool = False,
     block_size: Optional[int] = None,
 ) -> xr.DataArray:
@@ -159,16 +160,16 @@ def estimate_place_fields_kde(
 
     Parameters
     ----------
-    position : np.ndarray, shape (n_time, n_position_dims)
-    spikes : np.ndarray, shape (n_time,)
+    position : NDArray[np.float64], shape (n_time, n_position_dims)
+    spikes : NDArray[np.float64], shape (n_time,)
         Indicator of spike or no spike at current time.
-    place_bin_centers : np.ndarray, shape (n_bins, n_position_dims)
+    place_bin_centers : NDArray[np.float64], shape (n_bins, n_position_dims)
     position_std : float or array_like, shape (n_position_dims,)
         Amount of smoothing for position.  Standard deviation of kernel.
-    is_track_boundary : None or np.ndarray, shape (n_bins,)
-    is_track_interior : None or np.ndarray, shape (n_bins,)
-    edges : None or list of np.ndarray
-    place_bin_edges : np.ndarray, shape (n_bins + 1, n_position_dims)
+    is_track_boundary : None or NDArray[np.bool_], shape (n_bins,)
+    is_track_interior : None or NDArray[np.bool_], shape (n_bins,)
+    edges : None or list of NDArray[np.float64]
+    place_bin_edges : NDArray[np.float64], shape (n_bins + 1, n_position_dims)
     use_diffusion : bool
         Respect track geometry by using diffusion distances
     block_size : int
@@ -176,7 +177,7 @@ def estimate_place_fields_kde(
 
     Returns
     -------
-    conditional_intensity : np.ndarray, shape (n_bins, n_neurons)
+    conditional_intensity : NDArray[np.float64], shape (n_bins, n_neurons)
 
     """
 
@@ -254,20 +255,20 @@ def estimate_place_fields_kde(
 
 
 def poisson_log_likelihood(
-    spikes: np.ndarray, conditional_intensity: np.ndarray
-) -> np.ndarray:
+    spikes: NDArray[np.float64], conditional_intensity: NDArray[np.float64]
+) -> NDArray[np.float64]:
     """Probability of parameters given spiking at a particular time.
 
     Parameters
     ----------
-    spikes : np.ndarray, shape (n_time,)
+    spikes : NDArray[np.float64], shape (n_time,)
         Indicator of spike or no spike at current time.
-    conditional_intensity : np.ndarray, shape (n_place_bins,)
+    conditional_intensity : NDArray[np.float64], shape (n_place_bins,)
         Instantaneous probability of observing a spike
 
     Returns
     -------
-    poisson_log_likelihood : array_like, shape (n_time, n_place_bins)
+    poisson_log_likelihood : NDArray[np.float64], shape (n_time, n_place_bins)
 
     """
     return (
@@ -277,14 +278,14 @@ def poisson_log_likelihood(
 
 
 def combined_likelihood(
-    spikes: np.ndarray, conditional_intensity: np.ndarray
-) -> np.ndarray:
+    spikes: NDArray[np.float64], conditional_intensity: NDArray[np.float64]
+) -> NDArray[np.float64]:
     """
 
     Parameters
     ----------
-    spikes : np.ndarray, shape (n_time, n_neurons)
-    conditional_intensity : np.ndarray, shape (n_bins, n_neurons)
+    spikes : NDArray[np.float64], shape (n_time, n_neurons)
+    conditional_intensity : NDArray[np.float64], shape (n_bins, n_neurons)
 
     """
     n_time = spikes.shape[0]
@@ -300,21 +301,21 @@ def combined_likelihood(
 
 
 def estimate_spiking_likelihood_kde(
-    spikes: np.ndarray,
-    conditional_intensity: np.ndarray,
-    is_track_interior: Optional[np.ndarray] = None,
-) -> np.ndarray:
+    spikes: NDArray[np.float64],
+    conditional_intensity: NDArray[np.float64],
+    is_track_interior: Optional[NDArray[np.bool_]] = None,
+) -> NDArray[np.float64]:
     """
 
     Parameters
     ----------
-    spikes : np.ndarray, shape (n_time, n_neurons)
-    conditional_intensity : np.ndarray, shape (n_bins, n_neurons)
-    is_track_interior : None or np.ndarray, optional, shape (n_x_position_bins,
-                                                             n_y_position_bins)
+    spikes : NDArray[np.float64], shape (n_time, n_neurons)
+    conditional_intensity : NDArray[np.float64], shape (n_bins, n_neurons)
+    is_track_interior : None or NDArray[np.bool_], optional, shape (n_x_position_bins,
+                                                                   n_y_position_bins)
     Returns
     -------
-    likelihood : np.ndarray, shape (n_time, n_bins)
+    likelihood : NDArray[np.float64], shape (n_time, n_bins)
 
     """
     spikes = np.asarray(spikes, dtype=np.float32)

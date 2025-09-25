@@ -8,6 +8,7 @@ from typing import Optional, Union
 
 import joblib
 import numpy as np
+from numpy.typing import NDArray
 import sklearn
 import xarray as xr
 from sklearn.base import BaseEstimator
@@ -59,7 +60,8 @@ class _DecoderBase(BaseEstimator):
     ----------
     environment : Environment, optional
         The spatial environment to fit
-    transition_type : EmpiricalMovement | RandomWalk | RandomWalkDirection1 | RandomWalkDirection2 | Uniform
+    transition_type : EmpiricalMovement | RandomWalk | RandomWalkDirection1 |
+        RandomWalkDirection2 | Uniform
         The continuous state transition matrix
     initial_conditions_type : UniformInitialConditions, optional
         The initial conditions class instance
@@ -86,19 +88,20 @@ class _DecoderBase(BaseEstimator):
         self.initial_conditions_type = initial_conditions_type
         self.infer_track_interior = infer_track_interior
 
-    def fit_environment(self, position: np.ndarray) -> None:
-        """Discretize the spatial environment into bins. Determine valid track positions.
+    def fit_environment(self, position: NDArray[np.float64]) -> None:
+        """Discretize the spatial environment into bins. Determine valid track
+        positions.
 
         Parameters
         ----------
-        position : np.ndarray, shape (n_time, n_position_dims)
+        position : NDArray[np.float64], shape (n_time, n_position_dims)
             Position of the animal in the environment.
         """
         self.environment.fit_place_grid(
             position, infer_track_interior=self.infer_track_interior
         )
 
-    def fit_initial_conditions(self):
+    def fit_initial_conditions(self) -> None:
         """Set the initial probability of position."""
         logger.info("Fitting initial conditions...")
         self.initial_conditions_ = self.initial_conditions_type.make_initial_conditions(
@@ -107,8 +110,8 @@ class _DecoderBase(BaseEstimator):
 
     def fit_state_transition(
         self,
-        position: np.ndarray,
-        is_training: Optional[np.ndarray] = None,
+        position: NDArray[np.float64],
+        is_training: Optional[NDArray[np.bool_]] = None,
         transition_type: Optional[
             Union[
                 EmpiricalMovement,
@@ -118,7 +121,7 @@ class _DecoderBase(BaseEstimator):
                 Uniform,
             ]
         ] = None,
-    ):
+    ) -> None:
         logger.info("Fitting state transition...")
 
         if transition_type is not None:
@@ -150,7 +153,7 @@ class _DecoderBase(BaseEstimator):
         """To be implemented by inheriting class"""
         raise NotImplementedError
 
-    def save_model(self, filename="model.pkl"):
+    def save_model(self, filename: str = "model.pkl") -> None:
         """Save the classifier to a pickled file.
 
         Parameters
@@ -161,7 +164,7 @@ class _DecoderBase(BaseEstimator):
         joblib.dump(self, filename)
 
     @staticmethod
-    def load_model(filename="model.pkl"):
+    def load_model(filename: str = "model.pkl") -> "_DecoderBase":
         """Load the classifier from a file.
 
         Parameters
@@ -175,13 +178,13 @@ class _DecoderBase(BaseEstimator):
         """
         return joblib.load(filename)
 
-    def copy(self):
+    def copy(self) -> "_DecoderBase":
         """Makes a copy of the classifier"""
         return deepcopy(self)
 
     def project_1D_position_to_2D(
-        self, results: xr.Dataset, posterior_type="acausal_posterior"
-    ) -> np.ndarray:
+        self, results: xr.Dataset, posterior_type: str = "acausal_posterior"
+    ) -> NDArray[np.float64]:
         """Project the 1D most probable position into the 2D track graph space.
 
         Only works for single environment.
@@ -189,11 +192,14 @@ class _DecoderBase(BaseEstimator):
         Parameters
         ----------
         results : xr.Dataset
-        posterior_type : causal_posterior | acausal_posterior | likelihood
+        posterior_type : str, optional
+            Type of posterior: "causal_posterior" | "acausal_posterior" |
+            "likelihood"
 
         Returns
         -------
-        map_position2D : np.ndarray
+        map_position2D : NDArray[np.float64], shape (n_time, 2)
+            2D positions projected from 1D track coordinates
 
         """
         map_position_ind = (
@@ -208,23 +214,29 @@ class _DecoderBase(BaseEstimator):
         self,
         results: dict,
         n_time: int,
-        time: Optional[np.ndarray] = None,
+        time: Optional[NDArray[np.float64]] = None,
         is_compute_acausal: bool = True,
         use_gpu: bool = False,
-    ):
+    ) -> xr.Dataset:
         """Converts the results dict into a collection of labeled arrays.
 
         Parameters
         ----------
         results : dict
+            Dictionary containing likelihood and posterior arrays
         n_time : int
-        time : np.ndarray
+            Number of time points
+        time : NDArray[np.float64], optional
+            Time coordinates for the results
         is_compute_acausal : bool
+            Whether to compute acausal posterior
         use_gpu : bool
+            Whether to use GPU acceleration
 
         Returns
         -------
         results : xr.Dataset
+            Labeled dataset containing posteriors and likelihoods
 
         """
         is_track_interior = self.environment.is_track_interior_.ravel(order="F")
@@ -286,19 +298,23 @@ class _DecoderBase(BaseEstimator):
         return self.convert_results_to_xarray(results, time, data_log_likelihood)
 
     def convert_results_to_xarray(
-        self, results: dict, time: np.ndarray, data_log_likelihood: float
+        self, results: dict, time: NDArray[np.float64], data_log_likelihood: float
     ) -> xr.Dataset:
         """Converts the results dict into a collection of labeled arrays.
 
         Parameters
         ----------
         results : dict
-        time : np.ndarray
+            Dictionary containing likelihood and posterior arrays
+        time : NDArray[np.float64], shape (n_time,)
+            Time coordinates for the results
         data_log_likelihood : float
+            Log likelihood of the data
 
         Returns
         -------
         results : xr.Dataset
+            Labeled dataset containing posteriors and likelihoods
 
         """
         n_position_dims = self.environment.place_bin_centers_.shape[1]
@@ -392,20 +408,22 @@ class SortedSpikesDecoder(_DecoderBase):
 
     def fit_place_fields(
         self,
-        position: np.ndarray,
-        spikes: np.ndarray,
-        is_training: Optional[np.ndarray] = None,
-    ):
+        position: NDArray[np.float64],
+        spikes: NDArray[np.int64],
+        is_training: Optional[NDArray[np.bool_]] = None,
+    ) -> None:
         """Fits the place intensity function.
 
         Parameters
         ----------
-        position : np.ndarray, shape (n_time, n_position_dims)
+        position : NDArray[np.float64], shape (n_time, n_position_dims)
             Position of the animal.
-        spikes : np.ndarray, (n_time, n_neurons)
-            Binary indicator of whether there was a spike in a given time bin for a given neuron.
-        is_training : np.ndarray, shape (n_time,), optional
-            Boolean array to indicate which data should be included in fitting of place fields, by default None
+        spikes : NDArray[np.int64], shape (n_time, n_neurons)
+            Binary indicator of whether there was a spike in a given time bin
+            for a given neuron.
+        is_training : NDArray[np.bool_], shape (n_time,), optional
+            Boolean array to indicate which data should be included in fitting
+            of place fields, by default None
 
         """
         logger.info("Fitting place fields...")
@@ -459,25 +477,28 @@ class SortedSpikesDecoder(_DecoderBase):
 
     def fit(
         self,
-        position: np.ndarray,
-        spikes: np.ndarray,
-        is_training: Optional[np.ndarray] = None,
-    ):
+        position: NDArray[np.float64],
+        spikes: NDArray[np.int64],
+        is_training: Optional[NDArray[np.bool_]] = None,
+    ) -> "SortedSpikesDecoder":
         """Fit the spatial grid, initial conditions, place field model, and
         transition matrix.
 
         Parameters
         ----------
-        position : np.ndarray, shape (n_time, n_position_dims)
+        position : NDArray[np.float64], shape (n_time, n_position_dims)
             Position of the animal.
-        spikes : np.ndarray, shape (n_time, n_neurons)
-            Binary indicator of whether there was a spike in a given time bin for a given neuron.
-        is_training : None or np.ndarray, shape (n_time), optional
-            Boolean array to indicate which data should be included in fitting of place fields, by default None
+        spikes : NDArray[np.int64], shape (n_time, n_neurons)
+            Binary indicator of whether there was a spike in a given time bin
+            for a given neuron.
+        is_training : NDArray[np.bool_], shape (n_time), optional
+            Boolean array to indicate which data should be included in fitting
+            of place fields, by default None
 
         Returns
         -------
-        self
+        self : SortedSpikesDecoder
+            Fitted decoder instance
 
         """
         position = atleast_2d(np.asarray(position))
@@ -493,8 +514,8 @@ class SortedSpikesDecoder(_DecoderBase):
 
     def predict(
         self,
-        spikes: np.ndarray,
-        time: Optional[np.ndarray] = None,
+        spikes: NDArray[np.int64],
+        time: Optional[NDArray[np.float64]] = None,
         is_compute_acausal: bool = True,
         use_gpu: bool = False,
     ) -> xr.Dataset:
@@ -502,9 +523,10 @@ class SortedSpikesDecoder(_DecoderBase):
 
         Parameters
         ----------
-        spikes : np.ndarray, shape (n_time, n_neurons)
-            Binary indicator of whether there was a spike in a given time bin for a given neuron.
-        time : np.ndarray or None, shape (n_time,), optional
+        spikes : NDArray[np.int64], shape (n_time, n_neurons)
+            Binary indicator of whether there was a spike in a given time bin
+            for a given neuron.
+        time : NDArray[np.float64], shape (n_time,), optional
             Label the time axis with these values.
         is_compute_acausal : bool, optional
             If True, compute the acausal posterior.
@@ -514,6 +536,8 @@ class SortedSpikesDecoder(_DecoderBase):
         Returns
         -------
         results : xarray.Dataset
+            Dataset containing likelihood, causal_posterior, and optionally
+            acausal_posterior
 
         """
         spikes = np.asarray(spikes)
@@ -530,13 +554,15 @@ class SortedSpikesDecoder(_DecoderBase):
 
 
 class ClusterlessDecoder(_DecoderBase):
-    """Classifies neural population representation of position from multiunit spikes and waveforms.
+    """Classifies neural population representation of position from multiunit
+    spikes and waveforms.
 
     Parameters
     ----------
     environment : Environment, optional
         The spatial environment to fit
-    transition_type : EmpiricalMovement | RandomWalk | RandomWalkDirection1 | RandomWalkDirection2 | Uniform
+    transition_type : EmpiricalMovement | RandomWalk | RandomWalkDirection1 |
+        RandomWalkDirection2 | Uniform
         The continuous state transition matrix
     initial_conditions_type : UniformInitialConditions, optional
         The initial conditions class instance
@@ -572,17 +598,20 @@ class ClusterlessDecoder(_DecoderBase):
 
     def fit_multiunits(
         self,
-        position: np.ndarray,
-        multiunits: np.ndarray,
-        is_training: Optional[np.ndarray] = None,
-    ):
-        """
+        position: NDArray[np.float64],
+        multiunits: NDArray[np.float64],
+        is_training: Optional[NDArray[np.bool_]] = None,
+    ) -> None:
+        """Fit the multiunit encoding model.
 
         Parameters
         ----------
-        position : np.ndarray, shape (n_time, n_position_dims)
-        multiunits : np.ndarray, shape (n_time, n_marks, n_electrodes)
-        is_training : None or array_like, shape (n_time,)
+        position : NDArray[np.float64], shape (n_time, n_position_dims)
+            Position of the animal in the environment
+        multiunits : NDArray[np.float64], shape (n_time, n_marks, n_electrodes)
+            Multiunit spike waveform features
+        is_training : NDArray[np.bool_], shape (n_time,), optional
+            Boolean array indicating which time points to use for training
 
         """
         logger.info("Fitting multiunits...")
@@ -604,26 +633,29 @@ class ClusterlessDecoder(_DecoderBase):
 
     def fit(
         self,
-        position: np.ndarray,
-        multiunits: np.ndarray,
-        is_training: Optional[np.ndarray] = None,
-    ):
+        position: NDArray[np.float64],
+        multiunits: NDArray[np.float64],
+        is_training: Optional[NDArray[np.bool_]] = None,
+    ) -> "ClusterlessDecoder":
         """Fit the spatial grid, initial conditions, place field model, and
         transition matrices.
 
         Parameters
         ----------
-        position : np.ndarray, shape (n_time, n_position_dims)
+        position : NDArray[np.float64], shape (n_time, n_position_dims)
             Position of the animal.
-        multiunits : np.ndarray, shape (n_time, n_marks, n_electrodes)
-            Array where spikes are indicated by non-Nan values that correspond to the waveform features
+        multiunits : NDArray[np.float64], shape (n_time, n_marks, n_electrodes)
+            Array where spikes are indicated by non-Nan values that correspond
+            to the waveform features
             for each electrode.
-        is_training : None or np.ndarray, shape (n_time), optional
-            Boolean array to indicate which data should be included in fitting of place fields, by default None
+        is_training : NDArray[np.bool_], shape (n_time), optional
+            Boolean array to indicate which data should be included in fitting
+            of place fields, by default None
 
         Returns
         -------
-        self
+        self : ClusterlessDecoder
+            Fitted decoder instance
 
         """
         position = atleast_2d(np.asarray(position))
@@ -640,19 +672,21 @@ class ClusterlessDecoder(_DecoderBase):
 
     def predict(
         self,
-        multiunits: np.ndarray,
-        time: Optional[np.ndarray] = None,
+        multiunits: NDArray[np.float64],
+        time: Optional[NDArray[np.float64]] = None,
         is_compute_acausal: bool = True,
         use_gpu: bool = False,
     ) -> xr.Dataset:
-        """Predict the probability of spatial position and category from the multiunit spikes and waveforms.
+        """Predict the probability of spatial position and category from the
+        multiunit spikes and waveforms.
 
         Parameters
         ----------
-        multiunits : np.ndarray, shape (n_time, n_marks, n_electrodes)
-            Array where spikes are indicated by non-Nan values that correspond to the waveform features
+        multiunits : NDArray[np.float64], shape (n_time, n_marks, n_electrodes)
+            Array where spikes are indicated by non-Nan values that correspond
+            to the waveform features
             for each electrode.
-        time : np.ndarray or None, shape (n_time,), optional
+        time : NDArray[np.float64], shape (n_time,), optional
             Label the time axis with these values.
         is_compute_acausal : bool, optional
             If True, compute the acausal posterior.
@@ -662,6 +696,8 @@ class ClusterlessDecoder(_DecoderBase):
         Returns
         -------
         results : xarray.Dataset
+            Dataset containing likelihood, causal_posterior, and optionally
+            acausal_posterior
 
         """
         multiunits = np.asarray(multiunits)

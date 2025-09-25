@@ -4,7 +4,6 @@ Focused tests for is_group formation logic in classifier fitting methods.
 This tests the core data selection logic without requiring full classifier fitting.
 """
 import numpy as np
-import pytest
 
 from replay_trajectory_classification.observation_model import ObservationModel
 

@@ -61,7 +61,7 @@ try:
 
         Returns
         -------
-        log_position_distance : np.ndarray, shape (n_time, n_position_bins)
+        log_position_distance : NDArray[np.float64], shape (n_time, n_position_bins)
 
         """
         n_time, n_position_dims = positions.shape
@@ -195,7 +195,7 @@ try:
 
         Returns
         -------
-        log_joint_mark_intensity : np.ndarray, shape (n_decoding_spikes, n_position_bins)
+        log_joint_mark_intensity : NDArray[np.float64], shape (n_decoding_spikes, n_position_bins)
 
         """
         n_encoding_spikes, n_marks = encoding_marks.shape
@@ -248,9 +248,9 @@ try:
 
         Parameters
         ----------
-        position : np.ndarray, shape (n_time, n_position_dims)
-        multiunits : np.ndarray, shape (n_time, n_marks, n_electrodes)
-        place_bin_centers : np.ndarray, shape (n_bins, n_position_dims)
+        position : NDArray[np.float64], shape (n_time, n_position_dims)
+        multiunits : NDArray[np.float64], shape (n_time, n_marks, n_electrodes)
+        place_bin_centers : NDArray[np.float64], shape (n_bins, n_position_dims)
         mark_std : float
             Amount of smoothing for the mark features.  Standard deviation of kernel.
         position_std : float or array_like, shape (n_position_dims,)
@@ -408,7 +408,7 @@ try:
 
         Parameters
         ----------
-        multiunits : np.ndarray, shape (n_decoding_time, n_marks, n_electrodes)
+        multiunits : NDArray[np.float64], shape (n_decoding_time, n_marks, n_electrodes)
         encoding_marks : cp.ndarray, shape (n_encoding_spikes, n_marks, n_electrodes)
         mark_std : float
             Amount of smoothing for mark features
@@ -418,8 +418,8 @@ try:
             Amount of smoothing for position
         log_occupancy : cp.ndarray, (n_bins,)
         log_mean_rates : list, len (n_electrodes,)
-        summed_ground_process_intensity : np.ndarray, shape (n_bins,)
-        bin_diffusion_distances : np.ndarray, shape (n_bins, n_bins)
+        summed_ground_process_intensity : NDArray[np.float64], shape (n_bins,)
+        bin_diffusion_distances : NDArray[np.float64], shape (n_bins, n_bins)
         edges : list of np.ndarray
         max_mark_diff : int
             Maximum difference between mark features

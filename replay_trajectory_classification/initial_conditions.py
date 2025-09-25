@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from numpy.typing import NDArray
 
 from replay_trajectory_classification.environments import Environment
 
@@ -16,7 +17,7 @@ class UniformInitialConditions:
 
     def make_initial_conditions(
         self, environments: tuple[Environment], environment_names_to_state: tuple[str]
-    ) -> list[np.ndarray]:
+    ) -> list[NDArray[np.float64]]:
         """Creates initial conditions array
 
         Parameters
@@ -52,7 +53,7 @@ class UniformOneEnvironmentInitialConditions:
 
     def make_initial_conditions(
         self, environments: tuple[Environment], environment_names_to_state: tuple[str]
-    ) -> list[np.ndarray]:
+    ) -> list[NDArray[np.float64]]:
         """Creates initial conditions array
 
         Parameters

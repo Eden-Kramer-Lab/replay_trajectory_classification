@@ -1,7 +1,6 @@
 # replay_trajectory_classification/tests/unit/test_observation_model.py
 import inspect
 
-import numpy as np
 import pytest
 
 from replay_trajectory_classification import observation_model as om_mod
