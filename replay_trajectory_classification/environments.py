@@ -67,18 +67,22 @@ class Environment:
 
     environment_name: str = ""
     place_bin_size: float = 2.0
-    track_graph: nx.Graph = None
-    edge_order: tuple = None
-    edge_spacing: tuple = None
+    track_graph: Optional[nx.Graph] = None
+    edge_order: Optional[tuple] = None
+    edge_spacing: Optional[tuple] = None
     is_track_interior: Optional[NDArray[np.bool_]] = None
-    position_range: Optional[NDArray[np.float64]] = None
+    position_range: Optional[list[NDArray[np.float64]]] = None
     infer_track_interior: bool = True
     fill_holes: bool = False
     dilate: bool = False
     bin_count_threshold: int = 0
 
-    def __eq__(self, other: str) -> bool:
-        return self.environment_name == other
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, (Environment, str)):
+            return NotImplemented
+        if isinstance(other, str):
+            return self.environment_name == other
+        return self.environment_name == other.environment_name
 
     def fit_place_grid(
         self, position: Optional[NDArray[np.float64]] = None, infer_track_interior: bool = True
@@ -152,7 +156,7 @@ class Environment:
 
         return self
 
-    def plot_grid(self, ax: matplotlib.axes.Axes = None):
+    def plot_grid(self, ax: Optional[matplotlib.axes.Axes] = None):
         """Plot the fitted spatial grid of the environment.
 
         Parameters
@@ -288,7 +292,7 @@ def get_grid(
 
 def get_track_interior(
     position: NDArray[np.float64],
-    bins: int,
+    bins: int | NDArray[np.float64],
     fill_holes: bool = False,
     dilate: bool = False,
     bin_count_threshold: int = 0,
