@@ -49,6 +49,7 @@ test = ["pytest>=2.7.1"]
 dev = [
     "pytest>=2.7.1",
     "ruff",
+    "mypy",
     "jupyter",
     "jupyterlab",
 ]
