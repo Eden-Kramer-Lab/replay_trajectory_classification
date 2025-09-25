@@ -117,7 +117,7 @@ def simulate_place_field_firing_rate(
     position: NDArray[np.float64],
     max_rate: float = 15.0,
     variance: float = 10.0,
-    is_condition: Optional[NDArray[np.float64]] = None,
+    is_condition: Optional[NDArray[np.bool_]] = None,
 ) -> NDArray[np.float64]:
     """Simulates the firing rate of a neuron with a place field at `means`.
 
@@ -151,7 +151,7 @@ def simulate_neuron_with_place_field(
     max_rate: float = 15.0,
     variance: float = 36.0,
     sampling_frequency: int = 500,
-    is_condition: Optional[NDArray[np.float64]] = None,
+    is_condition: Optional[NDArray[np.bool_]] = None,
 ) -> NDArray[np.float64]:
     """Simulates the spiking of a neuron with a place field at `means`.
 
@@ -184,7 +184,7 @@ def simulate_multiunit_with_place_fields(
     mark_variance: float = 1.0,
     max_rate: float = 100.0,
     sampling_frequency: int = 1000,
-    is_condition: Optional[NDArray[np.float64]] = None,
+    is_condition: Optional[NDArray[np.bool_]] = None,
 ) -> NDArray[np.float64]:
     """Simulates a multiunit with neurons at `place_means`
 

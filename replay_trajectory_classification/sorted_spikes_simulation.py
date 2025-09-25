@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -18,9 +19,9 @@ SAMPLING_FREQUENCY = 1000
 TRACK_HEIGHT = 180
 RUNNING_SPEED = 15
 PLACE_FIELD_VARIANCE = 6.0**2
-PLACE_FIELD_MEANS = np.arange(0, TRACK_HEIGHT + 10, 10)
+PLACE_FIELD_MEANS = np.arange(0, TRACK_HEIGHT + 10, 10, dtype=np.float64)
 N_RUNS = 15
-REPLAY_SPEEDUP = 120.0
+REPLAY_SPEEDUP = 120
 
 # Figure Parameters
 MM_TO_INCHES = 1.0 / 25.4
@@ -194,7 +195,7 @@ def make_continuous_replay(
 
 
 def make_hover_replay(
-    hover_neuron_ind: int = None,
+    hover_neuron_ind: Optional[int] = None,
     place_field_means: NDArray[np.float64] = PLACE_FIELD_MEANS,
     sampling_frequency: int = SAMPLING_FREQUENCY,
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:

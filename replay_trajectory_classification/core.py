@@ -316,7 +316,7 @@ def check_converged(
     is_increasing = log_likelihood - previous_log_likelihood >= -1e-3
     is_converged = (delta_log_likelihood / avg_log_likelihood) < tolerance
 
-    return is_converged, is_increasing
+    return bool(is_converged), bool(is_increasing)
 
 
 try:
