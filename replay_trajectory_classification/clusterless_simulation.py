@@ -77,7 +77,7 @@ def make_simulated_run_data(
                 simulate_multiunit_with_place_fields(
                     place_means,
                     position,
-                    mark_spacing=10,
+                    mark_spacing=MARK_SPACING,
                     n_mark_dims=4,
                     sampling_frequency=sampling_frequency,
                 )
