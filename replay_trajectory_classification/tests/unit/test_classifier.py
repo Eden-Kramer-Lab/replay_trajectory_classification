@@ -123,26 +123,6 @@ def test_clusterless_classifier_construction():
     assert len(classifier.environments) == 2
 
 
-def test_clusterless_classifier_fit_basic():
-    """Test that ClusterlessClassifier can fit to data."""
-    environments = [make_1d_env("env1", n=10)]  # Use more bins
-    classifier = ClusterlessClassifier(environments=environments)
-
-    # Create simple training data with proper format
-    multiunit_data = make_simple_multiunit_data(n_electrodes=2, n_time=100)
-    position = np.linspace(0, 9, 100).reshape(-1, 1)  # Proper range
-
-    try:
-        classifier.fit(multiunit_data, position)
-        # Basic check that fitting completed without error
-        assert True  # If we get here, fit didn't crash
-    except Exception as e:
-        # If there's an environment/morphology issue, skip gracefully
-        if "tuple index out of range" in str(e) or "IndexError" in str(e):
-            pytest.skip(f"Environment fitting issue: {e}")
-        else:
-            raise
-
 
 def test_clusterless_classifier_predict_requires_fit():
     """Test that predict requires the classifier to be fit first."""

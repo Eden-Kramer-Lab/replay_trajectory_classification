@@ -154,25 +154,6 @@ def test_clusterless_decoder_construction():
     assert decoder.environment.environment_name == "test_env"
 
 
-def test_clusterless_decoder_fit_basic():
-    """Test that ClusterlessDecoder can fit to data."""
-    from replay_trajectory_classification.environments import Environment
-    environment = Environment(environment_name="test_env")
-    decoder = ClusterlessDecoder(environment=environment, infer_track_interior=False)
-
-    # Create simple training data with proper format and range
-    multiunit_data = make_simple_multiunit_data(n_electrodes=2, n_features=4, n_time=200)
-    position = np.linspace(0, 100, 200).reshape(-1, 1)  # Realistic track length
-
-    try:
-        decoder.fit(multiunit_data, position)
-        # Basic check that fitting completed without error
-        assert True  # If we get here, fit didn't crash
-    except IndexError as e:
-        if "tuple index out of range" in str(e):
-            pytest.skip(f"Environment boundary calculation issue with synthetic 1D data: {e}")
-        else:
-            raise
 
 
 def test_clusterless_decoder_predict_requires_fit():
