@@ -13,7 +13,7 @@ class ObservationModel:
     Attributes
     ----------
     environment_name : str, optional
-    encoding_group : str, optional
+    encoding_group : Hashable, optional
 
     """
 
