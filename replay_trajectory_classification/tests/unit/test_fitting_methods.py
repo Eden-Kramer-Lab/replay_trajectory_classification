@@ -183,15 +183,16 @@ def test_fit_continuous_state_transition_defaults():
     """Test fit_continuous_state_transition with default parameters."""
     env = make_1d_env("env1", n=10)
     classifier = SortedSpikesClassifier(environments=[env])
-    classifier.fit_environments(np.random.randn(100, 1))
+    classifier.fit_environments(np.linspace(0, 9, 100).reshape(-1, 1))
 
     data = make_synthetic_data(n_time=100, n_environments=1)
 
     # Import transition types that don't require environment names
     from replay_trajectory_classification.continuous_state_transitions import RandomWalk, Uniform
 
-    # Use transitions that work with any environment
-    simple_transitions = [[RandomWalk(), Uniform()], [Uniform(), Uniform()]]
+    # Use transitions that match the environment
+    simple_transitions = [[RandomWalk(environment_name='env1'), Uniform(environment_name='env1')],
+                         [Uniform(environment_name='env1'), Uniform(environment_name='env1')]]
 
     classifier.fit_continuous_state_transition(
         continuous_transition_types=simple_transitions,
@@ -208,12 +209,13 @@ def test_fit_continuous_state_transition_with_groups():
     """Test fit_continuous_state_transition with encoding groups."""
     env = make_1d_env("env1", n=10)
     classifier = SortedSpikesClassifier(environments=[env])
-    classifier.fit_environments(np.random.randn(100, 1))
+    classifier.fit_environments(np.linspace(0, 9, 100).reshape(-1, 1))
 
     data = make_synthetic_data(n_time=100, n_groups=2)
 
     from replay_trajectory_classification.continuous_state_transitions import RandomWalk, Uniform
-    simple_transitions = [[RandomWalk(), Uniform()], [Uniform(), Uniform()]]
+    simple_transitions = [[RandomWalk(environment_name='env1'), Uniform(environment_name='env1')],
+                         [Uniform(environment_name='env1'), Uniform(environment_name='env1')]]
 
     classifier.fit_continuous_state_transition(
         continuous_transition_types=simple_transitions,
@@ -232,7 +234,7 @@ def test_fit_continuous_state_transition_training_mask():
     """Test that fit_continuous_state_transition respects is_training mask."""
     env = make_1d_env("env1", n=10)
     classifier = SortedSpikesClassifier(environments=[env])
-    classifier.fit_environments(np.random.randn(100, 1))
+    classifier.fit_environments(np.linspace(0, 9, 100).reshape(-1, 1))
 
     data = make_synthetic_data(n_time=100)
 
@@ -241,7 +243,8 @@ def test_fit_continuous_state_transition_training_mask():
     is_training[20:40] = False  # Exclude middle section
 
     from replay_trajectory_classification.continuous_state_transitions import RandomWalk, Uniform
-    simple_transitions = [[RandomWalk(), Uniform()], [Uniform(), Uniform()]]
+    simple_transitions = [[RandomWalk(environment_name='env1'), Uniform(environment_name='env1')],
+                         [Uniform(environment_name='env1'), Uniform(environment_name='env1')]]
 
     classifier.fit_continuous_state_transition(
         continuous_transition_types=simple_transitions,
@@ -304,7 +307,7 @@ def test_fit_place_fields_is_group_formation():
     except Exception as e:
         # The exact fitting may fail with synthetic data, but the important thing
         # is that the is_group logic executes without errors
-        pytest.skip(f"Place field fitting failed with synthetic data: {e}")
+        raise RuntimeError(f"Place field fitting failed with synthetic data: {e}")
 
 
 def test_fit_place_fields_data_selection():
@@ -319,7 +322,7 @@ def test_fit_place_fields_data_selection():
 
     # Create data where only subset should be used for training
     n_time = 100
-    position = np.random.randn(n_time, 1) * 5
+    position = np.linspace(0, 9, n_time).reshape(-1, 1)
     spikes = np.random.poisson(2, size=(n_time, 5))
 
     # Training mask - exclude some data
@@ -357,7 +360,7 @@ def test_fit_place_fields_data_selection():
         assert ("env_0", 0) in classifier.place_fields_
 
     except Exception as e:
-        pytest.skip(f"Place field fitting failed with synthetic data: {e}")
+        raise RuntimeError(f"Place field fitting failed with synthetic data: {e}")
 
 
 # ---------------------- fit_multiunits Tests ----------------------
@@ -407,7 +410,7 @@ def test_fit_multiunits_is_group_formation():
                 assert classifier.encoding_model_[combo] is not None
 
     except Exception as e:
-        pytest.skip(f"Multiunit fitting failed with synthetic data: {e}")
+        raise RuntimeError(f"Multiunit fitting failed with synthetic data: {e}")
 
 
 def test_fit_multiunits_data_filtering():
@@ -421,7 +424,7 @@ def test_fit_multiunits_data_filtering():
     )
 
     n_time = 80
-    position = np.random.randn(n_time, 1) * 3
+    position = np.linspace(0, 7, n_time).reshape(-1, 1)
     multiunit_data = make_multiunit_data(n_time=n_time, n_electrodes=2)
 
     # Create masks that will filter the data
@@ -453,7 +456,7 @@ def test_fit_multiunits_data_filtering():
             assert classifier.encoding_model_[("env_0", 1)] is not None
 
     except Exception as e:
-        pytest.skip(f"Multiunit fitting failed with synthetic data: {e}")
+        raise RuntimeError(f"Multiunit fitting failed with synthetic data: {e}")
 
 
 # ---------------------- Integration Tests ----------------------
@@ -487,7 +490,7 @@ def test_full_fit_pipeline_sorted_spikes():
         assert hasattr(classifier, 'place_fields_')
 
     except Exception as e:
-        pytest.skip(f"Full pipeline failed with synthetic data: {e}")
+        raise RuntimeError(f"Full pipeline failed with synthetic data: {e}")
 
 
 def test_full_fit_pipeline_clusterless():
@@ -518,7 +521,7 @@ def test_full_fit_pipeline_clusterless():
         assert hasattr(classifier, 'encoding_model_')
 
     except Exception as e:
-        pytest.skip(f"Full pipeline failed with synthetic data: {e}")
+        raise RuntimeError(f"Full pipeline failed with synthetic data: {e}")
 
 
 # ---------------------- Edge Cases ----------------------

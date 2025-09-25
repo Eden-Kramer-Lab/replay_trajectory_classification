@@ -9,9 +9,6 @@ import pytest
 from replay_trajectory_classification.environments import Environment
 
 # Try importing likelihood modules with graceful fallbacks
-spiking_likelihood_glm = None
-multiunit_likelihood = None
-
 try:
     import replay_trajectory_classification.likelihoods.spiking_likelihood_glm as spiking_likelihood_glm
 except ImportError:
@@ -37,7 +34,7 @@ def make_1d_env_fitted(name="TestEnv", n=11, bin_size=1.0):
 
 def create_filtered_position_data(n_time=100, filter_fraction=0.3):
     """Create position data where some fraction is filtered out by is_group logic."""
-    position = np.linspace(0, 10, n_time).reshape(-1, 1)
+    position = np.linspace(0, 9, n_time).reshape(-1, 1)
 
     # Create a mask that simulates is_group filtering
     is_group = np.ones(n_time, dtype=bool)
@@ -109,12 +106,12 @@ def test_spiking_likelihood_glm_handles_filtered_data():
 
     try:
         # This simulates what happens inside fit_place_fields when calling the GLM fitting
-        place_fields = spiking_likelihood_glm.fit_spiking_likelihood_glm(
+        place_fields = spiking_likelihood_glm.estimate_place_fields(
             position=filtered_position,
             spikes=filtered_spikes,
             place_bin_centers=env.place_bin_centers_,
             place_bin_edges=env.place_bin_edges_,
-            edges=env.edges_,
+            edges=getattr(env, 'edges_', None),
             is_track_interior=env.is_track_interior_,
             is_track_boundary=getattr(env, 'is_track_boundary_', None)
         )
@@ -124,7 +121,7 @@ def test_spiking_likelihood_glm_handles_filtered_data():
         assert len(filtered_position) < len(position)  # Verify filtering occurred
 
     except Exception as e:
-        pytest.skip(f"GLM likelihood test skipped due to: {e}")
+        raise RuntimeError(f"GLM likelihood test skipped due to: {e}")
 
 
 @pytest.mark.skipif(
@@ -134,7 +131,7 @@ def test_spiking_likelihood_glm_handles_filtered_data():
 def test_spiking_likelihood_glm_empty_filtered_data():
     """Test GLM likelihood behavior with empty filtered data."""
     env = make_1d_env_fitted(n=8)
-    position = np.random.randn(50, 1)
+    position = np.linspace(0, 5, 50).reshape(-1, 1)
     spikes = np.random.poisson(1.0, size=(50, 4))
 
     # Create empty filter (all data filtered out)
@@ -144,12 +141,12 @@ def test_spiking_likelihood_glm_empty_filtered_data():
 
     try:
         # This should handle empty data gracefully
-        place_fields = spiking_likelihood_glm.fit_spiking_likelihood_glm(
+        place_fields = spiking_likelihood_glm.estimate_place_fields(
             position=filtered_position,
             spikes=filtered_spikes,
             place_bin_centers=env.place_bin_centers_,
             place_bin_edges=env.place_bin_edges_,
-            edges=env.edges_,
+            edges=getattr(env, 'edges_', None),
             is_track_interior=env.is_track_interior_,
             is_track_boundary=getattr(env, 'is_track_boundary_', None)
         )
@@ -184,12 +181,12 @@ def test_spiking_likelihood_glm_data_shape_consistency():
     assert filtered_position.shape[0] < n_time_original  # Some data was filtered
 
     try:
-        place_fields = spiking_likelihood_glm.fit_spiking_likelihood_glm(
+        place_fields = spiking_likelihood_glm.estimate_place_fields(
             position=filtered_position,
             spikes=filtered_spikes,
             place_bin_centers=env.place_bin_centers_,
             place_bin_edges=env.place_bin_edges_,
-            edges=env.edges_,
+            edges=getattr(env, 'edges_', None),
             is_track_interior=env.is_track_interior_,
             is_track_boundary=getattr(env, 'is_track_boundary_', None)
         )
@@ -197,7 +194,7 @@ def test_spiking_likelihood_glm_data_shape_consistency():
         assert place_fields is not None
 
     except Exception as e:
-        pytest.skip(f"GLM likelihood test skipped due to: {e}")
+        raise RuntimeError(f"GLM likelihood test skipped due to: {e}")
 
 
 # ---------------------- Multiunit Likelihood Data Selection Tests ----------------------
@@ -216,13 +213,20 @@ def test_multiunit_likelihood_handles_filtered_data():
     # Filter the data as would happen in fit_multiunits
     filtered_position = position[is_group]
 
-    # Filter the multiunit data
-    filtered_multiunits = {}
-    for electrode_id, electrode_data in multiunits.items():
-        filtered_multiunits[electrode_id] = {
-            "marks": electrode_data["marks"][is_group],
-            "no_spike_indicator": electrode_data["no_spike_indicator"][is_group]
-        }
+    # Convert to 3D array format (n_time, n_marks, n_electrodes)
+    n_electrodes = len(multiunits)
+    max_marks = list(multiunits.values())[0]["marks"].shape[1]
+
+    multiunit_3d = np.full((120, max_marks, n_electrodes), np.nan)
+    for elec_idx, (electrode_id, electrode_data) in enumerate(multiunits.items()):
+        # Use first feature as the electrode data
+        multiunit_3d[:, :, elec_idx] = electrode_data["marks"][:, :, 0]
+        # Set NaN where no spike indicator is True
+        no_spike_mask = electrode_data["no_spike_indicator"]
+        multiunit_3d[no_spike_mask, elec_idx] = np.nan
+
+    # Filter the data as would happen in fit_multiunits
+    filtered_multiunits = multiunit_3d[is_group]
 
     try:
         encoding_model = multiunit_likelihood.fit_multiunit_likelihood(
@@ -231,7 +235,9 @@ def test_multiunit_likelihood_handles_filtered_data():
             place_bin_centers=env.place_bin_centers_,
             is_track_interior=env.is_track_interior_,
             is_track_boundary=getattr(env, 'is_track_boundary_', None),
-            edges=env.edges_,
+            edges=getattr(env, 'edges_', None),
+            mark_std=24.0,
+            position_std=6.0,
         )
 
         # Basic checks
@@ -239,35 +245,39 @@ def test_multiunit_likelihood_handles_filtered_data():
         assert len(filtered_position) < 120  # Verify filtering occurred
 
         # Check that filtered multiunit data has correct shapes
-        for electrode_id, electrode_data in filtered_multiunits.items():
-            assert electrode_data["marks"].shape[0] == len(filtered_position)
-            assert electrode_data["no_spike_indicator"].shape[0] == len(filtered_position)
+        assert filtered_multiunits.shape[0] == len(filtered_position)
+        assert filtered_multiunits.shape[1] == max_marks
+        assert filtered_multiunits.shape[2] == n_electrodes
 
     except Exception as e:
-        pytest.skip(f"Multiunit likelihood test skipped due to: {e}")
+        raise RuntimeError(f"Multiunit likelihood test skipped due to: {e}")
 
 
-@pytest.mark.skipif(
-    multiunit_likelihood is None,
-    reason="multiunit_likelihood module not available"
-)
 def test_multiunit_likelihood_empty_filtered_data():
     """Test multiunit likelihood behavior with empty filtered data."""
     env = make_1d_env_fitted(n=6)
-    position = np.random.randn(40, 1)
+    position = np.linspace(0, 5, 40).reshape(-1, 1)
     multiunits, _ = create_filtered_multiunit_data(n_time=40, n_electrodes=2)
 
     # Create empty filter
     is_group = np.zeros(40, dtype=bool)
     filtered_position = position[is_group]
 
-    # Filter multiunit data to be empty
-    filtered_multiunits = {}
-    for electrode_id, electrode_data in multiunits.items():
-        filtered_multiunits[electrode_id] = {
-            "marks": electrode_data["marks"][is_group],
-            "no_spike_indicator": electrode_data["no_spike_indicator"][is_group]
-        }
+    # Convert to 3D array format expected by function
+    n_electrodes = len(multiunits)
+    n_features = list(multiunits.values())[0]["marks"].shape[2]
+    max_marks = list(multiunits.values())[0]["marks"].shape[1]
+
+    # Create 3D array (n_time, n_marks, n_electrodes)
+    multiunit_3d = np.full((40, max_marks, n_electrodes), np.nan)
+    for elec_idx, (electrode_id, electrode_data) in enumerate(multiunits.items()):
+        # Use first feature as the electrode data
+        multiunit_3d[:, :, elec_idx] = electrode_data["marks"][:, :, 0]
+        # Set NaN where no spike indicator is True
+        multiunit_3d[electrode_data["no_spike_indicator"]] = np.nan
+
+    # Filter to be empty
+    filtered_multiunits = multiunit_3d[is_group]
 
     try:
         encoding_model = multiunit_likelihood.fit_multiunit_likelihood(
@@ -276,7 +286,9 @@ def test_multiunit_likelihood_empty_filtered_data():
             place_bin_centers=env.place_bin_centers_,
             is_track_interior=env.is_track_interior_,
             is_track_boundary=getattr(env, 'is_track_boundary_', None),
-            edges=env.edges_,
+            edges=getattr(env, 'edges_', None),
+            mark_std=24.0,
+            position_std=6.0,
         )
 
         # Should handle empty data gracefully
@@ -295,15 +307,15 @@ def test_multiunit_likelihood_partial_electrode_filtering():
     """Test multiunit likelihood when some electrodes have no data after filtering."""
     env = make_1d_env_fitted(n=8)
     n_time = 100
-    position = np.random.randn(n_time, 1) * 3
+    position = np.linspace(0, 7, n_time).reshape(-1, 1)
 
-    # Create multiunit data
-    multiunits = {}
-    for elec_id in range(3):
-        multiunits[f"electrode_{elec_id:02d}"] = {
-            "marks": np.random.randn(n_time, 5, 4) * 25,
-            "no_spike_indicator": np.random.random((n_time, 5)) < 0.3
-        }
+    # Create 3D multiunit data (n_time, n_marks, n_electrodes)
+    n_electrodes = 3
+    n_marks = 5
+    multiunit_3d = np.random.randn(n_time, n_marks, n_electrodes) * 25
+    # Add some NaN values to simulate no-spike conditions
+    no_spike_mask = np.random.random((n_time, n_marks, n_electrodes)) < 0.3
+    multiunit_3d[no_spike_mask] = np.nan
 
     # Create a filter that affects different electrodes differently
     # For example, some time periods might have no spikes on some electrodes
@@ -311,12 +323,8 @@ def test_multiunit_likelihood_partial_electrode_filtering():
     is_group[20:40] = False  # Remove middle section
 
     filtered_position = position[is_group]
-    filtered_multiunits = {}
-    for electrode_id, electrode_data in multiunits.items():
-        filtered_multiunits[electrode_id] = {
-            "marks": electrode_data["marks"][is_group],
-            "no_spike_indicator": electrode_data["no_spike_indicator"][is_group]
-        }
+    # Filter the 3D multiunit data
+    filtered_multiunits = multiunit_3d[is_group]
 
     try:
         encoding_model = multiunit_likelihood.fit_multiunit_likelihood(
@@ -325,13 +333,15 @@ def test_multiunit_likelihood_partial_electrode_filtering():
             place_bin_centers=env.place_bin_centers_,
             is_track_interior=env.is_track_interior_,
             is_track_boundary=getattr(env, 'is_track_boundary_', None),
-            edges=env.edges_,
+            edges=getattr(env, 'edges_', None),
+            mark_std=24.0,
+            position_std=6.0,
         )
 
         assert encoding_model is not None
 
     except Exception as e:
-        pytest.skip(f"Multiunit likelihood test skipped due to: {e}")
+        raise RuntimeError(f"Multiunit likelihood test skipped due to: {e}")
 
 
 # ---------------------- Data Consistency Tests ----------------------
@@ -379,7 +389,7 @@ def test_position_spike_data_alignment():
 def test_multiunit_position_data_alignment():
     """Test that multiunit and position data remain aligned after filtering."""
     n_time = 100
-    position = np.random.randn(n_time, 1) * 5
+    position = np.linspace(0, 7, n_time).reshape(-1, 1)
 
     # Create multiunit data
     multiunits = {}
@@ -421,7 +431,7 @@ def test_likelihood_data_flow_consistency():
 
     # Step 1: Create data as it would exist in a classifier
     n_time = 80
-    position = np.random.randn(n_time, 1) * 4
+    position = np.linspace(0, 7, n_time).reshape(-1, 1)
     spikes = np.random.poisson(2.0, size=(n_time, 6))
 
     # Step 2: Create filters as they would be created in fit_place_fields
@@ -470,7 +480,7 @@ def test_likelihood_all_data_filtered():
     env = make_1d_env_fitted(n=6)
 
     # Create data
-    position = np.random.randn(50, 1)
+    position = np.linspace(0, 5, 50).reshape(-1, 1)
     spikes = np.random.poisson(1.0, size=(50, 4))
 
     # Filter out all data
@@ -514,7 +524,7 @@ def test_nan_handling_in_filtered_data():
     env = make_1d_env_fitted(n=8)
 
     # Create position data with some NaNs
-    position = np.random.randn(60, 1)
+    position = np.linspace(0, 7, 60).reshape(-1, 1)
     position[5:10, :] = np.nan  # Add some NaNs
 
     spikes = np.random.poisson(2.0, size=(60, 5))

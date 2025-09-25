@@ -6,11 +6,6 @@ import pytest
 from replay_trajectory_classification.environments import Environment
 
 # Try importing likelihood functions with graceful fallbacks
-spiking_likelihood_glm = None
-spiking_likelihood_kde = None
-multiunit_likelihood = None
-calcium_likelihood = None
-
 try:
     import replay_trajectory_classification.likelihoods.spiking_likelihood_glm as spiking_likelihood_glm
 except ImportError:
@@ -85,8 +80,8 @@ def make_multiunit_data(n_electrodes=3, n_features=4, n_time=20):
 )
 def test_spiking_likelihood_glm_fit_exists():
     """Test that GLM likelihood fit function exists and is callable."""
-    assert hasattr(spiking_likelihood_glm, 'fit_spiking_likelihood_glm')
-    assert callable(spiking_likelihood_glm.fit_spiking_likelihood_glm)
+    assert hasattr(spiking_likelihood_glm, 'estimate_place_fields')
+    assert callable(spiking_likelihood_glm.estimate_place_fields)
 
 
 @pytest.mark.skipif(
@@ -95,8 +90,8 @@ def test_spiking_likelihood_glm_fit_exists():
 )
 def test_spiking_likelihood_glm_estimate_exists():
     """Test that GLM likelihood estimate function exists and is callable."""
-    assert hasattr(spiking_likelihood_glm, 'estimate_spiking_likelihood_glm')
-    assert callable(spiking_likelihood_glm.estimate_spiking_likelihood_glm)
+    assert hasattr(spiking_likelihood_glm, 'estimate_spiking_likelihood')
+    assert callable(spiking_likelihood_glm.estimate_spiking_likelihood)
 
 
 @pytest.mark.skipif(
@@ -111,9 +106,15 @@ def test_spiking_likelihood_glm_basic_functionality():
         spikes = make_simple_spikes(n_neurons=3, n_time=50)
         position = make_simple_position(n_time=50, n_dims=1)
 
-        # Test fit function
-        results = spiking_likelihood_glm.fit_spiking_likelihood_glm(
-            position, spikes, environment
+        # Test fit function - needs more parameters
+        results = spiking_likelihood_glm.estimate_place_fields(
+            position=position,
+            spikes=spikes,
+            place_bin_centers=environment.place_bin_centers_,
+            place_bin_edges=getattr(environment, 'place_bin_edges_', None),
+            edges=getattr(environment, 'edges_', None),
+            is_track_interior=environment.is_track_interior_,
+            is_track_boundary=getattr(environment, 'is_track_boundary_', None)
         )
 
         # Basic checks on results
@@ -136,8 +137,8 @@ def test_spiking_likelihood_glm_basic_functionality():
 )
 def test_spiking_likelihood_kde_fit_exists():
     """Test that KDE likelihood fit function exists and is callable."""
-    assert hasattr(spiking_likelihood_kde, 'fit_spiking_likelihood_kde')
-    assert callable(spiking_likelihood_kde.fit_spiking_likelihood_kde)
+    assert hasattr(spiking_likelihood_kde, 'estimate_place_fields_kde')
+    assert callable(spiking_likelihood_kde.estimate_place_fields_kde)
 
 
 @pytest.mark.skipif(
@@ -162,10 +163,17 @@ def test_spiking_likelihood_kde_basic_functionality():
         spikes = make_simple_spikes(n_neurons=3, n_time=50)
         position = make_simple_position(n_time=50, n_dims=1)
 
-        # Test fit function
-        results = spiking_likelihood_kde.fit_spiking_likelihood_kde(
-            position, spikes, environment
-        )
+        # Test fit function - try common function names
+        if hasattr(spiking_likelihood_kde, 'estimate_place_fields_kde'):
+            results = spiking_likelihood_kde.estimate_place_fields_kde(
+                position=position,
+                spikes=spikes,
+                place_bin_centers=environment.place_bin_centers_,
+                is_track_interior=environment.is_track_interior_
+            )
+        else:
+            # Try alternative function names
+            results = None
 
         # Basic checks on results
         assert results is not None
@@ -211,9 +219,27 @@ def test_multiunit_likelihood_basic_functionality():
         multiunit_data = make_multiunit_data(n_electrodes=2, n_time=50)
         position = make_simple_position(n_time=50, n_dims=1)
 
+        # Convert multiunit dict to 3D array format
+        n_electrodes = len(multiunit_data)
+        n_features = list(multiunit_data.values())[0]["marks"].shape[2]
+        max_marks = list(multiunit_data.values())[0]["marks"].shape[1]
+
+        multiunit_3d = np.full((50, max_marks, n_electrodes), np.nan)
+        for elec_idx, (electrode_id, electrode_data) in enumerate(multiunit_data.items()):
+            multiunit_3d[:, :, elec_idx] = electrode_data["marks"][:, :, 0]  # Use first feature
+            no_spike_mask = electrode_data["no_spike_indicator"]
+            multiunit_3d[no_spike_mask, elec_idx] = np.nan
+
         # Test fit function
         results = multiunit_likelihood.fit_multiunit_likelihood(
-            position, multiunit_data, environment
+            position=position,
+            multiunits=multiunit_3d,
+            place_bin_centers=environment.place_bin_centers_,
+            is_track_interior=environment.is_track_interior_,
+            is_track_boundary=getattr(environment, 'is_track_boundary_', None),
+            edges=getattr(environment, 'edges_', None),
+            mark_std=24.0,
+            position_std=6.0
         )
 
         # Basic checks on results
@@ -337,8 +363,8 @@ def test_likelihood_functions_handle_edge_cases():
 def test_fit_estimate_consistency():
     """Test that fit and estimate functions have consistent interfaces."""
     modules_to_test = [
-        (spiking_likelihood_glm, 'fit_spiking_likelihood_glm', 'estimate_spiking_likelihood_glm'),
-        (spiking_likelihood_kde, 'fit_spiking_likelihood_kde', 'estimate_spiking_likelihood_kde'),
+        (spiking_likelihood_glm, 'estimate_place_fields', 'estimate_spiking_likelihood'),
+        (spiking_likelihood_kde, 'estimate_place_fields_kde', 'estimate_spiking_likelihood_kde'),
         (multiunit_likelihood, 'fit_multiunit_likelihood', 'estimate_multiunit_likelihood'),
     ]
 

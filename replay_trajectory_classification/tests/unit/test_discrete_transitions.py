@@ -82,7 +82,8 @@ def test_composition_preserves_row_stochastic(diag):
 
 
 @pytest.mark.skipif(
-    RandomDiscrete is None, reason="RandomDiscrete not available in this build"
+    RandomDiscrete is None,
+    reason="RandomDiscrete not available"
 )
 def test_random_discrete_is_row_stochastic_and_square():
     n = 9
@@ -93,7 +94,8 @@ def test_random_discrete_is_row_stochastic_and_square():
 
 
 @pytest.mark.skipif(
-    RandomDiscrete is None, reason="RandomDiscrete not available in this build"
+    RandomDiscrete is None,
+    reason="RandomDiscrete not available"
 )
 def test_random_discrete_determinism_with_seed():
     # Try to use a seed if the implementation supports it;
@@ -105,7 +107,6 @@ def test_random_discrete_determinism_with_seed():
         A1 = rd1.make_state_transition(n)
         A2 = rd2.make_state_transition(n)
     except TypeError:
-        rng = np.random.default_rng(123)
         np.random.seed(123)  # legacy support if code uses global seed
         rd1 = RandomDiscrete()
         A1 = rd1.make_state_transition(n)

@@ -70,7 +70,8 @@ def assert_interior_rows_row_stochastic(
 
 
 @pytest.mark.skipif(
-    estimate_movement_var is None, reason="estimate_movement_var unavailable"
+    estimate_movement_var is None,
+    reason="estimate_movement_var not available"
 )
 def test_estimate_movement_var_returns_cov_and_is_psd():
     rng = np.random.default_rng(0)
@@ -84,7 +85,8 @@ def test_estimate_movement_var_returns_cov_and_is_psd():
 
 
 @pytest.mark.skipif(
-    estimate_movement_var is None, reason="estimate_movement_var unavailable"
+    estimate_movement_var is None,
+    reason="estimate_movement_var not available"
 )
 def test_estimate_movement_var_ignores_nans_and_scales():
     x = np.arange(100, dtype=float).reshape(-1, 1)

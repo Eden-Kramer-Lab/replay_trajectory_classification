@@ -47,7 +47,10 @@ def test_fit_place_grid_sets_centers_and_mask_consistently():
     assert mask.any()
 
 
-@pytest.mark.skipif(order_boundary is None, reason="order_boundary not exported")
+@pytest.mark.skipif(
+    order_boundary is None,
+    reason="order_boundary not available"
+)
 def test_order_boundary_returns_valid_indices_on_small_mask():
     # 4x4 square; interior True everywhere ⇒ perimeter has 2*(4+4)-4 = 12 cells
     mask2d = np.ones((4, 4), dtype=bool)
@@ -74,7 +77,10 @@ def test_order_boundary_returns_valid_indices_on_small_mask():
         pytest.fail(f"Unexpected dtype from order_boundary: {boundary.dtype}")
 
 
-@pytest.mark.skipif(order_boundary is None, reason="order_boundary not exported")
+@pytest.mark.skipif(
+    order_boundary is None,
+    reason="order_boundary not available"
+)
 def test_order_boundary_handles_non_rectangular_interior():
     # A plus-shape interior in a 5x5 grid
     m = np.zeros((5, 5), dtype=bool)
