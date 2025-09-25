@@ -1,5 +1,9 @@
 """Functions to fit the position intensities and likelihoods for each data type"""
 
+from __future__ import annotations
+
+from typing import Callable, Any
+
 # flake8: noqa
 from replay_trajectory_classification.likelihoods.calcium_likelihood import (
     estimate_calcium_likelihood,
@@ -39,7 +43,7 @@ from .multiunit_likelihood_integer_gpu_log import (
     fit_multiunit_likelihood_integer_gpu_log,
 )
 
-_ClUSTERLESS_ALGORITHMS = {
+_ClUSTERLESS_ALGORITHMS: dict[str, tuple[Callable[..., Any], Callable[..., Any]]] = {
     "multiunit_likelihood": (fit_multiunit_likelihood, estimate_multiunit_likelihood),
     "multiunit_likelihood_gpu": (
         fit_multiunit_likelihood_gpu,
@@ -59,7 +63,7 @@ _ClUSTERLESS_ALGORITHMS = {
     ),
 }
 
-_SORTED_SPIKES_ALGORITHMS = {
+_SORTED_SPIKES_ALGORITHMS: dict[str, tuple[Callable[..., Any], Callable[..., Any]]] = {
     "spiking_likelihood_glm": (estimate_place_fields, estimate_spiking_likelihood),
     "spiking_likelihood_kde": (
         estimate_place_fields_kde,
@@ -71,6 +75,6 @@ _SORTED_SPIKES_ALGORITHMS = {
     ),
 }
 
-_CALCIUM_ALGORITHMS = {
+_CALCIUM_ALGORITHMS: dict[str, tuple[Callable[..., Any], Callable[..., Any]]] = {
     "calcium_likelihood": (estimate_calcium_place_fields, estimate_calcium_likelihood)
 }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Hashable
 
 
 @dataclass(order=True)
@@ -17,4 +18,4 @@ class ObservationModel:
     """
 
     environment_name: str = ""
-    encoding_group: str = 0
+    encoding_group: Hashable = 0

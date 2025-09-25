@@ -70,8 +70,8 @@ class Environment:
     track_graph: nx.Graph = None
     edge_order: tuple = None
     edge_spacing: tuple = None
-    is_track_interior: NDArray[np.bool_] = None
-    position_range: NDArray[np.float64] = None
+    is_track_interior: Optional[NDArray[np.bool_]] = None
+    position_range: Optional[NDArray[np.float64]] = None
     infer_track_interior: bool = True
     fill_holes: bool = False
     dilate: bool = False

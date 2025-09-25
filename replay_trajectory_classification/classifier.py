@@ -4,6 +4,7 @@ trajectory from population spiking
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from copy import deepcopy
 from logging import getLogger
 from typing import Optional, Union
@@ -75,7 +76,7 @@ _DEFAULT_CONTINUOUS_TRANSITIONS = [[RandomWalk(), Uniform()], [Uniform(), Unifor
 _DEFAULT_ENVIRONMENT = Environment(environment_name="")
 
 
-class _ClassifierBase(BaseEstimator):
+class _ClassifierBase(BaseEstimator, ABC):
     """Base class for classifier objects."""
 
     def __init__(
@@ -519,7 +520,7 @@ class _ClassifierBase(BaseEstimator):
 
     def _get_results(
         self,
-        likelihood: NDArray[np.float64],
+        likelihood: dict[tuple[str, str], NDArray[np.float64]],
         n_time: int,
         time: Optional[NDArray[np.float64]] = None,
         is_compute_acausal: bool = True,
@@ -530,7 +531,8 @@ class _ClassifierBase(BaseEstimator):
 
         Parameters
         ----------
-        likelihood : NDArray[np.float64]
+        likelihood : dict[tuple[str, str], NDArray[np.float64]]
+            Dictionary of likelihood arrays keyed by (environment_name, encoding_group)
         n_time : int
         time : NDArray[np.float64], optional
         is_compute_acausal : bool, optional
@@ -773,13 +775,15 @@ class _ClassifierBase(BaseEstimator):
 
         return results
 
-    def fit(self):
+    @abstractmethod
+    def fit(self, *args, **kwargs) -> Self:
         """To be implemented by inheriting class"""
-        raise NotImplementedError
+        ...
 
-    def predict(self):
+    @abstractmethod
+    def predict(self, *args, **kwargs) -> xr.Dataset:
         """To be implemented by inheriting class"""
-        raise NotImplementedError
+        ...
 
     def save_model(self, filename: str = "model.pkl") -> None:
         """Save the classifier to a pickled file.
