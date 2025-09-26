@@ -1,4 +1,8 @@
-"""Core algorithms for decoding."""
+"""Core algorithms for decoding.
+
+This module contains the fundamental algorithms for Bayesian decoding including
+causal and acausal state estimation and classification.
+"""
 
 from __future__ import annotations
 
@@ -46,18 +50,17 @@ def get_centers(bin_edges: NDArray[np.float64]) -> NDArray[np.float64]:
 
 @njit(parallel=True, error_model="numpy")
 def normalize_to_probability(distribution: NDArray[np.float64]) -> NDArray[np.float64]:
-    """Ensure the distribution integrates to 1 so that it is a probability
-    distribution.
+    """Ensure the distribution integrates to 1 so that it is a probability distribution.
 
     Parameters
     ----------
     distribution : NDArray[np.float64]
-        Probability distribution to normalize
+        Probability distribution values to normalize.
 
     Returns
     -------
-    NDArray[np.float64]
-        Normalized probability distribution that sums to 1
+    normalized_distribution : NDArray[np.float64]
+        Normalized probability distribution that sums to 1.
 
     """
     return distribution / np.nansum(distribution)
@@ -73,13 +76,18 @@ def _causal_decode(
     Parameters
     ----------
     initial_conditions : NDArray[np.float64], shape (n_bins,)
+        Initial probability distribution over state bins.
     state_transition : NDArray[np.float64], shape (n_bins, n_bins)
+        Transition probability matrix between state bins.
     likelihood : NDArray[np.float64], shape (n_time, n_bins)
+        Likelihood values for each time point and state bin.
 
     Returns
     -------
     posterior : NDArray[np.float64], shape (n_time, n_bins)
+        Posterior probability distribution over time and state bins.
     log_data_likelihood : float
+        Log-likelihood of the observed data.
 
     """
 
@@ -109,11 +117,14 @@ def _acausal_decode(
     Parameters
     ----------
     causal_posterior : NDArray[np.float64], shape (n_time, n_bins, 1)
+        Causal (forward-pass) posterior probabilities.
     state_transition : NDArray[np.float64], shape (n_bins, n_bins)
+        Transition probability matrix between state bins.
 
-    Return
-    ------
+    Returns
+    -------
     acausal_posterior : NDArray[np.float64], shape (n_time, n_bins, 1)
+        Acausal (forward-backward) posterior probabilities.
 
     """
     acausal_posterior = np.zeros_like(causal_posterior)
@@ -150,14 +161,20 @@ def _causal_classify(
     Parameters
     ----------
     initial_conditions : NDArray[np.float64], shape (n_states, n_bins, 1)
+        Initial probability distribution for each state and spatial bin.
     continuous_state_transition : NDArray[np.float64], shape (n_states, n_states, n_bins, n_bins)
+        Continuous-space transition probabilities between states and bins.
     discrete_state_transition : NDArray[np.float64], shape (n_states, n_states)
+        Discrete state transition probabilities.
     likelihood : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
+        Likelihood values for each time point, state, and spatial bin.
 
     Returns
     -------
     causal_posterior : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
+        Causal posterior probabilities over time, states, and spatial bins.
     log_data_likelihood : float
+        Log-likelihood of the observed data.
 
     """
     n_time, n_states, n_bins, _ = likelihood.shape
@@ -196,12 +213,16 @@ def _acausal_classify(
     Parameters
     ----------
     causal_posterior : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
+        Causal (forward-pass) posterior probabilities.
     continuous_state_transition : NDArray[np.float64], shape (n_states, n_states, n_bins, n_bins)
+        Continuous-space transition probabilities between states and bins.
     discrete_state_transition : NDArray[np.float64], shape (n_states, n_states)
+        Discrete state transition probabilities.
 
-    Return
-    ------
+    Returns
+    -------
     acausal_posterior : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
+        Acausal (forward-backward) posterior probabilities.
 
     """
     acausal_posterior = np.zeros_like(causal_posterior)
@@ -242,11 +263,14 @@ def scaled_likelihood(log_likelihood: NDArray[np.float64], axis: int = 1) -> NDA
     Parameters
     ----------
     log_likelihood : NDArray[np.float64], shape (n_time, n_bins)
-    axis : int
+        Log-likelihood values to be scaled.
+    axis : int, optional
+        Axis along which to find the maximum, by default 1.
 
     Returns
     -------
     scaled_log_likelihood : NDArray[np.float64], shape (n_time, n_bins)
+        Likelihood values scaled so that the maximum is 1.
 
     """
     max_log_likelihood = np.nanmax(log_likelihood, axis=axis, keepdims=True)
@@ -269,11 +293,14 @@ def mask(value: NDArray[np.float64], is_track_interior: NDArray[np.bool_]) -> ND
     Parameters
     ----------
     value : NDArray[np.float64], shape (..., n_bins)
+        Input values to be masked.
     is_track_interior : NDArray[np.bool_], shape (n_bins,)
+        Boolean array indicating which bins are part of the track interior.
 
     Returns
     -------
-    masked_value : NDArray[np.float64]
+    masked_value : NDArray[np.float64], shape (..., n_bins)
+        Values with non-track bins set to NaN.
 
     """
     try:
@@ -288,24 +315,27 @@ def check_converged(
     previous_log_likelihood: NDArray[np.float64],
     tolerance: float = 1e-4,
 ) -> Tuple[bool, bool]:
-    """We have converged if the slope of the log-likelihood function falls below 'tolerance',
+    """Check if log-likelihood has converged.
 
-    i.e., |f(t) - f(t-1)| / avg < tolerance,
-    where avg = (|f(t)| + |f(t-1)|)/2 and f(t) is log lik at iteration t.
+    We have converged if the slope of the log-likelihood function falls below
+    'tolerance', i.e., |f(t) - f(t-1)| / avg < tolerance, where
+    avg = (|f(t)| + |f(t-1)|)/2 and f(t) is log likelihood at iteration t.
 
     Parameters
     ----------
     log_likelihood : NDArray[np.float64]
-        Current log likelihood
+        Current log likelihood values.
     previous_log_likelihood : NDArray[np.float64]
-        Previous log likelihood
+        Previous log likelihood values.
     tolerance : float, optional
-        threshold for similarity, by default 1e-4
+        Threshold for similarity, by default 1e-4.
 
     Returns
     -------
     is_converged : bool
+        Whether the log-likelihood has converged.
     is_increasing : bool
+        Whether the log-likelihood is increasing.
 
     """
     delta_log_likelihood = abs(log_likelihood - previous_log_likelihood)
@@ -334,13 +364,18 @@ try:
         Parameters
         ----------
         initial_conditions : NDArray[np.float64], shape (n_bins,)
+            Initial probability distribution over state bins.
         state_transition : NDArray[np.float64], shape (n_bins, n_bins)
+            Transition probability matrix between state bins.
         likelihood : NDArray[np.float64], shape (n_time, n_bins)
+            Likelihood values for each time point and state bin.
 
         Returns
         -------
         posterior : NDArray[np.float64], shape (n_time, n_bins)
+            Posterior probability distribution over time and state bins.
         log_data_likelihood : float
+            Log-likelihood of the observed data.
 
         """
 
@@ -373,11 +408,14 @@ try:
         Parameters
         ----------
         causal_posterior : NDArray[np.float64], shape (n_time, n_bins, 1)
+            Causal (forward-pass) posterior probabilities.
         state_transition : NDArray[np.float64], shape (n_bins, n_bins)
+            Transition probability matrix between state bins.
 
-        Return
-        ------
+        Returns
+        -------
         acausal_posterior : NDArray[np.float64], shape (n_time, n_bins, 1)
+            Acausal (forward-backward) posterior probabilities.
 
         """
         causal_posterior = cp.asarray(causal_posterior, dtype=cp.float32)
@@ -414,14 +452,20 @@ try:
         Parameters
         ----------
         initial_conditions : NDArray[np.float64], shape (n_states, n_bins, 1)
+            Initial probability distribution for each state and spatial bin.
         continuous_state_transition : NDArray[np.float64], shape (n_states, n_states, n_bins, n_bins)
+            Continuous-space transition probabilities between states and bins.
         discrete_state_transition : NDArray[np.float64], shape (n_states, n_states)
+            Discrete state transition probabilities.
         likelihood : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
+            Likelihood values for each time point, state, and spatial bin.
 
         Returns
         -------
         causal_posterior : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
+            Causal posterior probabilities over time, states, and spatial bins.
         log_data_likelihood : float
+            Log-likelihood of the observed data.
 
         """
         initial_conditions = cp.asarray(initial_conditions, dtype=cp.float32)
@@ -467,12 +511,16 @@ try:
         Parameters
         ----------
         causal_posterior : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
+            Causal (forward-pass) posterior probabilities.
         continuous_state_transition : NDArray[np.float64], shape (n_states, n_states, n_bins, n_bins)
+            Continuous-space transition probabilities between states and bins.
         discrete_state_transition : NDArray[np.float64], shape (n_states, n_states)
+            Discrete state transition probabilities.
 
-        Return
-        ------
+        Returns
+        -------
         acausal_posterior : NDArray[np.float64], shape (n_time, n_states, n_bins, 1)
+            Acausal (forward-backward) posterior probabilities.
 
         """
         causal_posterior = cp.asarray(causal_posterior, dtype=cp.float32)

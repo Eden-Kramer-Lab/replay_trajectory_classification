@@ -1,4 +1,8 @@
-"""Classes for constructing discrete grids representations of spatial environments in 1D and 2D"""
+"""Classes for constructing discrete grids of spatial environments in 1D and 2D.
+
+This module provides the Environment class and related functions for creating
+spatial discretizations used in trajectory decoding and classification.
+"""
 
 from __future__ import annotations
 
@@ -34,34 +38,35 @@ class Environment:
     Parameters
     ----------
     environment_name : str, optional
+        Name identifier for the environment, by default "".
     place_bin_size : float, optional
-        Approximate size of the position bins.
+        Approximate size of the position bins, by default 2.0.
     track_graph : networkx.Graph, optional
-        Graph representing the 1D spatial topology
+        Graph representing the 1D spatial topology, by default None.
     edge_order : tuple of 2-tuples, optional
-        The order of the edges in 1D space
-    edge_spacing : None or int or tuples of len n_edges-1, optional
-        Any gapes between the edges in 1D space
+        The order of the edges in 1D space, by default None.
+    edge_spacing : None or int or tuple of len n_edges-1, optional
+        Any gaps between the edges in 1D space, by default None.
     is_track_interior : NDArray[np.bool_] or None, optional
         If given, this will be used to define the valid areas of the track.
-        Must be of type boolean.
+        Must be of type boolean, by default None.
     position_range : sequence, optional
         A sequence of `n_position_dims`, each an optional (lower, upper)
         tuple giving the outer bin edges for position.
         An entry of None in the sequence results in the minimum and maximum
         values being used for the corresponding dimension.
         The default, None, is equivalent to passing a tuple of
-        `n_position_dims` None values.
+        `n_position_dims` None values, by default None.
     infer_track_interior : bool, optional
         If True, then use the given positions to figure out the valid track
-        areas.
+        areas, by default True.
     fill_holes : bool, optional
-        Fill holes when inferring the track
+        Fill holes when inferring the track, by default False.
     dilate : bool, optional
-        Inflate the available track area with binary dilation
+        Inflate the available track area with binary dilation, by default False.
     bin_count_threshold : int, optional
         Greater than this number of samples should be in the bin for it to
-        be considered on the track.
+        be considered on the track, by default 0.
 
     """
 
@@ -89,18 +94,19 @@ class Environment:
         position: Optional[NDArray[np.float64]] = None,
         infer_track_interior: bool = True,
     ):
-        """Fits a discrete grid of the spatial environment.
+        """Fit a discrete grid of the spatial environment.
 
         Parameters
         ----------
         position : NDArray[np.float64], optional
-            Position of the animal with shape (n_time, n_position_dims).
+            Position of the animal with shape (n_time, n_position_dims), by default None.
         infer_track_interior : bool, optional
-            Whether to infer the spatial geometry of track from position
+            Whether to infer the spatial geometry of track from position, by default True.
 
         Returns
         -------
-        self
+        Environment
+            Returns self for method chaining.
 
         """
         if self.track_graph is None:
@@ -208,10 +214,12 @@ class Environment:
         Parameters
         ----------
         filename : str, optional
+            Name of the file to load the environment from, by default 'environment.pkl'.
 
         Returns
         -------
-        environment instance
+        Environment
+            Loaded environment instance.
 
         """
         return joblib.load(filename)
@@ -222,18 +230,21 @@ def get_n_bins(
     bin_size: float = 2.5,
     position_range: Optional[list[NDArray[np.float64]]] = None,
 ) -> NDArray[np.int32]:
-    """Get number of bins need to span a range given a bin size.
+    """Get number of bins needed to span a range given a bin size.
 
     Parameters
     ----------
-    position : NDArray[np.float64], shape (n_time,)
+    position : NDArray[np.float64], shape (n_time, n_position_dims)
+        Position data to determine extent from.
     bin_size : float, optional
-    position_range : None or list of NDArray[np.float64]
-        Use this to define the extent instead of position
+        Size of each position bin, by default 2.5.
+    position_range : None or list of NDArray[np.float64], optional
+        Use this to define the extent instead of position.
 
     Returns
     -------
     n_bins : NDArray[np.int32], shape (n_position_dims,)
+        Number of bins needed for each position dimension.
 
     """
     if position_range is not None:
@@ -249,25 +260,27 @@ def get_grid(
     bin_size: float = 2.5,
     position_range: Optional[list[NDArray[np.float64]]] = None,
 ) -> tuple[tuple, NDArray[np.float64], NDArray[np.float64], tuple]:
-    """Gets the spatial grid of bins.
+    """Get the spatial grid of bins.
 
     Parameters
     ----------
     position : NDArray[np.float64], shape (n_time, n_position_dims)
+        Position data to create grid from.
     bin_size : float, optional
-        Maximum size of each position bin.
-    position_range : None or list of NDArray[np.float64]
-        Use this to define the extent instead of position
+        Maximum size of each position bin, by default 2.5.
+    position_range : None or list of NDArray[np.float64], optional
+        Use this to define the extent instead of position.
 
     Returns
     -------
-    edges : tuple of bin edges, len n_position_dims
-    place_bin_edges : NDArray[np.float64], shape (n_bins + 1, n_position_dims)
-        Edges of each position bin
+    edges : tuple of NDArray[np.float64], len n_position_dims
+        Bin edges for each dimension.
+    place_bin_edges : NDArray[np.float64], shape (n_bins, n_position_dims)
+        Edges of each position bin.
     place_bin_centers : NDArray[np.float64], shape (n_bins, n_position_dims)
-        Center of each position bin
-    centers_shape : tuple
-        Position grid shape
+        Center of each position bin.
+    centers_shape : tuple of int
+        Shape of the position grid.
 
     """
     position = atleast_2d(position)
@@ -301,29 +314,30 @@ def get_track_interior(
     dilate: bool = False,
     bin_count_threshold: int = 0,
 ) -> NDArray[np.bool_]:
-    """Infers the interior bins of the track given positions.
+    """Infer the interior bins of the track given positions.
 
     Parameters
     ----------
     position : NDArray[np.float64], shape (n_time, n_position_dims)
-    bins : sequence or int, optional
+        Position data to infer track interior from.
+    bins : sequence or int
         The bin specification:
 
         * A sequence of arrays describing the bin edges along each dimension.
         * The number of bins for each dimension (nx, ny, ... =bins)
         * The number of bins for all dimensions (nx=ny=...=bins).
     fill_holes : bool, optional
-        Fill any holes in the extracted track interior bins
-    dialate : bool, optional
-        Inflate the extracted track interior bins
+        Fill any holes in the extracted track interior bins, by default False.
+    dilate : bool, optional
+        Inflate the extracted track interior bins, by default False.
     bin_count_threshold : int, optional
         Greater than this number of samples should be in the bin for it to
-        be considered on the track.
+        be considered on the track, by default 0.
 
     Returns
     -------
-    is_track_interior : NDArray[np.bool_], optional
-        The interior bins of the track as inferred from position
+    is_track_interior : NDArray[np.bool_], shape (n_bins,)
+        Boolean array indicating the interior bins of the track.
 
     """
     bin_counts, _ = np.histogramdd(position, bins=bins)
@@ -346,15 +360,17 @@ def get_track_interior(
 
 
 def get_track_segments_from_graph(track_graph: nx.Graph) -> NDArray[np.float64]:
-    """Returns a 2D array of node positions corresponding to each edge.
+    """Return a 2D array of node positions corresponding to each edge.
 
     Parameters
     ----------
-    track_graph : networkx Graph
+    track_graph : networkx.Graph
+        Graph representing the track structure with node positions.
 
     Returns
     -------
-    track_segments : NDArray[np.float64], shape (n_segments, n_nodes, n_space)
+    track_segments : NDArray[np.float64], shape (n_segments, 2, n_position_dims)
+        Array of node position pairs for each edge segment.
 
     """
     node_positions = nx.get_node_attributes(track_graph, "pos")
@@ -369,16 +385,19 @@ def get_track_segments_from_graph(track_graph: nx.Graph) -> NDArray[np.float64]:
 def project_points_to_segment(
     track_segments: NDArray[np.float64], position: NDArray[np.float64]
 ) -> NDArray[np.float64]:
-    """Finds the closet point on a track segment in terms of Euclidean distance
+    """Find the closest point on a track segment in terms of Euclidean distance.
 
     Parameters
     ----------
-    track_segments : NDArray[np.float64], shape (n_segments, n_nodes, 2)
-    position : NDArray[np.float64], shape (n_time, 2)
+    track_segments : NDArray[np.float64], shape (n_segments, 2, n_position_dims)
+        Array of track segment node positions.
+    position : NDArray[np.float64], shape (n_time, n_position_dims)
+        Position data to project onto segments.
 
     Returns
     -------
-    projected_positions : NDArray[np.float64], shape (n_time, n_segments, n_space)
+    projected_positions : NDArray[np.float64], shape (n_time, n_segments, n_position_dims)
+        Projected positions on track segments.
 
     """
     segment_diff = np.diff(track_segments, axis=1).squeeze(axis=1)

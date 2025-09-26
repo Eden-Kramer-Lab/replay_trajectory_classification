@@ -11,13 +11,15 @@ import xarray as xr
 
 @dataclass
 class DiagonalDiscrete:
-    """Transition matrix with `diagonal_value` on the value for n_states
+    """Discrete state transition matrix with dominant diagonal elements.
 
-    Off-diagonals are probability: (1 - `diagonal_value`) / (`n_states` - 1)
+    Creates a transition matrix where diagonal elements have value `diagonal_value`
+    and off-diagonal elements have probability (1 - `diagonal_value`) / (`n_states` - 1).
 
-    Attributes
+    Parameters
     ----------
     diagonal_value : float, optional
+        Probability of staying in the same state, by default 0.98.
 
     """
 
@@ -52,8 +54,11 @@ class DiagonalDiscrete:
 
 @dataclass
 class UniformDiscrete:
-    """All transitions to states (including self transitions) are the same
-    probability.
+    """Uniform discrete state transition matrix.
+
+    All transitions between states (including self-transitions) have equal
+    probability of 1/n_states.
+
     """
 
     def make_state_transition(self, n_states: int) -> NDArray[np.float64]:

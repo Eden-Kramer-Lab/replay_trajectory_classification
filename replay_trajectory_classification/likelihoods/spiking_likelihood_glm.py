@@ -61,7 +61,21 @@ def make_spline_design_matrix(
 def make_spline_predict_matrix(
     design_info: DesignInfo, place_bin_centers: NDArray[np.float64]
 ) -> DesignMatrix:
-    """Make a design matrix for position bins"""
+    """Make a design matrix for position bins.
+
+    Parameters
+    ----------
+    design_info : patsy.DesignInfo
+        Design information from fitted model.
+    place_bin_centers : NDArray[np.float64], shape (n_bins, n_position_dims)
+        Center coordinates of spatial bins.
+
+    Returns
+    -------
+    DesignMatrix
+        Design matrix for predicting at position bin centers.
+
+    """
     predict_data = {}
     for ind in range(place_bin_centers.shape[1]):
         predict_data[f"x{ind}"] = place_bin_centers[:, ind]
@@ -71,7 +85,23 @@ def make_spline_predict_matrix(
 def get_firing_rate(
     design_matrix: DesignMatrix, results: tuple, sampling_frequency: int = 1
 ) -> NDArray[np.float64]:
-    """Predicts the firing rate given fitted model coefficents."""
+    """Predict the firing rate given fitted model coefficients.
+
+    Parameters
+    ----------
+    design_matrix : patsy.DesignMatrix
+        Design matrix for prediction locations.
+    results : tuple
+        Results tuple from fitted GLM containing coefficients.
+    sampling_frequency : int, optional
+        Sampling rate to scale the firing rate, by default 1.
+
+    Returns
+    -------
+    NDArray[np.float64], shape (n_time,)
+        Predicted firing rates.
+
+    """
     if np.any(np.isnan(results.coefficients)):
         n_time = design_matrix.shape[0]
         rate = np.zeros((n_time,))
@@ -88,22 +118,24 @@ def fit_glm(
     penalty: Optional[float] = None,
     tolerance: float = 1e-5,
 ) -> tuple:
-    """Fits a L2-penalized GLM.
+    """Fit a L2-penalized GLM.
 
     Parameters
     ----------
     response : NDArray[np.float64], shape (n_time,)
-        Calcium activity trace
+        Response variable (e.g., spike counts).
     design_matrix : NDArray[np.float64], shape (n_time, n_coefficients)
-    penalty : None or float
-        L2 penalty on regression. If None, penalty is smallest possible.
-    tolerance : float
-        Smallest difference between iterations to consider model fitting
-        converged.
+        Design matrix with predictor variables.
+    penalty : float, optional
+        L2 penalty on regression coefficients. If None, uses smallest possible
+        penalty, by default None.
+    tolerance : float, optional
+        Convergence tolerance for iterative fitting, by default 1e-5.
 
     Returns
     -------
     results : tuple
+        GLM fitting results containing coefficients and other fit statistics.
 
     """
     if penalty is not None:
@@ -123,18 +155,19 @@ def fit_glm(
 def poisson_log_likelihood(
     spikes: NDArray[np.float64], conditional_intensity: NDArray[np.float64]
 ) -> NDArray[np.float64]:
-    """Probability of parameters given spiking at a particular time.
+    """Calculate Poisson log-likelihood of spikes given conditional intensity.
 
     Parameters
     ----------
     spikes : NDArray[np.float64], shape (n_time,)
-        Indicator of spike or no spike at current time.
+        Spike counts at each time point.
     conditional_intensity : NDArray[np.float64], shape (n_place_bins,)
-        Instantaneous probability of observing a spike
+        Instantaneous firing rate for each spatial bin.
 
     Returns
     -------
     poisson_log_likelihood : NDArray[np.float64], shape (n_time, n_place_bins)
+        Log-likelihood of observed spikes given firing rates.
 
     """
     # Logarithm of the absolute value of the gamma function is always 0 when

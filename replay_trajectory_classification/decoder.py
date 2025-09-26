@@ -1,4 +1,8 @@
-"""Main classes for decoding trajectories from population spiking"""
+"""Main classes for decoding trajectories from population spiking.
+
+This module provides decoders for estimating spatial position from neural
+activity using state-space modeling approaches.
+"""
 
 from __future__ import annotations
 
@@ -59,14 +63,14 @@ class _DecoderBase(BaseEstimator):
     Parameters
     ----------
     environment : Environment, optional
-        The spatial environment to fit
+        The spatial environment to fit, by default Environment().
     transition_type : EmpiricalMovement | RandomWalk | RandomWalkDirection1 |
-        RandomWalkDirection2 | Uniform
-        The continuous state transition matrix
+        RandomWalkDirection2 | Uniform, optional
+        The continuous state transition matrix, by default RandomWalk().
     initial_conditions_type : UniformInitialConditions, optional
-        The initial conditions class instance
+        The initial conditions class instance, by default UniformInitialConditions().
     infer_track_interior : bool, optional
-        Whether to infer the spatial geometry of track from position
+        Whether to infer the spatial geometry of track from position, by default True.
 
     """
 
@@ -89,20 +93,20 @@ class _DecoderBase(BaseEstimator):
         self.infer_track_interior = infer_track_interior
 
     def fit_environment(self, position: NDArray[np.float64]) -> None:
-        """Discretize the spatial environment into bins. Determine valid track
-        positions.
+        """Discretize the spatial environment into bins and determine valid track positions.
 
         Parameters
         ----------
         position : NDArray[np.float64], shape (n_time, n_position_dims)
             Position of the animal in the environment.
+
         """
         self.environment.fit_place_grid(
             position, infer_track_interior=self.infer_track_interior
         )
 
     def fit_initial_conditions(self) -> None:
-        """Set the initial probability of position."""
+        """Set the initial probability distribution over positions."""
         logger.info("Fitting initial conditions...")
         self.initial_conditions_ = self.initial_conditions_type.make_initial_conditions(
             [self.environment], [self.environment.environment_name]
@@ -122,6 +126,20 @@ class _DecoderBase(BaseEstimator):
             ]
         ] = None,
     ) -> None:
+        """Fit the state transition model.
+
+        Parameters
+        ----------
+        position : NDArray[np.float64], shape (n_time, n_position_dims)
+            Position data to fit the transition model from.
+        is_training : NDArray[np.bool_], optional
+            Boolean array indicating which time points to use for training,
+            by default None (uses all time points).
+        transition_type : EmpiricalMovement | RandomWalk | RandomWalkDirection1 |
+            RandomWalkDirection2 | Uniform, optional
+            The transition type to use, by default None (uses instance default).
+
+        """
         logger.info("Fitting state transition...")
 
         if transition_type is not None:
@@ -146,40 +164,50 @@ class _DecoderBase(BaseEstimator):
             )
 
     def fit(self):
-        """To be implemented by inheriting class"""
+        """Fit the decoder model - to be implemented by inheriting classes."""
         raise NotImplementedError
 
     def predict(self):
-        """To be implemented by inheriting class"""
+        """Make predictions using the decoder - to be implemented by inheriting classes."""
         raise NotImplementedError
 
     def save_model(self, filename: str = "model.pkl") -> None:
-        """Save the classifier to a pickled file.
+        """Save the decoder to a pickled file.
 
         Parameters
         ----------
         filename : str, optional
+            Name of the file to save the model to, by default 'model.pkl'.
 
         """
         joblib.dump(self, filename)
 
     @staticmethod
     def load_model(filename: str = "model.pkl") -> "_DecoderBase":
-        """Load the classifier from a file.
+        """Load the decoder from a file.
 
         Parameters
         ----------
         filename : str, optional
+            Name of the file to load the model from, by default 'model.pkl'.
 
         Returns
         -------
-        classifier instance
+        _DecoderBase
+            Loaded decoder instance.
 
         """
         return joblib.load(filename)
 
     def copy(self) -> "_DecoderBase":
-        """Makes a copy of the classifier"""
+        """Make a deep copy of the decoder.
+
+        Returns
+        -------
+        _DecoderBase
+            Deep copy of the decoder instance.
+
+        """
         return deepcopy(self)
 
     def project_1D_position_to_2D(
@@ -192,14 +220,15 @@ class _DecoderBase(BaseEstimator):
         Parameters
         ----------
         results : xr.Dataset
+            Dataset containing posterior probability results.
         posterior_type : str, optional
             Type of posterior: "causal_posterior" | "acausal_posterior" |
-            "likelihood"
+            "likelihood", by default "acausal_posterior".
 
         Returns
         -------
         map_position2D : NDArray[np.float64], shape (n_time, 2)
-            2D positions projected from 1D track coordinates
+            2D positions projected from 1D track coordinates.
 
         """
         map_position_ind = (
@@ -218,25 +247,25 @@ class _DecoderBase(BaseEstimator):
         is_compute_acausal: bool = True,
         use_gpu: bool = False,
     ) -> xr.Dataset:
-        """Converts the results dict into a collection of labeled arrays.
+        """Convert the results dict into a collection of labeled arrays.
 
         Parameters
         ----------
         results : dict
-            Dictionary containing likelihood and posterior arrays
+            Dictionary containing likelihood and posterior arrays.
         n_time : int
-            Number of time points
+            Number of time points.
         time : NDArray[np.float64], optional
-            Time coordinates for the results
-        is_compute_acausal : bool
-            Whether to compute acausal posterior
-        use_gpu : bool
-            Whether to use GPU acceleration
+            Time coordinates for the results, by default None.
+        is_compute_acausal : bool, optional
+            Whether to compute acausal posterior, by default True.
+        use_gpu : bool, optional
+            Whether to use GPU acceleration, by default False.
 
         Returns
         -------
         results : xr.Dataset
-            Labeled dataset containing posteriors and likelihoods
+            Labeled dataset containing posteriors and likelihoods.
 
         """
         is_track_interior = self.environment.is_track_interior_.ravel(order="F")

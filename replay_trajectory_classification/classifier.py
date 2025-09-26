@@ -1,5 +1,7 @@
-"""State space models that classify trajectories as well as decode the
-trajectory from population spiking
+"""State space models that classify trajectories and decode from population spiking.
+
+This module contains classes for trajectory classification using neural population
+activity from both sorted spikes and clusterless data.
 """
 
 from __future__ import annotations
@@ -77,7 +79,24 @@ _DEFAULT_ENVIRONMENT = Environment(environment_name="")
 
 
 class _ClassifierBase(BaseEstimator, ABC):
-    """Base class for classifier objects."""
+    """Base class for trajectory classifier objects.
+
+    Parameters
+    ----------
+    environments : list[Environment], optional
+        List of spatial environments to classify trajectories within.
+    observation_models : ObservationModel, optional
+        Observation models for neural data, by default None.
+    continuous_transition_types : list[list[...]], optional
+        Continuous state transition models for each state.
+    discrete_transition_type : DiagonalDiscrete | RandomDiscrete | UniformDiscrete | UserDefinedDiscrete, optional
+        Discrete state transition model, by default DiagonalDiscrete(0.968).
+    initial_conditions_type : UniformInitialConditions | UniformOneEnvironmentInitialConditions, optional
+        Initial conditions model, by default UniformInitialConditions().
+    infer_track_interior : bool, optional
+        Whether to infer track interior from position data, by default True.
+
+    """
 
     def __init__(
         self,
@@ -121,13 +140,15 @@ class _ClassifierBase(BaseEstimator, ABC):
     def fit_environments(
         self, position: NDArray[np.float64], environment_labels: Optional[NDArray[np.int64]] = None
     ) -> None:
-        """Fits the Environment class on the position data to get information about the spatial environment.
+        """Fit the Environment class on position data to extract spatial information.
 
         Parameters
         ----------
         position : NDArray[np.float64], shape (n_time, n_position_dims)
+            Position coordinates over time.
         environment_labels : NDArray[np.int64], optional, shape (n_time,)
-            Labels for each time points about which environment it corresponds to, by default None
+            Labels indicating which environment each time point corresponds to,
+            by default None.
 
         """
         for environment in self.environments:
@@ -144,7 +165,7 @@ class _ClassifierBase(BaseEstimator, ABC):
         )
 
     def fit_initial_conditions(self):
-        """Constructs the initial probability for the state and each spatial bin."""
+        """Construct the initial probability distribution for states and spatial bins."""
         logger.info("Fitting initial conditions...")
         environment_names_to_state = [
             obs.environment_name for obs in self.observation_models
@@ -178,7 +199,7 @@ class _ClassifierBase(BaseEstimator, ABC):
         encoding_group_labels: Optional[NDArray[np.int64]] = None,
         environment_labels: Optional[NDArray[np.int64]] = None,
     ) -> None:
-        """Constructs the transition matrices for the continuous states.
+        """Construct the transition matrices for the continuous states.
 
         Parameters
         ----------
@@ -240,7 +261,7 @@ class _ClassifierBase(BaseEstimator, ABC):
                 ] = st
 
     def fit_discrete_state_transition(self):
-        """Constructs the transition matrix for the discrete states."""
+        """Construct the transition matrix for the discrete states."""
         logger.info("Fitting discrete state transition")
         n_states = len(self.continuous_transition_types)
         self.discrete_state_transition_ = (

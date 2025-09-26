@@ -19,25 +19,44 @@ from replay_trajectory_classification.likelihoods.diffusion import (
 
 
 def gaussian_pdf(x: NDArray[np.float64], mean: NDArray[np.float64], sigma: NDArray[np.float64]) -> NDArray[np.float64]:
-    """Compute the value of a Gaussian probability density function at x with
-    given mean and sigma."""
+    """Compute the Gaussian probability density function.
+
+    Parameters
+    ----------
+    x : NDArray[np.float64]
+        Points at which to evaluate the PDF.
+    mean : NDArray[np.float64]
+        Mean of the Gaussian distribution.
+    sigma : NDArray[np.float64]
+        Standard deviation of the Gaussian distribution.
+
+    Returns
+    -------
+    NDArray[np.float64]
+        Gaussian PDF values at the given points.
+
+    """
     return np.exp(-0.5 * ((x - mean) / sigma) ** 2) / (sigma * np.sqrt(2.0 * np.pi))
 
 
 def estimate_position_distance(
     place_bin_centers: NDArray[np.float64], positions: NDArray[np.float64], position_std: NDArray[np.float64]
 ) -> NDArray[np.float64]:
-    """Estimates the Euclidean distance between positions and position bins.
+    """Estimate the Gaussian-weighted distance between positions and position bins.
 
     Parameters
     ----------
     place_bin_centers : NDArray[np.float64], shape (n_position_bins, n_position_dims)
+        Center coordinates of spatial bins.
     positions : NDArray[np.float64], shape (n_time, n_position_dims)
+        Position coordinates over time.
     position_std : array_like, shape (n_position_dims,)
+        Standard deviation for Gaussian weighting in each dimension.
 
     Returns
     -------
     position_distance : NDArray[np.float64], shape (n_time, n_position_bins)
+        Gaussian-weighted distance matrix.
 
     """
     n_time, n_position_dims = positions.shape
@@ -64,19 +83,23 @@ def estimate_position_density(
     position_std: Union[float, NDArray[np.float64]],
     block_size: int = 100,
 ) -> NDArray[np.float64]:
-    """Estimates a kernel density estimate over position bins using
-    Euclidean distances.
+    """Estimate a kernel density estimate over position bins.
 
     Parameters
     ----------
     place_bin_centers : NDArray[np.float64], shape (n_position_bins, n_position_dims)
+        Center coordinates of spatial bins.
     positions : NDArray[np.float64], shape (n_time, n_position_dims)
+        Position coordinates over time.
     position_std : float or array_like, shape (n_position_dims,)
-    block_size : int
+        Standard deviation for kernel density estimation.
+    block_size : int, optional
+        Number of bins to process in each block for memory efficiency, by default 100.
 
     Returns
     -------
     position_density : NDArray[np.float64], shape (n_position_bins,)
+        Kernel density estimate at each position bin.
 
     """
     n_time = positions.shape[0]

@@ -18,10 +18,12 @@ def _normalize_row_probability(x: NDArray[np.float64]) -> NDArray[np.float64]:
     Parameters
     ----------
     x : NDArray[np.float64], shape (n_rows, n_cols)
+        Input matrix to normalize.
 
     Returns
     -------
     normalized_x : NDArray[np.float64], shape (n_rows, n_cols)
+        Row-normalized matrix where each row sums to 1.
 
     """
     x /= x.sum(axis=1, keepdims=True)
@@ -32,19 +34,19 @@ def _normalize_row_probability(x: NDArray[np.float64]) -> NDArray[np.float64]:
 def estimate_movement_var(
     position: NDArray[np.float64], sampling_frequency: int = 1
 ) -> NDArray[np.float64]:
-    """Estimates the movement variance based on position.
+    """Estimate the movement variance based on position data.
 
     Parameters
     ----------
-    position : NDArray[np.float64], shape (n_time, n_position_dim)
-        Position of the animal
+    position : NDArray[np.float64], shape (n_time, n_position_dims)
+        Position coordinates of the animal over time.
     sampling_frequency : int, optional
-        Number of samples per second.
+        Number of samples per second, by default 1.
 
     Returns
     -------
-    movement_var : NDArray[np.float64], shape (n_position_dim,)
-        Variance of the movement.
+    movement_var : NDArray[np.float64], shape (n_position_dims,)
+        Covariance matrix of movement scaled by sampling frequency.
 
     """
     position = atleast_2d(position)
