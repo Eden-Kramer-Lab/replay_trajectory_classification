@@ -1,5 +1,9 @@
-"""Estimates a marked point process likelihood where the marks are
-features of the spike waveform. Features are float32."""
+"""Estimate marked point process likelihood for clusterless spike data.
+
+This module provides functions for computing likelihoods from clusterless
+(multiunit) spike data where marks are features of the spike waveforms.
+Features are represented as float32 arrays.
+"""
 
 from __future__ import annotations
 

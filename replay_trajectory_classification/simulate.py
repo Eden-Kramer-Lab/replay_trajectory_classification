@@ -1,4 +1,9 @@
-"""Main code for simulating position and sorted spikes or clusterless spikes and waveforms."""
+"""Simulation functions for neural data and animal behavior.
+
+This module provides functions for simulating position trajectories,
+sorted spikes, and clusterless spike waveforms for testing and validation
+of decoding algorithms.
+"""
 
 from __future__ import annotations
 

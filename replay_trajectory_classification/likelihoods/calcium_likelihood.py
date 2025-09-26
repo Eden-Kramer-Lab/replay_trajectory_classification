@@ -1,8 +1,14 @@
-"""Calculate a Gamma likelihood for calcium imaging activity traces.
+"""Calculate Gamma likelihood for calcium imaging activity traces.
+
+This module provides functions for computing Gamma-distributed likelihoods
+from calcium imaging data, which is commonly used for decoding from calcium
+fluorescence signals.
 
 References
 ----------
-[1] Farhoodi, S., Plitt, M.H., Giocomo, L., and Eden, U.T. (2020). Estimating Fluctuations in Neural Representations of Uncertain Environments. 20. .
+.. [1] Farhoodi, S., Plitt, M.H., Giocomo, L., and Eden, U.T. (2020).
+   Estimating Fluctuations in Neural Representations of Uncertain
+   Environments.
 
 """
 

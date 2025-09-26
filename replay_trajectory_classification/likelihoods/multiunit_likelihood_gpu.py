@@ -1,5 +1,9 @@
-"""Estimates a marked point process likelihood where the marks are
-features of the spike waveform using GPUs. Features are float32."""
+"""Estimate marked point process likelihood using GPU acceleration.
+
+This module provides GPU-accelerated functions for computing likelihoods
+from clusterless spike data where marks are float32 waveform features.
+Requires CUDA-compatible hardware and CuPy.
+"""
 
 from __future__ import annotations
 

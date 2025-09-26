@@ -1,8 +1,14 @@
-"""Estimates a marked point process likelihood where the marks are
- features of the spike waveform using GPUs. Mark features are int16.
+"""Estimate marked point process likelihood with GPU and log-space KDE.
 
- This algorithm is more numerically stable KDE done in log space but slower
- right now because of lack of matrix multiplication.
+This module provides GPU-accelerated functions for computing likelihoods
+from clusterless spike data using numerically stable KDE in log space.
+Mark features are int16. More stable but slower than matrix-based versions.
+Requires CUDA.
+
+Notes
+-----
+This algorithm trades speed for numerical stability by performing KDE
+computations in log space, avoiding potential overflow/underflow issues.
 
  Marks are converted to integers and KDE uses hash tables to compute Gaussian
  kernels."""

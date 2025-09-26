@@ -1,4 +1,9 @@
-"""Estimates a Poisson likelihood using place fields estimated with a kernel density estimate."""
+"""Estimate Poisson likelihood using kernel density estimate for place fields.
+
+This module provides functions for estimating spike likelihoods using
+kernel density estimation (KDE) to model spatial firing patterns
+without parametric assumptions.
+"""
 
 from __future__ import annotations
 

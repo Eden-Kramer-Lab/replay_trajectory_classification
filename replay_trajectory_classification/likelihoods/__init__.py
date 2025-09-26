@@ -1,4 +1,16 @@
-"""Functions to fit the position intensities and likelihoods for each data type"""
+"""Likelihood functions for different neural data types.
+
+This subpackage provides likelihood estimation functions for various types
+of neural data including sorted spikes, clusterless spikes, and calcium
+imaging data.
+
+The module supports:
+
+- Sorted spikes: GLM and KDE-based likelihood estimation
+- Clusterless data: Multiunit likelihood functions with mark information
+- Calcium imaging: Gamma likelihood for calcium activity traces
+- GPU acceleration: CUDA implementations for performance
+"""
 
 from __future__ import annotations
 

@@ -1,3 +1,21 @@
+"""Replay trajectory classification package.
+
+A Python package for decoding spatial position from neural activity and
+classifying trajectory types in hippocampal replay events using state-space
+modeling approaches.
+
+The main classes are:
+
+- SortedSpikesClassifier/Decoder: For spike-sorted neural data
+- ClusterlessClassifier/Decoder: For clusterless (unsorted) neural data
+- Environment: Spatial environment representation with discrete grids
+
+Examples
+--------
+>>> from replay_trajectory_classification import SortedSpikesClassifier
+>>> classifier = SortedSpikesClassifier()
+"""
+
 # flake8: noqa
 from track_linearization import (
     get_linearized_position,

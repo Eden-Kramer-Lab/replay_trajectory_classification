@@ -1,4 +1,8 @@
-"""Functions for generating clustered spikes data."""
+"""Functions for generating sorted spike data.
+
+This module provides simulation functions specifically for sorted (clustered)
+spike data used in neural decoding validation and testing.
+"""
 
 from __future__ import annotations
 

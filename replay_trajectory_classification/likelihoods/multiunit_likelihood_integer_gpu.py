@@ -1,8 +1,9 @@
-"""Estimates a marked point process likelihood where the marks are
- features of the spike waveform using GPUs. Mark features are int16.
+"""Estimate marked point process likelihood with GPU and integer features.
 
- Marks are converted to integers and KDE uses hash tables to compute Gaussian
- kernels."""
+This module provides GPU-accelerated functions for computing likelihoods
+from clusterless spike data where marks are int16 features. Uses hash tables
+for efficient Gaussian kernel computation via KDE. Requires CUDA.
+"""
 
 from __future__ import annotations
 

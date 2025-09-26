@@ -1,4 +1,9 @@
-"""Classes for constructing different types of movement models."""
+"""Classes for constructing different types of movement models.
+
+This module provides continuous state transition models that describe how
+animals move through space, including random walks, empirical movement,
+and uniform transitions.
+"""
 
 from __future__ import annotations
 

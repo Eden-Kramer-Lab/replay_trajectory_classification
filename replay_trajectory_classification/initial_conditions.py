@@ -1,4 +1,8 @@
-"""Classes for constructing the initial conditions for the state space models."""
+"""Classes for constructing initial conditions for state space models.
+
+This module provides classes that define initial probability distributions
+over states and spatial bins at the start of decoding/classification.
+"""
 
 from __future__ import annotations
 

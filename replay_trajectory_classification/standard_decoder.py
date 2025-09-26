@@ -1,4 +1,8 @@
-"""Functions for common Bayesian decoding algorithms."""
+"""Functions for common Bayesian decoding algorithms.
+
+This module provides standard implementations of Bayesian decoding approaches
+including maximum a posteriori estimation and other common algorithms.
+"""
 
 from __future__ import annotations
 

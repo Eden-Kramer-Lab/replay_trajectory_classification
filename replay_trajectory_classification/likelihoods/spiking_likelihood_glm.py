@@ -1,5 +1,9 @@
-"""Estimates a Poisson likelihood using place fields estimated with a GLM
-with a spline basis"""
+"""Estimate Poisson likelihood using GLM with spline basis for place fields.
+
+This module provides functions for estimating spike likelihoods using
+Generalized Linear Models (GLM) with spline basis functions to model
+spatial firing patterns.
+"""
 
 from __future__ import annotations
 

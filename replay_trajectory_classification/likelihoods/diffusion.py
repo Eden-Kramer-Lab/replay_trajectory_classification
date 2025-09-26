@@ -1,6 +1,9 @@
-"""Calculate diffusion distances by simulating diffusion at
-each position bin. This can be used for more accurate 2D kernel density
-estimates with boundaries."""
+"""Calculate diffusion distances for accurate boundary-aware density estimates.
+
+This module simulates diffusion at each position bin to provide more accurate
+2D kernel density estimates that properly handle spatial boundaries in complex
+environments.
+"""
 
 from __future__ import annotations
 

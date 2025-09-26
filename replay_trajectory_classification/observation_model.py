@@ -1,4 +1,8 @@
-"""Class for representing an environment and a condition (trial type, etc.)"""
+"""Class for representing observation models.
+
+This module provides the ObservationModel class that pairs environments
+with experimental conditions (trial types, etc.) for neural decoding.
+"""
 
 from __future__ import annotations
 

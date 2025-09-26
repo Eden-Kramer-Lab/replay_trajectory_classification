@@ -1,3 +1,10 @@
+"""Estimate marked point process likelihood on track graph structures.
+
+This module provides functions for computing likelihoods from clusterless
+spike data specifically adapted for track graph representations, allowing
+for more sophisticated spatial modeling on complex track geometries.
+"""
+
 from __future__ import annotations
 
 import copy

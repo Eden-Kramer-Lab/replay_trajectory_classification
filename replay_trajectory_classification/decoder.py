@@ -395,6 +395,25 @@ class _DecoderBase(BaseEstimator):
 
 
 class SortedSpikesDecoder(_DecoderBase):
+    """Decoder for sorted spike data.
+
+    This class provides spatial decoding functionality for sorted (clustered)
+    spike trains using Bayesian state-space models.
+
+    Parameters
+    ----------
+    environment : Environment, optional
+        Spatial environment representation, by default Environment().
+    transition_type : EmpiricalMovement | RandomWalk | RandomWalkDirection1 |
+        RandomWalkDirection2 | Uniform, optional
+        Movement model for state transitions, by default RandomWalk().
+    initial_conditions_type : UniformInitialConditions, optional
+        Initial state probability distribution, by default UniformInitialConditions().
+    infer_track_interior : bool, optional
+        Whether to infer valid track areas from position data, by default True.
+
+    """
+
     def __init__(
         self,
         environment: Environment = Environment(environment_name=""),
@@ -583,23 +602,25 @@ class SortedSpikesDecoder(_DecoderBase):
 
 
 class ClusterlessDecoder(_DecoderBase):
-    """Classifies neural population representation of position from multiunit
-    spikes and waveforms.
+    """Decoder for clusterless (multiunit) spike data.
+
+    This class provides spatial decoding functionality for clusterless spike
+    data using waveform features and marked point processes.
 
     Parameters
     ----------
     environment : Environment, optional
-        The spatial environment to fit
+        The spatial environment to fit, by default Environment().
     transition_type : EmpiricalMovement | RandomWalk | RandomWalkDirection1 |
-        RandomWalkDirection2 | Uniform
-        The continuous state transition matrix
+        RandomWalkDirection2 | Uniform, optional
+        The continuous state transition matrix, by default RandomWalk().
     initial_conditions_type : UniformInitialConditions, optional
-        The initial conditions class instance
+        The initial conditions class instance, by default UniformInitialConditions().
     infer_track_interior : bool, optional
-        Whether to infer the spatial geometry of track from position
-    clusterless_algorithm : str
-        The type of clusterless algorithm. See _ClUSTERLESS_ALGORITHMS for keys
-    clusterless_algorithm_params : dict
+        Whether to infer the spatial geometry of track from position, by default True.
+    clusterless_algorithm : str, optional
+        The type of clusterless algorithm. See _CLUSTERLESS_ALGORITHMS for keys.
+    clusterless_algorithm_params : dict, optional
         Parameters for the clusterless algorithms.
 
     """

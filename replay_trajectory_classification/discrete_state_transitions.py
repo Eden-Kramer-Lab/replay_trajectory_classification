@@ -1,4 +1,9 @@
-"""Classes to generate transitions between categories."""
+"""Classes for generating discrete state transitions.
+
+This module provides discrete state transition models that define
+transition probabilities between different trajectory categories
+or behavioral states.
+"""
 
 from __future__ import annotations
 

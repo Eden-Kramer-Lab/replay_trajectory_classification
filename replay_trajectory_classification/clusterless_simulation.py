@@ -1,4 +1,8 @@
-"""Simulate clusterless spikes and associated spike waveform features."""
+"""Simulate clusterless spikes and associated spike waveform features.
+
+This module provides functions for simulating clusterless (unsorted) spike
+data with associated waveform features used in multiunit decoding approaches.
+"""
 
 from __future__ import annotations
 

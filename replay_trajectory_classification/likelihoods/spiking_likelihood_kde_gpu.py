@@ -1,5 +1,9 @@
-"""Estimates a Poisson likelihood using place fields estimated with a KDE
-using GPUs"""
+"""Estimate Poisson likelihood using GPU-accelerated KDE for place fields.
+
+This module provides GPU-accelerated functions for estimating spike
+likelihoods using kernel density estimation to model spatial firing
+patterns. Requires CUDA-compatible hardware and CuPy.
+"""
 
 from __future__ import annotations
 
